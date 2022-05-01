@@ -1,14 +1,14 @@
-name: "Transcribe youtube videos into posts"
+name: "Collect new keyword suggestions from Google. Uses a seed of keywords."
 
-description: "Pull the youtube video transcription into a markdown file."
+description: "Pull the new keyword suggestions from Google to enrich the niche's trends."
 
 inputs:
-  drafts_path:
-    description: The path to the folder where the draft posts are located
+  keyword_seed:
+    description: The path to the keywords.csv file that will be used as a seed.
 
 outputs:
-  updated_posts:
-    description: A list of updated posts
+  keyword_suggestions:
+    description: The path to the the generated keyworrd suggestions file
 
 runs:
   using: "docker"
