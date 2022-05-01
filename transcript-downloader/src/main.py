@@ -135,7 +135,8 @@ for entry in entries:
                     title, ytvideo))
                 # print("Content is =", post.content.strip())
                 transcription = get_yt_video_transcript(ytvideo, lang)
-                post['transcribed'] = True
+                #post['transcribed'] = True
+                transcribed = True
                 post['youtube_video_id'] = ytvideo
                 post.content = transcription
 
@@ -146,6 +147,9 @@ for entry in entries:
                 post.content = transcription
                 print(transcription)
             finally:
+                print("Adding the transcribed and lang tags")
+                post['transcribed'] = transcribed
+                post['lang'] = lang
                 print("Saving the content of the file")
                 filecontent = frontmatter.dumps(post)
                 with open(folder + "/" + entry, 'w') as f:
