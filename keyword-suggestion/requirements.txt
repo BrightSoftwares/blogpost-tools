@@ -1,2 +1,1 @@
-youtube-transcript-api
-python-frontmatter
+pandas
