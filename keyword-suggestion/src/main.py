@@ -11,6 +11,8 @@ import json
 import time
 
 charList = " " + string.ascii_lowercase + string.digits
+keyword_suggestions_generation_folder = os.getenv('INPUT_KEYWORD_SUGGESTIONS_GENERATION_FOLDER')
+keyword_suggestions_generation_file = keyword_suggestions_generation_folder + "/" + "keyword_suggestions.csv"
 
 def makeGoogleRequest(query):
     # If you make requests too quickly, you may be blocked by google 
@@ -68,7 +70,7 @@ def autocomplete(csv_fileName):
 
     #if we have old results read them
     try:
-        suggestion_df=pd.read_csv("keyword_suggestions.csv")
+        suggestion_df=pd.read_csv(keyword_suggestions_generation_file)
         
     except:
         suggestion_df=pd.DataFrame(columns=['first_seen','last_seen','Keyword','Suggestion'])
@@ -109,7 +111,7 @@ def autocomplete(csv_fileName):
     keywords_df['last_seen']= pd.to_datetime(keywords_df['last_seen'])
     keywords_df['is_new'] = (keywords_df['first_seen']== keywords_df['last_seen'])
     keywords_df=keywords_df[['first_seen','last_seen','Keyword','Suggestion','is_new']]
-    keywords_df.to_csv('keyword_suggestions.csv', index=False)
+    keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
 
 
@@ -125,6 +127,10 @@ LANGUAGE = "en"
 COUNTRY="US"
 # Keyword_seed csv file name. One column csv file.
 #csv_fileName="keyword_seeds.csv"
-CSV_FILE_NAME="keywords.csv"
+
+CSV_FILE_NAME=os.getenv('INPUT_KEYWORD_SEED')
 autocomplete(CSV_FILE_NAME)
 #The result will save in keyword_suggestions.csv csv file
+
+# Output the generated file
+print(keyword_suggestions_generation_file)
