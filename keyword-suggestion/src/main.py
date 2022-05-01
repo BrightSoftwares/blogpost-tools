@@ -9,6 +9,7 @@ import requests
 import string
 import json
 import time
+import os
 
 charList = " " + string.ascii_lowercase + string.digits
 keyword_suggestions_generation_folder = os.getenv('INPUT_KEYWORD_SUGGESTIONS_GENERATION_FOLDER')
