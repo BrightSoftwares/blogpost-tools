@@ -5,6 +5,8 @@ description: "Pull the new keyword suggestions from Google to enrich the niche's
 inputs:
   keyword_seed:
     description: The path to the keywords.csv file that will be used as a seed.
+  keyword_suggestions_generation_folder:
+    description: The folder where we are going to generate the suggestion file
 
 outputs:
   keyword_suggestions:
