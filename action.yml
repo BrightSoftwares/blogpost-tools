@@ -1,0 +1,15 @@
+name: "Transcribe youtube videos into posts"
+
+description: "Pull the youtube video transcription into a markdown file."
+
+inputs:
+  drafts_path:
+    description: The path to the folder where the draft posts are located
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
