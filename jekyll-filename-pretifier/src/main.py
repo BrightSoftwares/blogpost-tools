@@ -27,6 +27,9 @@ for entry in entries:
             oldfilename = "{}/{}".format(folder, entry)
             newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
                                             slugify(title.lower()))
+            
+            print("Saving pretified tag")
+            post['pretified'] = True
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
