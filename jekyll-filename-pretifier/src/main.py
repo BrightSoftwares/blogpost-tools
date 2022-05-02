@@ -17,17 +17,20 @@ for entry in entries:
         # ytvideo_url = post['youtube_video'] if 'youtube_video' in post else None
         pretified = post['pretified'] if 'pretified' in post else None
         post_date = post['date'] if 'date' in post else None
+        fileref = post['ref'] if 'ref' in post else None
 
         if pretified is not True and title is not None:
 
             if post_date is None:
                 post_date = datetime.now()
                 post['date'] = post_date
-
-            fileref = slugify(title.lower())
+                
+            if fileref is None:
+                fileref = slugify(title.lower())
+                
             oldfilename = "{}/{}".format(folder, entry)
             newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
-                                           fileref)
+                                           slugify(title.lower()))
             
             print("Saving pretified and ref tags")
             post['pretified'] = True
