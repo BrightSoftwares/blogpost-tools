@@ -1,0 +1,16 @@
+name: "Rename files to make it compliant with SEO"
+
+description: "Rename the files to make them pretty"
+
+inputs:
+  source_path:
+    description: The path to the folder where the draft posts are located
+  
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
