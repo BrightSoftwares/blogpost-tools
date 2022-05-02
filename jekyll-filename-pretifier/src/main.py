@@ -24,12 +24,14 @@ for entry in entries:
                 post_date = datetime.now()
                 post['date'] = post_date
 
+            fileref = slugify(title.lower())
             oldfilename = "{}/{}".format(folder, entry)
             newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
-                                            slugify(title.lower()))
+                                           fileref)
             
-            print("Saving pretified tag")
+            print("Saving pretified and ref tags")
             post['pretified'] = True
+            post['ref'] = fileref
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
