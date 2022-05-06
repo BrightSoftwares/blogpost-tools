@@ -1,0 +1,27 @@
+name: "Collect new google autocomplete searches. Uses a seed of keywords."
+
+description: "Pull the new autocomplete from Google to enrich the niche's trends."
+
+inputs:
+  keyword_seed:
+    description: The path to the keywords.csv file that will be used as a seed.
+    required: true
+  keyword_suggestions_generation_folder:
+    description: The folder where we are going to generate the suggestion file
+  wait_time:
+    default: 0.2
+  max_workers:
+    default: 20
+  language:
+    default: 'en'
+  country:
+    default: 'us'
+  
+
+outputs:
+  keyword_suggestions:
+    description: The path to the the generated keyworrd suggestions file
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
