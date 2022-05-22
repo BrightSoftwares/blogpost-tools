@@ -125,7 +125,7 @@ def autocomplete(csv_fileName):
     keywords_df['last_seen'] = pd.to_datetime(keywords_df['last_seen'])
     keywords_df['is_new'] = (keywords_df['first_seen']
                              == keywords_df['last_seen'])
-    keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if keywords_df['blogpost_created'] is not None else False
+    keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if 'blogpost_created' in keywords_df.columns else False
     keywords_df = keywords_df[['first_seen', 'last_seen',
                                'Keyword', 'Suggestion', 'is_new', 'blogpost_created']]
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
