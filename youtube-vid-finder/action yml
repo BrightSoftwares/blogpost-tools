@@ -1,0 +1,23 @@
+name: "Add youtube video to blog post"
+
+description: "Finds a youtube video that best suits this title."
+
+inputs:
+  youtube_api_key:
+    description: The API hey that allow us to query youtube. Create it on console.cloud.google.com.
+    required: true
+  yt_already_used_vids:
+    description: The file where we store the list of already used youtube videos, to avoid duplicates.
+  language:
+    default: 'en'
+  country:
+    default: 'us'
+  
+
+outputs:
+  yt_already_used_vids:
+    description: The path to the file that contains the list of used videos
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
