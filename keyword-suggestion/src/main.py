@@ -10,6 +10,7 @@ import string
 import json
 import time
 import os
+import fnmatch
 
 charList = " " + string.ascii_lowercase + string.digits
 keyword_suggestions_generation_folder = os.getenv(
@@ -131,6 +132,44 @@ def autocomplete(csv_fileName):
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
 
+def add_volumes_data(folder):
+    # Load the volume data from local csv
+    entries = os.listdir(folder)
+    final_keywords_df = None
+    for entry in entries:
+        if fnmatch.fnmatch(entry, 'Keyword Stats *.csv'):
+            print(entry)
+            # print(entry)
+            try:
+                tmp_final_keywords_df = pd.read_csv(
+                    keyword_suggestions_generation_folder + "/" + entry, delimiter='\t', encoding="ISO-8859-1")
+                final_keywords_df = tmp_final_keywords_df if final_keywords_df is None else pd.concat((final_keywords_df,
+                                                                                                      tmp_final_keywords_df))
+
+            except Exception as e:
+                print("An error occured. Error = ", str(e))
+        else:
+            print("The file does not match the keyword planner pattern", entry)
+
+    # Add the volumes data
+    suggested_kw_df = pd.read_csv(keyword_suggestions_generation_file)
+    merged_df = suggested_kw_df.merge(
+        final_keywords_df, how='left', left_on='Suggestion', right_on='Keyword')
+
+    merged_df.to_csv(keyword_suggestions_generation_folder +
+                     "/keyword_suggestions_merged.csv", index=False)
+
+    # Generate a file containing the keyword with no volume data
+    cond = merged_df['Suggestion'].isin(final_keywords_df['Keyword'])
+    missing_volume_kw_df = merged_df.drop(
+        merged_df[cond].index, inplace=False)
+    missing_volume_kw_df.to_csv(keyword_suggestions_generation_folder +
+                                "/keyword_suggestions_missing.csv", index=False)
+    missing_volume_kw_1col_df = missing_volume_kw_df.iloc[:, 3]
+    missing_volume_kw_1col_df.to_csv(keyword_suggestions_generation_folder +
+                                     "/keyword_suggestions_missing_1col.csv", index=False)
+
+
 # If you use more than 50 seed keywords you should slow down your requests - otherwise google is blocking the script
 # If you have thousands of seed keywords use e.g. WAIT_TIME = 1 and MAX_WORKERS = 5
 WAIT_TIME = 0.2
@@ -143,8 +182,11 @@ COUNTRY = "US"
 # csv_fileName="keyword_seeds.csv"
 
 CSV_FILE_NAME = os.getenv('INPUT_KEYWORD_SEED')
-autocomplete(CSV_FILE_NAME)
-# The result will save in keyword_suggestions.csv csv file
+# autocomplete(CSV_FILE_NAME)
+
+# Merge data
+keywordplanner_folder = folder = os.getenv('INPUT_DRAFTS_PATH')
+add_volumes_data(keywordplanner_folder)
 
 # Output the generated file
 print(keyword_suggestions_generation_file)
