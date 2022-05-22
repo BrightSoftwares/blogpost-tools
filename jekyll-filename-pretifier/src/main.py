@@ -24,14 +24,14 @@ for entry in entries:
             if post_date is None:
                 post_date = datetime.now()
                 post['date'] = post_date
-                
+
             if fileref is None:
                 fileref = slugify(title.lower())
-                
+
             oldfilename = "{}/{}".format(folder, entry)
             newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
-                                           slugify(title.lower()))
-            
+                                               slugify(title.lower()))
+
             print("Saving pretified and ref tags")
             post['pretified'] = True
             post['ref'] = fileref
