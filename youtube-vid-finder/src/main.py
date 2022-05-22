@@ -46,6 +46,7 @@ def youtube_search(query, max_results=25):
         video_kind = search_result['id']['kind']
         video_title = search_result['snippet']['title']
         video_id = search_result['id']['videoId']
+        video_description = search_result['snippet']['description']
         video_used = video_id in used_vids_df['yt_video_id'].unique()
 
         print("Video with id {} already used? {}".format(video_id, video_used))
@@ -53,7 +54,7 @@ def youtube_search(query, max_results=25):
         if video_kind == 'youtube#video' and not video_used:
             # videos.append('%s (%s)' % (search_result['snippet']['title'],
             #                            search_result['id']['videoId']))
-            best_video_id = [video_title, video_id]
+            best_video_id = [video_title, video_id, video_description]
 
             # We return the one that suits our needs
             break
@@ -94,12 +95,16 @@ def blogpost_to_ytvideo():
 
                 # Get the best video for this query
                 video_found = youtube_search(title)
+                video_found_title = video_found[0]
                 video_found_id = video_found[1]
+                video_found_description = video_found[2]
 
                 print("Saving youtube_video and youtube_video_id tags")
                 post['youtube_video'] = "http://www.youtube.com/watch?v={}".format(
                     video_found_id)
                 post['youtube_video_id'] = video_found_id
+                post['youtube_video_title'] = video_found_title
+                post['youtube_video_description'] = video_found_description
 
                 print("Saving the content of the file")
                 filecontent = frontmatter.dumps(post)
