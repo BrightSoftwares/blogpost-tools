@@ -9,6 +9,9 @@ inputs:
   keyword_suggestion:
     description: The path to the keyword_suggestions.csv file that will be used as a source.
     default: keyword_suggestions.csv
+  batch_size:
+    description: The amount of suggestion to process in a batch
+    default: 10
 
   
 
