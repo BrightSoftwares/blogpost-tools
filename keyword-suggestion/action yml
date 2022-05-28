@@ -8,6 +8,9 @@ inputs:
     required: true
   keyword_suggestions_generation_folder:
     description: The folder where we are going to generate the suggestion file
+  drafts_path:
+    description: The path to the folder where your drafts are. The Google keyword planner csv files are also there.
+    required: true
   wait_time:
     default: 0.2
   max_workers:
