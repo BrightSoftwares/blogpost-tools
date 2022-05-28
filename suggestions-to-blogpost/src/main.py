@@ -29,9 +29,13 @@ def suggestion_to_blogpost():
     # Loop through the keyword suggestions and process the ones with the blogpost_created = false
     try:
         suggestion_df_orig = pd.read_csv(keyword_suggestions_generation_file)
-        suggestion_df = suggestion_df_orig.loc[suggestion_df_orig['Avg. monthly searches'] > 0]
-
-        if 'blogpost_created' in suggestion_df.columns and 'Suggestion' in suggestion_df.columns:
+        #suggestion_df = suggestion_df_orig.loc[suggestion_df_orig['Avg. monthly searches'] > 0]
+        
+        # We make sure that there are blogpost_created and Suggestion coulmns in this df
+        if 'blogpost_created' in suggestion_df_orig.columns and 'Suggestion' in suggestion_df_orig.columns:
+            
+            suggestion_df = suggestion_df_orig[ suggestion_df_orig['blogpost_created'] == False ]
+            suggestion_df = suggestion_df.head(batch_size) # Process only the first item of the batch_size amount of blog posts
 
             # Create the blogpost in the suggested folder
             for index, row in suggestion_df.iterrows():
