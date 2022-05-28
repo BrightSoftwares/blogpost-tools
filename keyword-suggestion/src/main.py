@@ -172,8 +172,8 @@ def add_volumes_data(folder):
     cond = merged_df['Suggestion'].isin(final_keywords_df['Keyword'])
     #missing_volume_kw_df = merged_df.drop(merged_df[cond].index, inplace=False)
     missing_volume_kw_df = merged_df[ merged_df.Competition.isnull()]
-    missing_volume_kw_df.to_csv(keyword_suggestions_generation_folder +
-                                "/keyword_suggestions_missing.csv", index=False)
+    missing_volume_kw_df = missing_volume_kw_df[ merged_df["Avg. monthly searches"].isnull()]
+    missing_volume_kw_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_missing.csv", index=False)
     missing_volume_kw_1col_df = missing_volume_kw_df.iloc[:, 3]
     missing_volume_kw_1col_df.to_csv(keyword_suggestions_generation_folder +
                                      "/keyword_suggestions_missing_1col.csv", index=False)
