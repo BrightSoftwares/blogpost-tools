@@ -161,11 +161,17 @@ def add_volumes_data(folder):
     
     merged_df_perbidcost = merged_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Top of page bid (low range)'], ascending=[True, False, False])
     merged_df_perbidcost.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_per_bid_cost_low.csv", index=False)
+    
+    # Generate a file with keywords that meet the requirements for a blogpost
+    blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] >= 500 ]
+    blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' ]
+    blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
+    blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_blogpost_candidates.csv", index=False)
 
     # Generate a file containing the keyword with no volume data
     cond = merged_df['Suggestion'].isin(final_keywords_df['Keyword'])
-    missing_volume_kw_df = merged_df.drop(
-        merged_df[cond].index, inplace=False)
+    #missing_volume_kw_df = merged_df.drop(merged_df[cond].index, inplace=False)
+    missing_volume_kw_df = merged_df[ merged_df.Competition.isnull()]
     missing_volume_kw_df.to_csv(keyword_suggestions_generation_folder +
                                 "/keyword_suggestions_missing.csv", index=False)
     missing_volume_kw_1col_df = missing_volume_kw_df.iloc[:, 3]
