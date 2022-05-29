@@ -129,6 +129,9 @@ def autocomplete(csv_fileName):
     keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if 'blogpost_created' in keywords_df.columns else False
     keywords_df = keywords_df[['first_seen', 'last_seen',
                                'Keyword', 'Suggestion', 'is_new', 'blogpost_created']]
+    
+    # Remove duplicates
+    keywords_df.drop_duplicates(inplace=True)
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
 
