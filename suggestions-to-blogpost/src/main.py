@@ -24,7 +24,7 @@ keyword_suggestions_generation_file = keyword_suggestions_generation_folder + \
 
 def suggestion_to_blogpost():
     destination_folder = os.getenv('INPUT_DRAFTS_PATH')
-    batch_size = os.getenv('INPUT_BATCH_SIZE')
+    batch_size = int(os.getenv('INPUT_BATCH_SIZE'))
 
     # Loop through the keyword suggestions and process the ones with the blogpost_created = false
     try:
