@@ -55,9 +55,9 @@ def suggestion_to_blogpost():
         else:
             print(
                 "Could not find the column blogpost_created or Suggestion in the csv file")
-    except:
-        print("Cannot read the keyword suggestion file ",
-              keyword_suggestions_generation_file)
+    except Exception as e:
+        #print("Cannot read the keyword suggestion file ", keyword_suggestions_generation_file)
+        print("An error occured. ", str(e))
 
 
 def generate_blog_post(destination_folder, title):
