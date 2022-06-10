@@ -17,7 +17,7 @@ keyword_suggestions_generation_folder = os.getenv(
     'INPUT_KEYWORD_SUGGESTIONS_GENERATION_FOLDER')
 keyword_suggestions_generation_file = keyword_suggestions_generation_folder + \
     "/" + "keyword_suggestions.csv"
-keyword_min_volume_eligible = int(os.getenv(INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE))
+keyword_min_volume_eligible = int(os.getenv('INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE'))
 
 
 def makeGoogleRequest(query):
