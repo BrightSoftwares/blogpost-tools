@@ -17,6 +17,7 @@ keyword_suggestions_generation_folder = os.getenv(
     'INPUT_KEYWORD_SUGGESTIONS_GENERATION_FOLDER')
 keyword_suggestions_generation_file = keyword_suggestions_generation_folder + \
     "/" + "keyword_suggestions.csv"
+keyword_min_volume_eligible = int(os.getenv(INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE))
 
 
 def makeGoogleRequest(query):
@@ -166,7 +167,7 @@ def add_volumes_data(folder):
     merged_df_perbidcost.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_per_bid_cost_low.csv", index=False)
     
     # Generate a file with keywords that meet the requirements for a blogpost
-    blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] >= 500 ]
+    blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] >= keyword_min_volume_eligible ]
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' ]
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
     blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_blogpost_candidates.csv", index=False)
