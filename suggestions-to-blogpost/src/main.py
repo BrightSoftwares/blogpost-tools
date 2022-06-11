@@ -74,6 +74,7 @@ def generate_blog_post(destination_folder, title, language):
         post['title'] = title
         post['date'] = date.today()
         post['lang'] = language
+        post['keyword_suggestion'] = title.lower()
 
         newfilename = "{}/{}-{}.md".format(destination_folder, post_date_str,
                                            slugify(title.lower()))
