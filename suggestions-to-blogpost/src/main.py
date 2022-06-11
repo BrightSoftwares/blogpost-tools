@@ -22,9 +22,11 @@ keyword_suggestions_generation_file = keyword_suggestions_generation_folder + \
     "/" + keyword_suggestion
 
 
+
 def suggestion_to_blogpost():
     destination_folder = os.getenv('INPUT_DRAFTS_PATH')
     batch_size = int(os.getenv('INPUT_BATCH_SIZE'))
+    language = os.getenv('INPUT_LANGUAGE')
 
     # Loop through the keyword suggestions and process the ones with the blogpost_created = false
     try:
@@ -42,7 +44,7 @@ def suggestion_to_blogpost():
                 # print(row)
                 if not row['blogpost_created']:
                     success = generate_blog_post(destination_folder,
-                                                 row['Suggestion'].capitalize())
+                                                 row['Suggestion'].capitalize(), language)
 
                     # Set the keyword suggestion blogpost_created to true
                     suggestion_df['blogpost_created'] = success
@@ -60,7 +62,7 @@ def suggestion_to_blogpost():
         print("An error occured. ", str(e))
 
 
-def generate_blog_post(destination_folder, title):
+def generate_blog_post(destination_folder, title, language):
 
     print("Generate blog post", title)
     try:
@@ -71,6 +73,7 @@ def generate_blog_post(destination_folder, title):
         print("Updating frontmatter")
         post['title'] = title
         post['date'] = date.today()
+        post['lang'] = language
 
         newfilename = "{}/{}-{}.md".format(destination_folder, post_date_str,
                                            slugify(title.lower()))
