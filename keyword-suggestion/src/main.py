@@ -177,7 +177,7 @@ def add_volumes_data(folder):
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
     print("3. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
     
-    blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_blogpost_candidates.csv", index=False, mode='a')
+    blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_blogpost_candidates.csv", index=False)
 
     # Generate a file containing the keyword with no volume data
     cond = merged_df['Suggestion'].isin(final_keywords_df['Keyword'])
