@@ -169,8 +169,14 @@ def add_volumes_data(folder):
     # Generate a file with keywords that meet the requirements for a blogpost
     print("Keeping only the keywords with volume above", keyword_min_volume_eligible)
     blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] >= keyword_min_volume_eligible ]
+    print("1. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
+    
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' ]
+    print("2. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
+    
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
+    print("3. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
+    
     blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_blogpost_candidates.csv", index=False)
 
     # Generate a file containing the keyword with no volume data
