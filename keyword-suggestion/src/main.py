@@ -207,6 +207,7 @@ def add_volumes_data(folder):
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
     
     print("Saving the blogpost_candidates_df to disk")
+    blogpost_candidates_df['blogpost_created'].fillna(value={'blogpost_created':False})
     blogpost_candidates_df.to_csv(keyword_suggestions_blogpost_file, index=False)
 
     # Generate a file containing the keyword with no volume data
