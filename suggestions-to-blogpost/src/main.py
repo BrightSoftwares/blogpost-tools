@@ -48,7 +48,7 @@ def suggestion_to_blogpost():
                                                  row['Suggestion'].capitalize(), language)
 
                     # Set the keyword suggestion blogpost_created to true
-                    suggestion_df['blogpost_created'] = success
+                    row['blogpost_created'] = success
                     
                     # Increment the nb processed items if the blog post has been created successfully
                     if success:
