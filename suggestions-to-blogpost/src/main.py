@@ -46,9 +46,10 @@ def suggestion_to_blogpost():
                 if not row['blogpost_created']:
                     success = generate_blog_post(destination_folder,
                                                  row['Suggestion'].capitalize(), language)
+                    print("Result of blogpost generation: ", success)
 
                     # Set the keyword suggestion blogpost_created to true
-                    row['blogpost_created'] = success
+                    suggestion_df.at[index,'blogpost_created'] = success #row['blogpost_created'] = success
                     
                     # Increment the nb processed items if the blog post has been created successfully
                     if success:
