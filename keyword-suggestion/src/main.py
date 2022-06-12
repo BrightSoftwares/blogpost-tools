@@ -216,7 +216,7 @@ def add_volumes_data(folder):
 
     print("Size merged_df =", merged_df.shape)
     
-    missing_volume_kw_df = merged_df[ merged_df.Competition.isnull()]
+    #missing_volume_kw_df = merged_df[ merged_df.Competition.isnull()]
     print("Size missing_volume_kw_df =", missing_volume_kw_df.shape)
 
     missing_volume_kw_df = missing_volume_kw_df[ merged_df["Avg. monthly searches"].isnull()]
