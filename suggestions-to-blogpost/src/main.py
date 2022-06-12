@@ -37,9 +37,10 @@ def suggestion_to_blogpost():
         if 'blogpost_created' in suggestion_df_orig.columns and 'Suggestion' in suggestion_df_orig.columns:
             
             suggestion_df = suggestion_df_orig[ suggestion_df_orig['blogpost_created'] == False ]
-            suggestion_df = suggestion_df.head(batch_size) # Process only the first item of the batch_size amount of blog posts
+            #suggestion_df = suggestion_df.head(batch_size) # Process only the first item of the batch_size amount of blog posts
 
             # Create the blogpost in the suggested folder
+            nb_rows_processed = 0
             for index, row in suggestion_df.iterrows():
                 # print(row)
                 if not row['blogpost_created']:
@@ -48,9 +49,18 @@ def suggestion_to_blogpost():
 
                     # Set the keyword suggestion blogpost_created to true
                     suggestion_df['blogpost_created'] = success
+                    
+                    # Increment the nb processed items if the blog post has been created successfully
+                    if success:
+                        nb_rows_processed = nb_rows_processed + 1
+                        print("Processed {} items.".format(nb_rows_processed))
                 else:
                     print("This suggestion have been already generated: {}".format(
                         row['Suggestion']))
+                    
+                if nb_rows_processed >= batch_size:
+                    break
+                    
             # Save the csv file
             suggestion_df.to_csv(
                 keyword_suggestions_generation_file, index=False)
