@@ -179,20 +179,30 @@ def add_volumes_data(folder):
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
     print("3. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
     
-    # Load previously processed blogpost created data
-    # 1. Merge data from csv with this one
+    print("Load previously processed blogpost created data")
+    print(" 1. Merge data from csv with this one")
+    print(" Checking if file {} exists".format(keyword_suggestions_blogpost_file))
     if os.path.exists(keyword_suggestions_blogpost_file):
+        print("File exists:", keyword_suggestions_blogpost_file)
         exiting_blogpost_candidates_df = pd.read_csv(keyword_suggestions_blogpost_file)
+        print("exiting_blogpost_candidates_df Size =", exiting_blogpost_candidates_df.shape)
+        
         blogpost_candidates_df = pd.concat([blogpost_candidates_df, exiting_blogpost_candidates_df], ignore_index=True, sort=False)
+        print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
-        # Sort by blogpost created to be able to remove duplicates
+        print("Sort by blogpost created to be able to remove duplicates")
         blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[True])
+        print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
-        # 2. Remove duplicates
+        print(" 2. Remove duplicates")
         blogpost_candidates_df = blogpost_candidates_df.drop_duplicates(subset=['Keyword_x', 'Suggestion', 'Keyword_y'], keep='last')
+        print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
-    # 3. Sort the dataframe back to it's original sorting before saving
+    print(" 3. Sort the dataframe back to it's original sorting before saving")
     blogpost_candidates_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
+    print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
+    
+    print("Saving the blogpost_candidates_df to disk")
     blogpost_candidates_df.to_csv(keyword_suggestions_blogpost_file, index=False)
 
     # Generate a file containing the keyword with no volume data
