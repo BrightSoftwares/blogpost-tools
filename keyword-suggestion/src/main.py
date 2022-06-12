@@ -137,6 +137,7 @@ def autocomplete(csv_fileName):
 
 
 def add_volumes_data(folder):
+    print("Pandas version:", pd.__version__)
     # Load the volume data from local csv
     entries = os.listdir(folder)
     final_keywords_df = None
