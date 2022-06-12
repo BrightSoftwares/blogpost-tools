@@ -36,13 +36,13 @@ def suggestion_to_blogpost():
         # We make sure that there are blogpost_created and Suggestion coulmns in this df
         if 'blogpost_created' in suggestion_df_orig.columns and 'Suggestion' in suggestion_df_orig.columns:
             
-            suggestion_df = suggestion_df_orig[ suggestion_df_orig['blogpost_created'] == False ]
+            suggestion_df = suggestion_df_orig #suggestion_df_orig[ suggestion_df_orig['blogpost_created'] == False ]
             #suggestion_df = suggestion_df.head(batch_size) # Process only the first item of the batch_size amount of blog posts
 
             # Create the blogpost in the suggested folder
             nb_rows_processed = 0
             for index, row in suggestion_df.iterrows():
-                # print(row)
+                print("Processing row:", row)
                 if not row['blogpost_created']:
                     success = generate_blog_post(destination_folder,
                                                  row['Suggestion'].capitalize(), language)
