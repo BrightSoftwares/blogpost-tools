@@ -186,7 +186,7 @@ def add_volumes_data(folder):
         blogpost_candidates_df = pd.concat([blogpost_candidates_df, exiting_blogpost_candidates_df], ignore_index=True, sort=False)
         
         # Sort by blogpost created to be able to remove duplicates
-        blogpost_blogpost_candidates_df = candidates_df.sort_values(by=['blogpost_created'], ascending=[True])
+        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[True])
         
         # 2. Remove duplicates
         blogpost_candidates_df = blogpost_candidates_df.drop_duplicates(subset=['Keyword_x', 'Suggestion', 'Keyword_y'], keep='last')
