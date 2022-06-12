@@ -191,7 +191,7 @@ def add_volumes_data(folder):
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print("Sort by blogpost created to be able to remove duplicates")
-        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[False])
+        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[True])
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print(" 2. Remove duplicates")
