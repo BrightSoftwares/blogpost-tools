@@ -163,6 +163,7 @@ def add_volumes_data(folder):
         final_keywords_df, how='left', left_on='Suggestion', right_on='Keyword')
     
     merged_df = merged_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
+    merged_df['blogpost_created'] = merged_df['blogpost_created'].fillna(False)
     merged_df.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged.csv", index=False)
     
     merged_df_perbidcost = merged_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Top of page bid (low range)'], ascending=[True, False, False])
