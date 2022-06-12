@@ -191,16 +191,16 @@ def add_volumes_data(folder):
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print("Sort by blogpost created to be able to remove duplicates")
-        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[True])
+        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created'], ascending=[False])
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print(" 2. Remove duplicates")
         blogpost_candidates_df = blogpost_candidates_df.drop_duplicates(subset=['Keyword_x', 'Suggestion', 'Keyword_y'], keep='last')
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
-    print(" 3. Sort the dataframe back to it's original sorting before saving")
-    blogpost_candidates_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
-    print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
+        print(" 3. Sort the dataframe back to it's original sorting before saving")
+        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
+        print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
     
     print("Saving the blogpost_candidates_df to disk")
     blogpost_candidates_df.to_csv(keyword_suggestions_blogpost_file, index=False)
