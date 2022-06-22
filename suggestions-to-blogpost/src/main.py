@@ -46,7 +46,7 @@ def suggestion_to_blogpost():
                 print("blogpost_created is NA:", pd.isna(row['blogpost_created']))
                 print("blogpost_created is False/True?:", not row['blogpost_created'])
                 
-                if pd.isna(row['blogpost_created']) and not row['blogpost_created']:
+                if pd.isna(row['blogpost_created']) and row['blogpost_created'] is not True:
                     success = generate_blog_post(destination_folder,
                                                  row['Suggestion'].capitalize(), language)
                     print("Result of blogpost generation: ", success)
