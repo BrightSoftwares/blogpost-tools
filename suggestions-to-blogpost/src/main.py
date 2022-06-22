@@ -43,7 +43,7 @@ def suggestion_to_blogpost():
             nb_rows_processed = 0
             for index, row in suggestion_df.iterrows():
                 print("Processing row:", row)
-                if pd.isna(row['blogpost_created']) or not row['blogpost_created']:
+                if pd.isna(row['blogpost_created']) and not row['blogpost_created']:
                     success = generate_blog_post(destination_folder,
                                                  row['Suggestion'].capitalize(), language)
                     print("Result of blogpost generation: ", success)
