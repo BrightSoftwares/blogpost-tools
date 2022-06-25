@@ -1,0 +1,17 @@
+name: "Translate posts into the desired language"
+
+description: "You have posts written in markdown? You can translate them automatically into another language."
+
+inputs:
+  src_folder:
+    description: The path to the folder where the posts to translate are located
+  dest_folder:
+    description: The path where you want to store the translated file.
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
