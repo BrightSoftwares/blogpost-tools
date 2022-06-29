@@ -40,10 +40,10 @@ for entry in entries:
             print("Wordpress frontmatter variable =", wordpress_frontmatter)
             if wordpress_frontmatter:
                 print("Adding additional variables to frontmatter to support wordpress")
-                post['featured_image'] = post['image']
+                post['featured_image'] = post['image']  if 'image' in post else None
                 post['menu_order'] = 0
-                post['post_date'] = "{} 10:29:02".format(post['date'])
-                post['post_excerpt'] = post['description']
+                post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
+                post['post_excerpt'] = post['description']  if 'description' in post else None
                 post['post_status'] = "future"
                 post['taxonomy']['category'] = ['drones', 'best technology']
                 post['taxonomy']['post_tag'] = ['diy', 'guided choice']
