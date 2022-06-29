@@ -7,6 +7,8 @@ inputs:
     description: The path to the folder where the posts to translate are located
   dest_folder:
     description: The path where you want to store the translated file.
+  scan_folder:
+    description: The path where you want to scan missing posts. Once found they will be generated in the dest_folder
 
 outputs:
   updated_posts:
