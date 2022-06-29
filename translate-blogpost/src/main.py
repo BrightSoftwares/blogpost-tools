@@ -45,7 +45,7 @@ def replace_tokens_with_codeblocks(content, tokens):
   return content
 
 # process the markdown files one by one
-def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang):
+def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang, dry_run=False):
   
   print("Processing post folder", src_folder_path)
   src_entries = glob.glob(src_folder_path + "/**/*.md", recursive=True) #[f for f in os.listdir(src_folder_path) if f.endswith('.md')]
@@ -130,8 +130,12 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
                   post['pretified'] = False # So that the file name gets generated again
                   print("Saving the content of the file")
                   filecontent = frontmatter.dumps(post)
-                  with open(dest_folder_path + "/" + os.path.basename(entry), 'w') as f:
-                      f.write(filecontent)
+                  
+                  if not dry_run:
+                    with open(dest_folder_path + "/" + os.path.basename(entry), 'w') as f:
+                        f.write(filecontent)
+                  else:
+                    print("In dry run mode, skipping file write ...")
             else:
               print("Post with ref {} is already translated".format(ref))
           else:
@@ -172,5 +176,6 @@ src_folder_path = os.getenv('INPUT_SRC_FOLDER')
 dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
 scan_folder_path = os.getenv('INPUT_SCAN_FOLDER')
 dest_lang = os.getenv('INPUT_DEST_LANG')
+dry_run = os.getenv('INPUT_DRY_RUN')
 
-process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang)
+process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang, dry_run)
