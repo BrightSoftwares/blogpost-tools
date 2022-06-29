@@ -8,6 +8,7 @@ from slugify import slugify
 
 #folder = '../../en/_drafts/'
 folder = os.getenv('INPUT_DRAFTS_PATH')
+wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER')
 entries = os.listdir(folder)
 for entry in entries:
     # print(entry)
@@ -35,6 +36,15 @@ for entry in entries:
             print("Saving pretified and ref tags")
             post['pretified'] = True
             post['ref'] = fileref
+            
+            if wordpress_frontmatter is not None and wordpress_frontmatter == True:
+                post['featured_image'] = post['image']
+                post['menu_order'] = 0
+                post['post_date'] = "{} 10:29:02".format(post['date'])
+                post['post_excerpt'] = post['description']
+                post['post_status'] = "future"
+                post['taxonomy']['category'] = ['drones', 'best technology']
+                post['taxonomy']['post_tag'] = ['diy', 'guided choice']
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
