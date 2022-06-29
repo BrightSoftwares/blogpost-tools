@@ -2,6 +2,7 @@ from googletrans import Translator
 import frontmatter
 import os
 import re
+import glob
 
 translator = Translator()
 
@@ -44,16 +45,16 @@ def replace_tokens_with_codeblocks(content, tokens):
   return content
 
 # process the markdown files one by one
-def process_source_markdown(src_folder_path, dest_folder_path, dest_lang):
+def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang):
   
   print("Processing post folder", src_folder_path)
-  src_entries = [f for f in os.listdir(src_folder_path) if f.endswith('.md')]
-  dest_entries = [f for f in os.listdir(dest_folder_path) if f.endswith('.md')]
+  src_entries = glob.glob(src_folder_path + "/**/*.md", recursive=True) #[f for f in os.listdir(src_folder_path) if f.endswith('.md')]
+  scanned_entries = glob.glob(scan_folder_path + "/**/*.md", recursive=True) #[f for f in os.listdir(dest_folder_path) if f.endswith('.md')]
 
   for entry in src_entries:
       # print(entry)
       try:
-          src_post_filepath = src_folder_path + "/" + entry
+          src_post_filepath = entry #src_folder_path + "/" + entry
           print("Loading src file", src_post_filepath)
           post = frontmatter.load(src_post_filepath)
           title = post['title'] if 'title' in post else None
@@ -65,8 +66,8 @@ def process_source_markdown(src_folder_path, dest_folder_path, dest_lang):
 
             already_translated = False
 
-            for dest_entry in dest_entries:
-              dest_post_filepath = dest_folder_path + "/" + dest_entry
+            for scanned_entry in scanned_entries:
+              dest_post_filepath = scanned_entry #dest_folder_path + "/" + dest_entry
               print("   Loading dest file", dest_post_filepath)
               dest_post = frontmatter.load(dest_post_filepath)
               dest_ref = dest_post['ref'] if 'ref' in dest_post else None
@@ -129,7 +130,7 @@ def process_source_markdown(src_folder_path, dest_folder_path, dest_lang):
                   post['pretified'] = False # So that the file name gets generated again
                   print("Saving the content of the file")
                   filecontent = frontmatter.dumps(post)
-                  with open(dest_folder_path + "/" + entry, 'w') as f:
+                  with open(dest_folder_path + "/" + os.path.basename(entry), 'w') as f:
                       f.write(filecontent)
             else:
               print("Post with ref {} is already translated".format(ref))
@@ -138,6 +139,7 @@ def process_source_markdown(src_folder_path, dest_folder_path, dest_lang):
 
       except Exception as e:
           print("Error. = ", str(e))
+
 
 
 def process_markdown_file():
@@ -168,5 +170,7 @@ def translate_text(post_sections, src_lang, dest_lang):
 #
 src_folder_path = os.getenv('INPUT_SRC_FOLDER')
 dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
+scan_folder_path = os.getenv('INPUT_SCAN_FOLDER')
 dest_lang = os.getenv('INPUT_DEST_LANG')
-process_source_markdown(src_folder_path, dest_folder_path, dest_lang)
+
+process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang)
