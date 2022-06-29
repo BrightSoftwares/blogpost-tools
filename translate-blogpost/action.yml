@@ -9,6 +9,9 @@ inputs:
     description: The path where you want to store the translated file.
   scan_folder:
     description: The path where you want to scan missing posts. Once found they will be generated in the dest_folder
+  dry_run:
+    type: boolean
+    description: Whether to write translated files to disk or not.
 
 outputs:
   updated_posts:
