@@ -64,7 +64,7 @@ def is_valid_suggestion(suggestion):
     is_char_safe = any(elem in suggestion for elem in invalid_chars)
     is_length_safe = len(suggestion.split(" ")) < 10
     print("Suggestion {} is charsafe? {} and length safe? {}".format(is_char_safe, is_length_safe))
-    return is_char_safe && is_length_safe
+    return is_char_safe and is_length_safe
     
                      
 
