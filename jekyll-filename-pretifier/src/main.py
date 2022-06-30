@@ -8,7 +8,7 @@ from slugify import slugify
 
 #folder = '../../en/_drafts/'
 folder = os.getenv('INPUT_DRAFTS_PATH')
-wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER')
+wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER', default=False)
 entries = os.listdir(folder)
 for entry in entries:
     # print(entry)
