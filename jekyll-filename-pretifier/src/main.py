@@ -45,7 +45,7 @@ for entry in entries:
                 post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
                 post['post_status'] = "future"
-                post['taxonomy'] = { 'category': ['drones', 'best technology'], 'post_tag': ['diy', 'guided choice'] }
+                post['taxonomy'] = { 'category': ['drones'], 'post_tag': ['diy', 'productivity'] }
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
