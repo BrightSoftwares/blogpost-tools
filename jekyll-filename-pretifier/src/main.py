@@ -38,7 +38,7 @@ for entry in entries:
             post['ref'] = fileref
             
             print("Wordpress frontmatter variable = {} of type {}".format(wordpress_frontmatter, type(wordpress_frontmatter))
-            if wordpress_frontmatter:
+            if wordpress_frontmatter == "true":
                 print("Adding additional variables to frontmatter to support wordpress")
                 post['featured_image'] = post['image']  if 'image' in post else None
                 post['menu_order'] = 0
