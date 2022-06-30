@@ -58,6 +58,17 @@ def getGoogleSuggests(keyword):
     return suggestions
 
 
+def is_valid_suggestion(suggestion):
+    # A suggestion must not contain any of these characters : \!@%,*{}<>;
+    invalid_chars = r"\!@%,*{}<>;"
+    is_char_safe = any(elem in suggestion for elem in invalid_chars)
+    is_length_safe = len(suggestion.split(" ")) < 10
+    print("Suggestion {} is charsafe? {} and length safe? {}".format(is_char_safe, is_length_safe))
+    return is_char_safe && is_length_safe
+    
+                     
+
+
 def autocomplete(csv_fileName):
     dateTimeObj = datetime.now().date()
     # read your csv file that contain keywords that you want to send to google autocomplete
@@ -72,7 +83,8 @@ def autocomplete(csv_fileName):
         for future in concurrent.futures.as_completed(futuresGoogle):
             key = futuresGoogle[future]
             for suggestion in future.result():
-                resultList.append([key, suggestion])
+                if is_valid_suggestion(suggestion):
+                    resultList.append([key, suggestion])
 
     # Convert the results to a dataframe
     suggestion_new = pd.DataFrame(
