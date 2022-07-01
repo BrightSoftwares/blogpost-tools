@@ -13,10 +13,6 @@ inputs:
   dest_lang:
     description: In which language do you want to translate the result
     default: en
-  wordpress_frontmatter:
-    description: Set to true if you want to add frontmatter variables to push your post to wordpress with git-it-write
-    default: False
-    type: boolean
   
 
 outputs:
