@@ -1,0 +1,28 @@
+name: "Blog inspiration converter"
+
+description: "Download inspiration file, extract the body, convert it into markdown and translate it into the choosen language"
+
+inputs:
+  src_folder:
+    description: The path to the folder where the inspired posts are located
+  dest_folder:
+    description: The path to the folder where you want to store the result of the convertion
+  dry_run:
+    description: Whether to run this for real or just as a simulation
+    default: false
+  dest_lang:
+    description: In which language do you want to translate the result
+    default: en
+  wordpress_frontmatter:
+    description: Set to true if you want to add frontmatter variables to push your post to wordpress with git-it-write
+    default: False
+    type: boolean
+  
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
