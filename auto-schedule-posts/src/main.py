@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import frontmatter
 import datetime
+import glob
 from datetime import timedelta
 
 def reschedule_files(posts_df, src_folder_path, dest_folder_path, dry_run):
@@ -30,12 +31,12 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, nb_days_ah
   # Get all the post from that folder
 
   posts = []
-  entries = os.listdir(src_folder_path)
+  entries = glob.glob(src_folder_path + "/**/*.md", recursive=True) #os.listdir(src_folder_path)
   for entry in entries:
 
       post_score = 0
       try:
-
+        entry = os.path.basename(entry)
         print("Processing entry {}, dry run {} ({})".format(entry, dry_run, type(dry_run)))
         post = frontmatter.load(src_folder_path + "/" + entry)
         post_date = None
