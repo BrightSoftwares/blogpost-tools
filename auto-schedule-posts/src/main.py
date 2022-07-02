@@ -13,7 +13,7 @@ def reschedule_files(posts_df, src_folder_path, dest_folder_path, dry_run):
       print("Saving the content of the file", post_df['filename'])
       post = frontmatter.load(src_folder_path + "/" + post_df['filename'])
 
-      post[post_df['date_source']] = post_df['new_date'].strftime("%Y/%m/%d")
+      post[post_df['date_source']] = post_df['new_date'].strftime("%Y-%m-%d")
       post['pretified'] = False
 
       filecontent = frontmatter.dumps(post)
