@@ -1,0 +1,27 @@
+name: "Blog inspiration converter"
+
+description: "Download inspiration file, extract the body, convert it into markdown and translate it into the choosen language"
+
+inputs:
+  src_folder:
+    description: The path to the folder where the inspired posts are located
+  dest_folder:
+    description: The path to the folder where you want to store the result of the convertion
+  dry_run:
+    description: Whether to run this for real or just as a simulation
+    default: false
+  nb_days_ahead:
+    description: In which language do you want to translate the result
+    default: 1
+  days_mask:
+    description: The days in the week (Mon Tue Wed Thu Fri) you want the program to select for your post schedules
+    default: Mon Wed
+  
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
