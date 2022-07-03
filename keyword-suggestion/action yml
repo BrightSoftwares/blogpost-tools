@@ -17,6 +17,9 @@ inputs:
   keyword_max_volume_eligible:
     description: The maximum amount of search per month of that keyword to make it eligible to blogpost
     default: 5000
+  keyword_suggestions_blogpost_file:
+    description: The file name of the blogpost candicates
+    default: keyword_suggestions_merged_blogpost_candidates.csv
   wait_time:
     default: 0.2
   max_workers:
