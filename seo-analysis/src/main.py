@@ -58,7 +58,7 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
 
   #sc_df = pd.read_csv(search_console_path)
 
-  #print(sc_df)
+  print("Data from Google search console", sc_df)
 
   df = sc_df.sort_values(by=['page', 'impressions'], ascending=False)
   df = df.drop_duplicates(subset='page', keep='first')
