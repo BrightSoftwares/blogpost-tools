@@ -8,7 +8,7 @@ inputs:
     required: true
   sitemap_url:
     description: The url to the sitemap.xml of the site.
-  service_account_json_file:
+  service_account_json_file_path:
     description: The json file generated from the google cloud console.
   dry_run:
     description: Whether to perform it for real or just a simulation
