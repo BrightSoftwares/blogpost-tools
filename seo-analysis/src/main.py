@@ -53,7 +53,7 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   }
 
   print("Getting the data from google search console")
-  sc_df = seo.query_google_search_console(service_account_json_file_path, site_url, payload)
+  sc_df = query_google_search_console(service_account_json_file_path, site_url, payload)
 
 
   #sc_df = pd.read_csv(search_console_path)
@@ -78,8 +78,16 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   del df_traffic['page']
   df_traffic.sort_values(by='impressions', ascending=False).head()
 
-  df_traffic = df_traffic.assign(in_title=df_traffic.apply(in_title, axis=1))
-  df_traffic = df_traffic.assign(in_description=df_traffic.apply(in_description, axis=1))
+  in_title_df = df_traffic.apply(in_title, axis=1)
+  in_title_df = in_title_df if not in_title_df.empty else []
+  print("In title df=", in_title_df)
+
+  in_description_df = df_traffic.apply(in_description, axis=1)
+  in_description_df = in_description_df if not in_description_df.empty else []
+  print("In description df=", in_description_df)
+
+  df_traffic = df_traffic.assign(in_title=[])
+  df_traffic = df_traffic.assign(in_description=[])
   df_traffic['in_both'] = np.where(df_traffic['in_title'] + df_traffic['in_description'] == 2, 1, 0)
 
   df_traffic.to_csv('traffic.csv', index=False)
@@ -88,7 +96,6 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   print("Generating the to pages to optimized in priority")
   df_optimize_priority = df_traffic.sort_values(by='impressions', ascending=False).head(50)
   df_optimize_priority.to_csv("to_optimize_priority.csv")
-
 
 
 
