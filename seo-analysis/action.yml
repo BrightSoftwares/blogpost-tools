@@ -1,0 +1,30 @@
+name: "SEO Analysis"
+
+description: "Scrape the webiste and generate SEO advices to increase ranking"
+
+inputs:
+  site_url:
+    description: The url of the site to analyse
+    required: true
+  sitemap_url:
+    description: The url to the sitemap.xml of the site.
+  service_account_json_file:
+    description: The json file generated from the google cloud console.
+  dry_run:
+    description: Whether to perform it for real or just a simulation
+    default: true
+  date_offset:
+    description: How many DAYS do you want to offset the start date
+    default: -1
+  date_duration:
+    description: The duration of the analysis period, in days
+    default: -90
+  
+
+outputs:
+  keyword_suggestions:
+    description: The path to the the generated keyworrd suggestions file
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
