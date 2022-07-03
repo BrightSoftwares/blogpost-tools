@@ -12,8 +12,11 @@ inputs:
     description: The path to the folder where your drafts are. The Google keyword planner csv files are also there.
     required: true
   keyword_min_volume_eligible:
-    description: The amount of search per month of that keyword to make it eligible to blogpost
+    description: The minimum amount of search per month of that keyword to make it eligible to blogpost
     default: 500
+  keyword_max_volume_eligible:
+    description: The maximum amount of search per month of that keyword to make it eligible to blogpost
+    default: 5000
   wait_time:
     default: 0.2
   max_workers:
