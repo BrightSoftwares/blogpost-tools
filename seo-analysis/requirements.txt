@@ -1,0 +1,3 @@
+pandas
+ecommercetools
+google-api-python-client
