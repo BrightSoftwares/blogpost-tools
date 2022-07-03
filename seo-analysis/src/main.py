@@ -53,7 +53,7 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   }
 
   print("Getting the data from google search console")
-  sc_df = query_google_search_console(service_account_json_file_path, site_url, payload)
+  sc_df = seo.query_google_search_console(service_account_json_file_path, site_url, payload)
 
 
   #sc_df = pd.read_csv(search_console_path)
