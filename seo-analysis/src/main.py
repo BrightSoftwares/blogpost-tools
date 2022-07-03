@@ -98,7 +98,7 @@ dry_run = os.getenv("INPUT_DRY_RUN", 'true') # 'true'
 date_offset = int(os.getenv("INPUT_DATE_OFFSET", "-1")) # -1
 date_duration = int(os.getenv("INPUT_DATE_DURATION", "-90")) # -90
 
-site_url = "sc-domain:bright-softwares.com"
+site_url = os.getenv("INPUT_SITE_URL") # "sc-domain:bright-softwares.com"
 
 # Convert this input relative dates
 #start_date = '2021-01-01'
