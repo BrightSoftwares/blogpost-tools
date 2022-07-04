@@ -17,8 +17,8 @@ keyword_suggestions_generation_folder = os.getenv(
     'INPUT_KEYWORD_SUGGESTIONS_GENERATION_FOLDER')
 keyword_suggestions_generation_file = keyword_suggestions_generation_folder + \
     "/" + "keyword_suggestions.csv"
-keyword_min_volume_eligible = int(os.getenv('INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE'))
-keyword_max_volume_eligible = int(os.getenv('INPUT_KEYWORD_MAX_VOLUME_ELIGIBLE'))
+keyword_min_volume_eligible = int(os.getenv('INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE', '0'))
+keyword_max_volume_eligible = int(os.getenv('INPUT_KEYWORD_MAX_VOLUME_ELIGIBLE', '5000000'))
 keyword_suggestions_blogpost_file = keyword_suggestions_generation_folder + os.getenv('INPUT_KEYWORD_SUGGESTIONS_BLOGPOST_FILE')
 
 
@@ -186,8 +186,11 @@ def add_volumes_data(folder):
     merged_df_perbidcost.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_per_bid_cost_low.csv", index=False)
     
     # Generate a file with keywords that meet the requirements for a blogpost    
-    print("Keeping only the keywords with volume above", keyword_min_volume_eligible)
-    blogpost_candidates_df = merged_df[ (merged_df['Avg. monthly searches'] >= keyword_min_volume_eligible) & (merged_df['Avg. monthly searches'] <= keyword_max_volume_eligible) ]
+    print("Keeping only the keywords with volume above {} and below {}".format(keyword_min_volume_eligible, keyword_max_volume_eligible))
+    blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] >= keyword_min_volume_eligible ]
+    print("0. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
+
+    blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] <= keyword_max_volume_eligible ]
     print("1. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
     
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' ]
@@ -243,7 +246,8 @@ def add_volumes_data(folder):
     missing_volume_kw_1col_df.to_csv(keyword_suggestions_generation_folder +
                                      "/keyword_suggestions_missing_1col.csv", index=False)
     print("Size missing_volume_kw_1col_df =", missing_volume_kw_1col_df.shape)
-
+    
+    
 
 # If you use more than 50 seed keywords you should slow down your requests - otherwise google is blocking the script
 # If you have thousands of seed keywords use e.g. WAIT_TIME = 1 and MAX_WORKERS = 5
