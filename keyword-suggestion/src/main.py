@@ -145,6 +145,9 @@ def autocomplete(csv_fileName):
     keywords_df = keywords_df[['first_seen', 'last_seen',
                                'Keyword', 'Suggestion', 'is_new', 'blogpost_created']]
     
+    # Remove invalid suggestions
+    keywords_df = keywords_df[ keywords_df["Suggestion"].apply(lambda x: len(x.split(" ")) <= 10) | keywords_df["Suggestion"].apply(lambda x: not any(elem in x for elem in r"\!@%,*{}<>;")) ]
+    
     # Remove duplicates
     keywords_df.drop_duplicates(inplace=True)
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
