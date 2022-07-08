@@ -6,82 +6,119 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-# Set DEVELOPER_KEY to the API key value from the APIs & auth > Registered apps
-# tab of
-#   https://cloud.google.com/console
-# Please ensure that you have enabled the YouTube Data API for your project.
-DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
-yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
-YOUTUBE_API_SERVICE_NAME = 'youtube'
-YOUTUBE_API_VERSION = 'v3'
+def get_yt_results_dataframe(obj_array):
+  return pd.DataFrame(obj_array, columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
+
+def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results=25):
+
+    # Load the results youtube videos
+    print("Results file to load", yt_results_file)
+    yt_results_df = pd.read_csv(yt_results_file)
+
+    youtube = build(yt_service_name, yt_api_version, developerKey=yt_api_key)
+
+    # Attempt to find existing results
+    existing_result_df = yt_results_df[ yt_results_df['query'] == query ]
+    print(existing_result_df)
+
+    if existing_result_df.empty:
+      print("No existing result found for this query. Asking youtube")
+      # Call the search.list method to retrieve results matching the specified
+      # query term.
+      search_response = youtube.search().list(
+          q=query,
+          part='id,snippet',
+          maxResults=max_results,
+          order='relevance',
+          # videoDuration='medium',
+          # videoLicense='creativeCommon'
+      ).execute()
+
+      # Append the new data to it
+      theresults = []
+      for search_result in search_response.get('items', []):
+        print(search_result)
+        video_kind = search_result['id']['kind']
+
+        if video_kind == "youtube#video":
+          video_title = search_result['snippet']['title']
+          video_id = search_result['id']['videoId']
+          video_description = search_result['snippet']['description']
+
+          theresults.append([query, video_kind, video_title, video_id, video_description])
+
+      print("At the end of the processing we transform it into a dataframe")
+      existing_result_df = get_yt_results_dataframe(theresults)
 
 
-def youtube_search(query, max_results=25):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-                    developerKey=DEVELOPER_KEY)
+    else:
+      print("Existing results found. returning it")
 
-    # Load the already used youtube videos
-    used_vids_df = pd.read_csv(yt_already_used)
+    print("The results:", existing_result_df)
+    return existing_result_df
 
-    # Call the search.list method to retrieve results matching the specified
-    # query term.
-    search_response = youtube.search().list(
-        q=query,
-        part='id,snippet',
-        maxResults=max_results,
-        order='viewCount',
-        # videoDuration='medium',
-        # videoLicense='creativeCommon'
-    ).execute()
 
-    # videos = []
-    # channels = []
-    # playlists = []
+def find_youtube_video(results_df, used_vids_df):
 
     # Add each result to the appropriate list, and then display the lists of
     # matching videos, channels, and playlists.
     best_video_id = None
 
-    for search_result in search_response.get('items', []):
-        video_kind = search_result['id']['kind']
-        video_title = search_result['snippet']['title']
-        video_id = search_result['id']['videoId']
-        video_description = search_result['snippet']['description']
+    for index, search_result in results_df.iterrows():
+        video_kind = search_result['video_kind']
+        video_title = search_result['video_title']
+        video_id = search_result['video_id']
+        video_description = search_result['video_description']
         video_used = video_id in used_vids_df['yt_video_id'].unique()
 
         print("Video with id {} already used? {}".format(video_id, video_used))
 
-        if video_kind == 'youtube#video' and not video_used:
-            # videos.append('%s (%s)' % (search_result['snippet']['title'],
-            #                            search_result['id']['videoId']))
+        if not video_used:
             best_video_id = [video_title, video_id, video_description]
-
-            # We return the one that suits our needs
             break
-        # elif search_result['id']['kind'] == 'youtube#channel':
-        #     channels.append('%s (%s)' % (search_result['snippet']['title'],
-        #                                  search_result['id']['channelId']))
-        # elif search_result['id']['kind'] == 'youtube#playlist':
-        #     playlists.append('%s (%s)' % (search_result['snippet']['title'],
-        #                                   search_result['id']['playlistId']))
         else:
             print("YT video is either not kind video = ({}) or is already used = ({})".format(
                 video_kind, video_used))
 
-    # print('Videos:\n', '\n'.join(videos), '\n')
-    # print('Channels:\n', '\n'.join(channels), '\n')
-    # print('Playlists:\n', '\n'.join(playlists), '\n')
     print("Best video id: ", best_video_id)
     return best_video_id
 
+def save_youtube_search(query, results_df, dest_file):
 
-def blogpost_to_ytvideo():
-    folder = os.getenv('INPUT_DRAFTS_PATH')
+  print("Saving youtube search results to ", dest_file)
+  yt_results_df = pd.read_csv(dest_file)
 
+  #print("results_df = ", results_df)
+
+  # Concat the dataframe
+  yt_results_df = yt_results_df.append(results_df)
+  
+  # Save the final data
+  print("yt_results_df = ", yt_results_df)
+  yt_results_df.to_csv(dest_file, index=False)
+
+
+def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_results_file, yt_already_used, max_results=25):
+    
+    # Loading already used videos
     try:
         used_vids_df = pd.read_csv(yt_already_used)
     except:
         used_vids_df = pd.DataFrame(columns=['yt_video_id'])
+
+    
+    # Load the destination file if exists
+    yt_results_df = None
+    try:
+      print("Loading file {}.".format(yt_results_file))
+      yt_results_df = pd.read_csv(yt_results_file)
+      print("File {} loaded.".format(yt_results_file))
+    except FileNotFoundError:
+      print("File {} not found. Creating an empty dataframe".format(yt_results_file))
+      yt_results_df = get_yt_results_dataframe([]) #pd.DataFrame([], columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
+      print("yt_results_df = ", yt_results_df)
+      yt_results_df.to_csv(yt_results_file, index=False)
+
 
     entries = os.listdir(folder)
     for entry in entries:
@@ -94,7 +131,14 @@ def blogpost_to_ytvideo():
             if ytvideo_url is None and title is not None:
 
                 # Get the best video for this query
-                video_found = youtube_search(title)
+                search_results = youtube_search(title, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results)
+                print("search_results = ", search_results)
+                
+                # Save the results got from youtube
+                save_youtube_search(title, search_results, yt_results_file)
+                
+                # Check that the video is suitable for use
+                video_found = find_youtube_video(search_results, used_vids_df)
                 video_found_title = video_found[0]
                 video_found_id = video_found[1]
                 video_found_description = video_found[2]
@@ -128,15 +172,18 @@ def blogpost_to_ytvideo():
     used_vids_df.to_csv(yt_already_used, index=False)
 
 
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--q', help='Search term', default='Google')
-#     parser.add_argument('--max-results', help='Max results', default=25)
-#     args = parser.parse_args()
 
-#     try:
-#         youtube_search(args)
-#     except HttpError as e:
-#         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
+# Set DEVELOPER_KEY to the API key value from the APIs & auth > Registered apps
+# tab of
+#   https://cloud.google.com/console
+# Please ensure that you have enabled the YouTube Data API for your project.
+folder = os.getenv('INPUT_SRC_FOLDER')
+DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
+yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
+yt_results_file = os.getenv('INPUT_YT_SEARCH_RESULTS_FILE')
+YOUTUBE_API_SERVICE_NAME = 'youtube'
+YOUTUBE_API_VERSION = 'v3'
 
-blogpost_to_ytvideo()
+
+#blogpost_to_ytvideo(folder, yt_already_used)
+blogpost_to_ytvideo(folder, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, DEVELOPER_KEY, yt_results_file, yt_already_used)
