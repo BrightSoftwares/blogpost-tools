@@ -12,6 +12,10 @@ inputs:
     default: 'en'
   country:
     default: 'us'
+  SRC_FOLDER:
+    description: The folder to analyse
+  yt_search_results_file:
+    description: In which file (full path) to store the youtube search results.
   
 
 outputs:
