@@ -30,6 +30,7 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
           part='id,snippet',
           maxResults=max_results,
           order='relevance',
+          type='video',
           # videoDuration='medium',
           # videoLicense='creativeCommon'
       ).execute()
