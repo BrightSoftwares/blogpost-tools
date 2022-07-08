@@ -86,8 +86,8 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   in_description_df = in_description_df if not in_description_df.empty else []
   print("In description df=", in_description_df)
 
-  df_traffic = df_traffic.assign(in_title=[])
-  df_traffic = df_traffic.assign(in_description=[])
+  df_traffic = df_traffic.assign(in_title=in_title_df)
+  df_traffic = df_traffic.assign(in_description=in_description_df)
   df_traffic['in_both'] = np.where(df_traffic['in_title'] + df_traffic['in_description'] == 2, 1, 0)
 
   df_traffic.to_csv('traffic.csv', index=False)
