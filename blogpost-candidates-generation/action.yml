@@ -1,0 +1,27 @@
+name: "Extract blogpost candidates with the silot technique"
+
+description: "Generate blogpost candidates based on the silot"
+
+inputs:
+  src_folder:
+    description: The path to the folder where posts data are located
+  dest_folder:
+    description: The path to the folder where you want to store the result of the candidates
+  keyword_suggestion_generation_folder:
+    description: The path to the suggestion generation folder
+  keyword_suggestion_generation_file:
+    description: The full path to the file generation suggestion
+  keyword_suggestions_blogpost_file:
+    description: The output file to store the blogpost suggestions
+  keyword_min_volume_eligible:
+    description: The min volume that the keyword must have to be selected.
+  keyword_max_volume_eligible:
+    description: The max volume that the keyword must have to be selected.
+
+outputs:
+  updated_posts:
+    description: A list of updated posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
