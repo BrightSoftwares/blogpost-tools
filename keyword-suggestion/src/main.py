@@ -268,7 +268,7 @@ autocomplete(CSV_FILE_NAME)
 
 # Merge data
 keywordplanner_folder = folder = os.getenv('INPUT_DRAFTS_PATH')
-add_volumes_data(keywordplanner_folder)
+#add_volumes_data(keywordplanner_folder)
 
 # Output the generated file
 print(keyword_suggestions_generation_file)
