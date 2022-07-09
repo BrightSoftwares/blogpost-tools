@@ -8,9 +8,9 @@ inputs:
   keyword_suggestion_generation_folder:
     description: The path to the folder where the keyword_suggestions_merged.csv file will be generated
   keyword_suggestion_generation_file:
-    description: The full path to the keyword suggestions file. This must must be loaded. Eg: keyword_suggestions.csv.
+    description: The full path to the keyword suggestions file. This must must be loaded. Eg. keyword_suggestions.csv.
   keyword_suggestions_blogpost_file:
-    description: The output file to store the blogpost suggestions. Eg: keyword_suggestions_merged_blogpost_candidates.csv
+    description: The output file to store the blogpost suggestions. Eg. keyword_suggestions_merged_blogpost_candidates.csv
   keyword_min_volume_eligible:
     description: The min volume that the keyword must have to be selected.
   keyword_max_volume_eligible:
