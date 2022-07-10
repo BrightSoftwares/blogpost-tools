@@ -240,6 +240,8 @@ for entry in entries:
                 transcribed = False
                 post.youtube_video = None
                 post.youtube_video_id = None
+                post.youtube_video_title = None
+                post.youtube_video_description = None
                 post.content = transcription
                 print(transcription)
 
