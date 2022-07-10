@@ -123,7 +123,7 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
 
     entries = os.listdir(folder)
     for entry in entries:
-        # print(entry)
+        print("Processing entry {} and folder {}".format(entry, folder))
         try:
             post = frontmatter.load(folder + "/" + entry)
             title = post['title'] if 'title' in post else None
