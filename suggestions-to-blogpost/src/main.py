@@ -42,7 +42,7 @@ def suggestion_to_blogpost():
             # Create the blogpost in the suggested folder
             nb_rows_processed = 0
             for index, row in suggestion_df.iterrows():
-                print("Processing row:", row)
+                #print("Processing row:", row)
                 print("blogpost_created is NA:", pd.isna(row['blogpost_created']))
                 print("blogpost_created is False/True?:", not row['blogpost_created'])
                 
