@@ -238,12 +238,16 @@ for entry in entries:
             except TranscriptsDisabled as e2:
                 transcription = "An error occured while trying to get transcript TranscriptsDisabled. Error: {}".format(str(e2))
                 transcribed = False
+                post.youtube_video = None
+                post.youtube_video_id = None
                 post.content = transcription
                 print(transcription)
 
             except Exception as e1:
                 transcription = "An error occured while trying to get transcript. Error: {}".format(str(e1))
                 transcribed = False
+                post.youtube_video = None
+                post.youtube_video_id = None
                 post.content = transcription
                 print(transcription)
             finally:
