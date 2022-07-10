@@ -46,7 +46,7 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
     blogpost_candidates_df = merged_df[ merged_df['Avg. monthly searches'] <= keyword_max_volume_eligible ]
     print("1. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
     
-    blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' ]
+    blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition == 'Faible' | blogpost_candidates_df.Competition == 'Low' ]
     print("2. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
     
     blogpost_candidates_df = blogpost_candidates_df[ blogpost_candidates_df.Competition.notnull() ]
@@ -72,7 +72,7 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print(" 3. Sort the dataframe back to it's original sorting before saving")
-        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
+        blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['Suggestion', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
     
     print("Saving the blogpost_candidates_df to disk  on {}".format(keyword_suggestions_blogpost_file))
