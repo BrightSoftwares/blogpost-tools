@@ -63,7 +63,7 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
         print("exiting_blogpost_candidates_df Size =", exiting_blogpost_candidates_df.shape)
         
         blogpost_candidates_df = pd.concat([blogpost_candidates_df, exiting_blogpost_candidates_df], ignore_index=True, sort=False)
-        blogpost_candidates_df.fillna(value={'blogpost_created':False, 'category':""})
+        blogpost_candidates_df = blogpost_candidates_df.fillna(value={'blogpost_created':False, 'category':""})
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print("Sort by blogpost created to be able to remove duplicates")
