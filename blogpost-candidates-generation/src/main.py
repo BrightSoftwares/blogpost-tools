@@ -63,12 +63,13 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
         print("exiting_blogpost_candidates_df Size =", exiting_blogpost_candidates_df.shape)
         
         blogpost_candidates_df = pd.concat([blogpost_candidates_df, exiting_blogpost_candidates_df], ignore_index=True, sort=False)
+        blogpost_candidates_df.fillna(value={'blogpost_created':False, 'category':""})
         print("blogpost_candidates_df Size =", blogpost_candidates_df.shape)
         
         print("Sort by blogpost created to be able to remove duplicates")
         if 'category' in blogpost_candidates_df.columns:
             print("Include category in the sorting")
-            blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created', 'category'], ascending=[True, False])
+            blogpost_candidates_df = blogpost_candidates_df.sort_values(by=['blogpost_created', 'category'], ascending=[True, True])
             blogpost_candidates_df.to_csv(keyword_suggestions_generation_folder + "/keyword_blogpost_candidates_df_sorted.csv", index=False)
         else:
             print("Category not found. Sorting blogpost created only")
