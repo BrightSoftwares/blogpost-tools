@@ -119,7 +119,7 @@ def autocomplete(csv_fileName):
 
     # new keywords
     newSuggestion_df = pd.DataFrame(suggestionNew_list, columns=[
-                                    'first_seen', 'last_seen', 'Keyword', 'Suggestion', 'category', 'blogpost_title', 'silot_terms', 'cornerstone'])
+                                    'first_seen', 'last_seen', 'Keyword', 'Suggestion'])
     # shared keywords with date update
     commonSuggestion_df = pd.DataFrame(suggestionCommon_list, columns=[
                                        'last_seen', 'Keyword', 'Suggestion'])
