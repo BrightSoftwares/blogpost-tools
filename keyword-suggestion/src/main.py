@@ -99,7 +99,7 @@ def autocomplete(csv_fileName):
 
     except:
         suggestion_df = pd.DataFrame(
-            columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion'])
+            columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'category', 'blogpost_title', 'silot_terms', 'cornerstone'])
 
     suggestionCommon_list = []
     suggestionNew_list = []
@@ -119,7 +119,7 @@ def autocomplete(csv_fileName):
 
     # new keywords
     newSuggestion_df = pd.DataFrame(suggestionNew_list, columns=[
-                                    'first_seen', 'last_seen', 'Keyword', 'Suggestion'])
+                                    'first_seen', 'last_seen', 'Keyword', 'Suggestion', 'category', 'blogpost_title', 'silot_terms', 'cornerstone'])
     # shared keywords with date update
     commonSuggestion_df = pd.DataFrame(suggestionCommon_list, columns=[
                                        'last_seen', 'Keyword', 'Suggestion'])
@@ -144,7 +144,7 @@ def autocomplete(csv_fileName):
                              == keywords_df['last_seen'])
     keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if 'blogpost_created' in keywords_df.columns else False
     keywords_df = keywords_df[['first_seen', 'last_seen',
-                               'Keyword', 'Suggestion', 'is_new', 'blogpost_created']]
+                               'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone']]
     
     # Remove invalid suggestions
     keywords_df = keywords_df[ keywords_df["Suggestion"].apply(lambda x: len(x.split(" ")) <= 10) | keywords_df["Suggestion"].apply(lambda x: not any(elem in x for elem in r"\!@%,*{}<>;")) ]
