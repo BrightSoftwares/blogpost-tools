@@ -163,28 +163,37 @@ def autocomplete(csv_fileName):
     # Remove duplicates
     keywords_df.drop_duplicates(inplace=True)
     
-    # Cluster suggestions
-    documents = keywords_df['Suggestion'].values.astype("U")
-
-    stop_words_src = 'french' if LANGUAGE == 'fr' else 'english'
-    vectorizer = TfidfVectorizer(stop_words=stop_words_src)
-    features = vectorizer.fit_transform(documents)
-
-    arbitrary_quotient = 0.0321
-    nbrows = features.shape[0]
-    k = int(nbrows * arbitrary_quotient)
-    nb_max_iterations=300
-    print("features df size =", features.shape)
-    print("Clustering {} rows into {} clusters in {} iterations".format(nbrows, k, nb_max_iterations))
-
-    model = KMeans(n_clusters=k, init='k-means++', max_iter=nb_max_iterations, n_init=1)
-    model.fit(features)
-
-    df['cluster'] = model.labels_
-    
     # Saving the whole result into a csv file
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
+    
+def compute_clusters():
+    
+  df = pd.read_csv(keyword_suggestions_generation_file)
+
+  documents = df['Suggestion'].values.astype("U")
+
+  stp_wrd = 'french' if LANGUAGE == 'fr' else 'english'
+  vectorizer = TfidfVectorizer(stop_words=stp_wrd)
+  features = vectorizer.fit_transform(documents)
+
+  arbitrary_quotient = 0.0321
+  nbrows = features.shape[0]
+  k = int(nbrows * arbitrary_quotient)
+  nb_max_iterations=300
+  print("features df size =", features.shape)
+  print("Clustering {} rows into {} clusters in {} iterations".format(nbrows, k, nb_max_iterations))
+
+
+  model = KMeans(n_clusters=k, init='k-means++', max_iter=nb_max_iterations, n_init=1)
+  model.fit(features)
+
+  print("Cluster labels shape =", model.labels_.shape)
+
+  df['cluster'] = model.labels_
+
+  #df.head()
+  df.to_csv(keyword_suggestions_generation_file, index=False)
 
 def add_volumes_data(folder):
     print("Pandas version:", pd.__version__)
@@ -298,6 +307,9 @@ COUNTRY = "US"
 
 CSV_FILE_NAME = os.getenv('INPUT_KEYWORD_SEED')
 autocomplete(CSV_FILE_NAME)
+
+# Compute the clusters
+compute_clusters(CSV_FILE_NAME)
 
 # Merge data
 keywordplanner_folder = folder = os.getenv('INPUT_DRAFTS_PATH')
