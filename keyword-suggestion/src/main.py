@@ -6,6 +6,7 @@ from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 import pandas as pd
+import numpy as np
 import itertools
 import requests
 import string
@@ -147,10 +148,10 @@ def autocomplete(csv_fileName):
     
     # Add required columns if not exist
     keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if 'blogpost_created' in keywords_df.columns else False
-    keywords_df['category'] = keywords_df['category'] if 'category' in keywords_df.columns else pd.nan
-    keywords_df['blogpost_title'] = keywords_df['blogpost_title'] if 'blogpost_title' in keywords_df.columns else pd.nan
-    keywords_df['silot_terms'] = keywords_df['silot_terms'] if 'silot_terms' in keywords_df.columns else pd.nan
-    keywords_df['cornerstone'] = keywords_df['cornerstone'] if 'cornerstone' in keywords_df.columns else pd.nan
+    keywords_df['category'] = keywords_df['category'] if 'category' in keywords_df.columns else np.nan
+    keywords_df['blogpost_title'] = keywords_df['blogpost_title'] if 'blogpost_title' in keywords_df.columns else np.nan
+    keywords_df['silot_terms'] = keywords_df['silot_terms'] if 'silot_terms' in keywords_df.columns else np.nan
+    keywords_df['cornerstone'] = keywords_df['cornerstone'] if 'cornerstone' in keywords_df.columns else np.nan
     
     # Keep the interesting columns
     keywords_df = keywords_df[['first_seen', 'last_seen',
