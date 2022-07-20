@@ -309,7 +309,7 @@ CSV_FILE_NAME = os.getenv('INPUT_KEYWORD_SEED')
 autocomplete(CSV_FILE_NAME)
 
 # Compute the clusters
-compute_clusters(CSV_FILE_NAME)
+compute_clusters()
 
 # Merge data
 keywordplanner_folder = folder = os.getenv('INPUT_DRAFTS_PATH')
