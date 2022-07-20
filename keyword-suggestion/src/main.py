@@ -144,7 +144,15 @@ def autocomplete(csv_fileName):
     keywords_df['last_seen'] = pd.to_datetime(keywords_df['last_seen'])
     keywords_df['is_new'] = (keywords_df['first_seen']
                              == keywords_df['last_seen'])
+    
+    # Add required columns if not exist
     keywords_df['blogpost_created'] = keywords_df['blogpost_created'] if 'blogpost_created' in keywords_df.columns else False
+    keywords_df['category'] = keywords_df['category'] if 'category' in keywords_df.columns else pd.nan
+    keywords_df['blogpost_title'] = keywords_df['blogpost_title'] if 'blogpost_title' in keywords_df.columns else pd.nan
+    keywords_df['silot_terms'] = keywords_df['silot_terms'] if 'silot_terms' in keywords_df.columns else pd.nan
+    keywords_df['cornerstone'] = keywords_df['cornerstone'] if 'cornerstone' in keywords_df.columns else pd.nan
+    
+    # Keep the interesting columns
     keywords_df = keywords_df[['first_seen', 'last_seen',
                                'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone']]
     
@@ -166,7 +174,6 @@ def autocomplete(csv_fileName):
     k = int(nbrows * arbitrary_quotient)
     nb_max_iterations=300
     print("features df size =", features.shape)
-    print("features columns =", features.columns)
     print("Clustering {} rows into {} clusters in {} iterations".format(nbrows, k, nb_max_iterations))
 
     model = KMeans(n_clusters=k, init='k-means++', max_iter=nb_max_iterations, n_init=1)
