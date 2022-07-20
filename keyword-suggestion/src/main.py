@@ -166,6 +166,7 @@ def autocomplete(csv_fileName):
     k = int(nbrows * arbitrary_quotient)
     nb_max_iterations=300
     print("features df size =", features.shape)
+    print("features columns =", features.columns)
     print("Clustering {} rows into {} clusters in {} iterations".format(nbrows, k, nb_max_iterations))
 
     model = KMeans(n_clusters=k, init='k-means++', max_iter=nb_max_iterations, n_init=1)
