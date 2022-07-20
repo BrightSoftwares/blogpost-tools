@@ -45,11 +45,20 @@ def patch_dataframe_with_customdata(blogpost_candidates_df, keyword_suggestions_
     print("blogpost_candidates_merged_df columns = ", blogpost_candidates_merged_df.columns)
 
     # Merge the two columns
-    blogpost_candidates_merged_df['category_x'] = blogpost_candidates_merged_df['category_x'] if blogpost_candidates_merged_df['category_y'].isnull else blogpost_candidates_merged_df['category_y']
-    blogpost_candidates_merged_df['blogpost_title_x'] = blogpost_candidates_merged_df['blogpost_title_x'] if blogpost_candidates_merged_df['blogpost_title_y'].isnull else blogpost_candidates_merged_df['blogpost_title_y']
-    blogpost_candidates_merged_df['silot_terms_x'] = blogpost_candidates_merged_df['silot_terms_x'] if blogpost_candidates_merged_df['silot_terms_y'].isnull else blogpost_candidates_merged_df['silot_terms_y']
-    blogpost_candidates_merged_df['cornerstone_x'] = blogpost_candidates_merged_df['cornerstone_x'] if blogpost_candidates_merged_df['cornerstone_y'].isnull else blogpost_candidates_merged_df['cornerstone_y']
-    blogpost_candidates_merged_df['blogpost_created_x'] = blogpost_candidates_merged_df['blogpost_created_x'] if blogpost_candidates_merged_df['blogpost_created_y'].isnull else blogpost_candidates_merged_df['blogpost_created_y']
+    if 'category_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['category_x'] = blogpost_candidates_merged_df['category_x'] if blogpost_candidates_merged_df['category_y'].isnull else blogpost_candidates_merged_df['category_y']
+    
+    if 'blogpost_title_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['blogpost_title_x'] = blogpost_candidates_merged_df['blogpost_title_x'] if blogpost_candidates_merged_df['blogpost_title_y'].isnull else blogpost_candidates_merged_df['blogpost_title_y']
+    
+    if 'silot_terms_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['silot_terms_x'] = blogpost_candidates_merged_df['silot_terms_x'] if blogpost_candidates_merged_df['silot_terms_y'].isnull else blogpost_candidates_merged_df['silot_terms_y']
+    
+    if 'cornerstone_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['cornerstone_x'] = blogpost_candidates_merged_df['cornerstone_x'] if blogpost_candidates_merged_df['cornerstone_y'].isnull else blogpost_candidates_merged_df['cornerstone_y']
+    
+    if 'blogpost_created_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['blogpost_created_x'] = blogpost_candidates_merged_df['blogpost_created_x'] if blogpost_candidates_merged_df['blogpost_created_y'].isnull else blogpost_candidates_merged_df['blogpost_created_y']
     
     # renaming the columns back
     cols = {}
@@ -78,7 +87,7 @@ def extract_by_search_volume(merged_df, min_vol, max_vol, keyword_suggestions_bl
     # Generate a file with keywords that meet the requirements for a blogpost    
     print("Keeping only the keywords with volume above {} and below {}".format(keyword_min_volume_eligible, keyword_max_volume_eligible))
 
-    allowed_values = ['Faible', 'Low', 'High']
+    allowed_values = ['Faible', 'Low']
     blogpost_candidates_df = merged_df[ (merged_df['Avg. monthly searches'] >= keyword_min_volume_eligible) 
       & (merged_df['Avg. monthly searches'] <= keyword_max_volume_eligible)
       & (merged_df.Competition.isin(allowed_values)) 
