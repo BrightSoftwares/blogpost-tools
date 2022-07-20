@@ -3,6 +3,8 @@
 import concurrent.futures
 from datetime import date
 from datetime import datetime
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 import pandas as pd
 import itertools
 import requests
@@ -151,6 +153,27 @@ def autocomplete(csv_fileName):
     
     # Remove duplicates
     keywords_df.drop_duplicates(inplace=True)
+    
+    # Cluster suggestions
+    documents = keywords_df['Suggestion'].values.astype("U")
+
+    stop_words_src = 'french' if LANGUAGE == 'fr' else 'english'
+    vectorizer = TfidfVectorizer(stop_words=stop_words_src)
+    features = vectorizer.fit_transform(documents)
+
+    arbitrary_quotient = 0.0321
+    nbrows = features.shape[0]
+    k = int(nbrows * arbitrary_quotient)
+    nb_max_iterations=300
+    print("features df size =", features.shape)
+    print("Clustering {} rows into {} clusters in {} iterations".format(nbrows, k, nb_max_iterations))
+
+    model = KMeans(n_clusters=k, init='k-means++', max_iter=nb_max_iterations, n_init=1)
+    model.fit(features)
+
+    df['cluster'] = model.labels_
+    
+    # Saving the whole result into a csv file
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
 
