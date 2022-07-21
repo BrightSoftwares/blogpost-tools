@@ -11,7 +11,7 @@ folder = os.getenv('INPUT_DRAFTS_PATH')
 wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER', default=False)
 entries = os.listdir(folder)
 for entry in entries:
-    # print(entry)
+    print(entry)
     try:
         post = frontmatter.load(folder + "/" + entry)
         title = post['title'] if 'title' in post else None
