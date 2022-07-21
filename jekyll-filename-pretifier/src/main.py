@@ -31,11 +31,14 @@ for entry in entries:
 
             oldfilename = "{}/{}".format(folder, entry)
             
-            if wordpress_frontmatter == "true":
-                # we don't add the date in the post filename
-                newfilename = "{}/{}.md".format(folder, slugify(title.lower()))
-            else:
-                newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
+            #if wordpress_frontmatter == "true":
+            #    # we don't add the date in the post filename
+            #    newfilename = "{}/{}.md".format(folder, slugify(title.lower()))
+            #else:
+            #    newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
+            #                                       slugify(title.lower()))
+                
+            newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
                                                    slugify(title.lower()))
 
             print("Saving pretified and ref tags")
