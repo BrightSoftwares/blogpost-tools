@@ -38,8 +38,8 @@ for entry in entries:
             #    newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
             #                                       slugify(title.lower()))
                 
-            newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"),
-                                                   slugify(title.lower()))
+            newfilename = "{}/{}-{}.md".format(folder, post_date.strftime("%Y-%m-%d"), slugify(title.lower()))
+            newfilename_nodate = "{}/{}.md".format(folder, slugify(title.lower()))
 
             print("Saving pretified and ref tags")
             post['pretified'] = True
@@ -49,6 +49,7 @@ for entry in entries:
             if wordpress_frontmatter == "true":
                 print("Adding additional variables to frontmatter to support wordpress")
                 post['featured_image'] = post['image']  if 'image' in post else None
+                post['wp_url'] = newfilename_nodate
                 post['menu_order'] = 0
                 post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
