@@ -49,7 +49,7 @@ for entry in entries:
             if wordpress_frontmatter == "true":
                 print("Adding additional variables to frontmatter to support wordpress")
                 post['featured_image'] = post['image']  if 'image' in post else None
-                post['wp_url'] = newfilename_nodate
+                post['wp_url'] = "{}.md".format(slugify(title.lower()))
                 post['menu_order'] = 0
                 post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
