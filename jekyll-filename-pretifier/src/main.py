@@ -19,7 +19,7 @@ for entry in entries:
         pretified = post['pretified'] if 'pretified' in post else None
         post_date = post['date'] if 'date' in post else None
         fileref = post['ref'] if 'ref' in post else None
-        post_category = post['category'] if 'category' in post else None
+        post_category = post['category'] if 'category' in post else []
         post_tags = post['tags'] if 'tags' in post else []
 
         if pretified is not True and title is not None:
@@ -56,7 +56,7 @@ for entry in entries:
                 post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
                 post['post_status'] = "future"
-                post['taxonomy'] = { 'category': [ post_category ], 'post_tag': post_tags }
+                post['taxonomy'] = { 'category': post_category, 'post_tag': post_tags }
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
