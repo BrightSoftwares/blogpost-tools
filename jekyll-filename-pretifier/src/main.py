@@ -22,8 +22,8 @@ for entry in entries:
         post_category = post['category'] if 'category' in post else []
         post_tags = post['tags'] if 'tags' in post else []
 
-        print("post category: {} of type {}".format(post_category, typeof(post_category)))
-        print("post tags: {} of type {}".format(post_tags, typeof(post_tags)))
+        print("post category: {} of type {}".format(post_category, type(post_category)))
+        print("post tags: {} of type {}".format(post_tags, type(post_tags)))
 
         if pretified is not True and title is not None:
 
