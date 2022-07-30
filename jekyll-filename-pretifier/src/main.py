@@ -59,7 +59,10 @@ for entry in entries:
                 post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
                 post['post_status'] = "future"
-                post['taxonomy'] = { 'category': post_category, 'post_tag': post_tags }
+
+                wp_post_category = [ cat for cat in post_category ]
+                wp_post_tags = [ tg for tg in post_tags ]
+                post['taxonomy'] = { 'category': wp_post_category, 'post_tag': wp_post_tags }
 
             print("Saving the content of the file")
             filecontent = frontmatter.dumps(post)
