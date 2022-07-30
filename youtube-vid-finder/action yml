@@ -17,7 +17,8 @@ inputs:
   yt_search_results_file:
     description: In which file (full path) to store the youtube search results.
   youtube_video_duration:
-    description: The duration of the video you are looking for.
+    description: The duration of the video you are looking for. Possible values: any, long (longer than 20 minutes), medium (between four and 20 minutes long (inclusive), 
+short ( less than 4 minutes)
   
 
 outputs:
