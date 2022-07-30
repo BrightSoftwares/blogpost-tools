@@ -31,7 +31,7 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
           maxResults=max_results,
           order='relevance',
           type='video',
-          # videoDuration='medium',
+          videoDuration=YOUTUBE_VIDEO_DURATION,
           # videoLicense='creativeCommon'
       ).execute()
 
@@ -182,6 +182,7 @@ folder = os.getenv('INPUT_SRC_FOLDER')
 DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
 yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
 yt_results_file = os.getenv('INPUT_YT_SEARCH_RESULTS_FILE')
+YOUTUBE_VIDEO_DURATION = os.getenv('INPUT_YOUTUBE_VIDEO_DURATION', 'any')
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
