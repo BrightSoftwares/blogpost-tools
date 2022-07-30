@@ -16,6 +16,8 @@ inputs:
     description: The folder to analyse
   yt_search_results_file:
     description: In which file (full path) to store the youtube search results.
+  youtube_video_duration:
+    description: The duration of the video you are looking for.
   
 
 outputs:
