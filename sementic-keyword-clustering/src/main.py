@@ -207,8 +207,39 @@ def cluster_dataframe(df, acceptable_confidence, cluster_accuracy, min_cluster_s
   return df
 
 
+def generate_categories_seed(suggestions_clustered_kw_file, categories_output_file):
+  # Loading the suggestions_clustered_kw_file
+  dataframe = pd.read_csv(suggestions_clustered_kw_file)
+  print("Type of dataframe", type(dataframe))
+
+  if 'semantic_cluster' not in dataframe.columns:
+    print("ERROR : No semantic_cluster column found in file {}. Exiting ...".format(suggestions_clustered_kw_file))
+  else:
+    # Keep only the previously clustered column
+    semantic_cluster_df = dataframe['semantic_cluster'].to_frame()
+    print("Type of semantic_cluster_df", type(semantic_cluster_df))
+    print(semantic_cluster_df)
+    semantic_cluster_df.rename(columns={'semantic_cluster':'Suggestion'}, inplace = True)
+
+    # Remove duplicates
+    semantic_cluster_df.drop_duplicates(inplace=True)
+
+    # Save the file
+    semantic_cluster_df.to_csv(categories_output_file, index=False)
+
+    # Cluster these keywords
+    acceptable_confidence = 0.8
+    cluster_accuracy = 85
+    min_cluster_size = 2
+    transformer = "all-MiniLM-L6-v2"
+    dataframe_batch_size = 3000
+    cluster_keywords(categories_output_file, categories_output_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer, dataframe_batch_size)
+
+    #
+
 
 keyword_suggestions_generation_file = os.getenv("INPUT_KEYWORD_SUGGESTIONS_FILE")
+categories_output_file = os.getenv("INPUT_CATEGORIES_OUTPUT_FILE")
 clustered_kw_file = os.getenv("INPUT_CLUSTERED_KW_FILE")
 acceptable_confidence = float(os.getenv("INPUT_ACCEPTABLE_CONFIDENCE"))
 transformer = os.getenv("INPUT_TRANSFORMER")
@@ -219,3 +250,5 @@ cluster_accuracy = int(os.getenv("INPUT_CLUSTER_ACCURACY"))  # 0-100 (100 = very
 min_cluster_size = int(os.getenv("INPUT_MIN_CLUSTER_SIZE"))  # set the minimum size of cluster groups. (Lower number = tighter groups)
 
 cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer, dataframe_batch_size)
+
+generate_categories_seed(clustered_kw_file, categories_output_file)
