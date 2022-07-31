@@ -167,7 +167,7 @@ acceptable_confidence = float(os.getenv("INPUT_ACCEPTABLE_CONFIDENCE"))
 transformer = os.getenv("INPUT_TRANSFORMER")
 
 
-cluster_accuracy = int(os.getenv("MIN_CLUSTER_ACCURACY"))  # 0-100 (100 = very tight clusters, but higher percentage of no_cluster groups)
-min_cluster_size = int(os.getenv("MIN_CLUSTER_SIZE"))  # set the minimum size of cluster groups. (Lower number = tighter groups)
+cluster_accuracy = int(os.getenv("INPUT_CLUSTER_ACCURACY"))  # 0-100 (100 = very tight clusters, but higher percentage of no_cluster groups)
+min_cluster_size = int(os.getenv("INPUT_CLUSTER_SIZE"))  # set the minimum size of cluster groups. (Lower number = tighter groups)
 
 cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer)
