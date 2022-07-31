@@ -229,7 +229,7 @@ def generate_categories_seed(suggestions_clustered_kw_file, categories_output_fi
 
     # Cluster these keywords
     acceptable_confidence = 0.8
-    cluster_accuracy = 85
+    cluster_accuracy = 60
     min_cluster_size = 2
     transformer = "all-MiniLM-L6-v2"
     dataframe_batch_size = 3000
