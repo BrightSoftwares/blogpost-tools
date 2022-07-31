@@ -7,7 +7,7 @@ import chardet
 import codecs
 from detect_delimiter import detect
 
-from google.colab import files
+#from google.colab import files
 from sentence_transformers import SentenceTransformer, util
 
 
