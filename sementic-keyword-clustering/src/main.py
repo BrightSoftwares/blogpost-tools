@@ -87,6 +87,11 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   # standardise the keyword columns
   #df.rename(columns={"Search term": "Keyword", "keyword": "Keyword", "query": "Keyword", "query": "Keyword", "Top queries": "Keyword", "queries": "Keyword", "Keywords": "Keyword","keywords": "Keyword", "Search terms report": "Keyword"}, inplace=True)
 
+  # Remove the semantic_cluster column if there is any
+  if "semantic_cluster" in df.columns:
+    print("semantic_cluster column found. Deleting ...")
+    del df["semantic_cluster"]
+  
   if "Suggestion" not in df.columns:
     print("Error! Please make sure your csv file contains a column named 'Suggestion!")
 
