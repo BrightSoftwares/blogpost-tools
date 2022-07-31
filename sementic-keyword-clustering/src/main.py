@@ -57,9 +57,15 @@ def detect_delimiter(input_file, encoding_type):
   return delimiter_type
 
   
-def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer):
+def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer, dataframe_batch_size):
   
-  print("Clustering keywords. Src file {}, dest file {}, acceptable confidence = {}, cluster accuracy = {}, min cluster size = {}".format(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size))
+  print("Clustering keywords")
+  print("Src file", keyword_suggestions_generation_file)
+  print("Dest file", clustered_kw_file)
+  print("acceptable confidence", acceptable_confidence)
+  print("cluster accuracy", cluster_accuracy)
+  print("min cluster size", min_cluster_size)
+  print("dataframe_batch_size", dataframe_batch_size)
   print("Transformer =", transformer)
 
   # detecting the encoding of the file
@@ -71,10 +77,40 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   # create a dataframe using the detected delimiter and encoding type
   df = pd.read_csv((keyword_suggestions_generation_file), on_bad_lines='skip', encoding=encoding_type, delimiter=delimiter_type)
   count_rows = len(df)
-  if count_rows > 50_000:
+
+  list_df = []
+
+  if count_rows > dataframe_batch_size:
     print("WARNING: You May Experience Crashes When Processing Over 50,000 Keywords at Once. Please consider smaller batches!")
-  print("Uploaded Keyword CSV File Successfully!")
+    print("Splitting the dataframe into chunks of {} for easy clustering".format(dataframe_batch_size))
+
+    list_df = [df[i:i+dataframe_batch_size] for i in range(0,df.shape[0],dataframe_batch_size)]
+  else:
+    print("The size is manageable. Pushing the df into the list")
+    list_df.append(df)
+
+  clustered_list_df = []
+  
+  for dataframe in list_df:
+    print("Processing dataframe with shape", dataframe.shape)
+    clustered_df = cluster_dataframe(dataframe, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer)
+    clustered_list_df.append(clustered_df)
+
+  df = pd.concat(clustered_list_df)
+  print("Final df shape", df.shape)
+
+  df.sort_values(["semantic_cluster", "Suggestion"], ascending=[True, True], inplace=True)
+
+  df.to_csv(clustered_kw_file, index=False)
+  #files.download("Your Keywords Clustered.csv")
+
+  
+
+def cluster_dataframe(df, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer):
+  #print("Uploaded Keyword CSV File Successfully!")
   print("Loaded csv df size = ", df.shape)
+
+  count_rows = len(df)
 
   # remove spaces from column names
   df.columns = df.columns.str.strip()
@@ -109,7 +145,7 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   cluster_accuracy = cluster_accuracy / 100
   model = SentenceTransformer(transformer)
 
-  print("corpus_set = ", corpus_set)
+  #print("corpus_set = ", corpus_set)
 
   while cluster:
 
@@ -140,7 +176,10 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
       if check_len == remaining:
           break
 
-
+  uncluster_percent = (remaining / count_rows) * 100
+  clustered_percent = 100 - uncluster_percent
+  print(clustered_percent,"% of rows clustered successfully!")
+  
   # make a new dataframe from the list of dataframe and merge back into the orginal df
   df_new = pd.concat(df_all)
   df = df.merge(df_new.drop_duplicates('Suggestion'), how='left', on="Suggestion")
@@ -158,30 +197,18 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
 
   del df['Length']
 
-  # move the cluster and keyword columns to the front
-  #col = df.pop("Suggestion")
-  #df.insert(0, col.name, col)
-  #
-  #col = df.pop('semantic_cluster')
-  #df.insert(0, col.name, col)
+  return df
 
-  df.sort_values(["semantic_cluster", "Suggestion"], ascending=[True, True], inplace=True)
-
-  uncluster_percent = (remaining / count_rows) * 100
-  clustered_percent = 100 - uncluster_percent
-  print(clustered_percent,"% of rows clustered successfully!")
-
-  df.to_csv(clustered_kw_file, index=False)
-  #files.download("Your Keywords Clustered.csv")
 
 
 keyword_suggestions_generation_file = os.getenv("INPUT_KEYWORD_SUGGESTIONS_FILE")
 clustered_kw_file = os.getenv("INPUT_CLUSTERED_KW_FILE")
 acceptable_confidence = float(os.getenv("INPUT_ACCEPTABLE_CONFIDENCE"))
 transformer = os.getenv("INPUT_TRANSFORMER")
+dataframe_batch_size = int(os.getenv("INPUT_DATAFRAME_BATCH_SIZE", 5000))
 
 
 cluster_accuracy = int(os.getenv("INPUT_CLUSTER_ACCURACY"))  # 0-100 (100 = very tight clusters, but higher percentage of no_cluster groups)
 min_cluster_size = int(os.getenv("INPUT_MIN_CLUSTER_SIZE"))  # set the minimum size of cluster groups. (Lower number = tighter groups)
 
-cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer)
+cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acceptable_confidence, cluster_accuracy, min_cluster_size, transformer, dataframe_batch_size)
