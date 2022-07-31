@@ -80,9 +80,9 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   df.columns = df.columns.str.strip()
   
   # create the silot_terms column if not exists
-  if "silot_terms" not in df.columns:
-    print("Silot terms columns not found in columns. Adding an empty one.")
-    df["silot_terms"] = ""
+  #if "silot_terms" not in df.columns:
+  #  print("Silot terms columns not found in columns. Adding an empty one.")
+  #  df["silot_terms"] = ""
 
   # standardise the keyword columns
   #df.rename(columns={"Search term": "Keyword", "keyword": "Keyword", "query": "Keyword", "query": "Keyword", "Top queries": "Keyword", "queries": "Keyword", "Keywords": "Keyword","keywords": "Keyword", "Search terms report": "Keyword"}, inplace=True)
@@ -123,7 +123,7 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
               cluster_name_list.append("Cluster {}, #{} Elements ".format(keyword + 1, len(cluster)))
 
       df_new = pd.DataFrame(None)
-      df_new['silot_terms'] = cluster_name_list
+      df_new['semantic_cluster'] = cluster_name_list
       df_new["Suggestion"] = corpus_sentences_list
 
       df_all.append(df_new)
@@ -146,10 +146,10 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   
   print("df columns =", df.columns)
 
-  df['silot_terms'] = df.groupby('silot_terms')['Suggestion'].transform('first')
-  df.sort_values(['silot_terms', "Suggestion"], ascending=[True, True], inplace=True)
+  df['semantic_cluster'] = df.groupby('semantic_cluster')['Suggestion'].transform('first')
+  df.sort_values(['semantic_cluster', "Suggestion"], ascending=[True, True], inplace=True)
 
-  df['silot_terms'] = df['silot_terms'].fillna("zzz_no_cluster")
+  df['semantic_cluster'] = df['semantic_cluster'].fillna("zzz_no_cluster")
 
   del df['Length']
 
@@ -157,10 +157,10 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   col = df.pop("Suggestion")
   df.insert(0, col.name, col)
 
-  col = df.pop('silot_terms')
+  col = df.pop('semantic_cluster')
   df.insert(0, col.name, col)
 
-  df.sort_values(["silot_terms", "Suggestion"], ascending=[True, True], inplace=True)
+  df.sort_values(["semantic_cluster", "Suggestion"], ascending=[True, True], inplace=True)
 
   uncluster_percent = (remaining / count_rows) * 100
   clustered_percent = 100 - uncluster_percent
