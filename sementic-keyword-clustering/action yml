@@ -19,6 +19,9 @@ inputs:
   transformer:
     description: The transformer to use for the clustering. all-mpnet-base-v2 most accurate, all-MiniLM-L6-v2 is 5x faster
     default: all-MiniLM-L6-v2
+  dataframe_batch_size:
+    description: The max size of the keywords to cluster at once.
+    default: 5000
   
 
 outputs:
