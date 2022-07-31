@@ -143,6 +143,8 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   # rename the clusters to the shortest keyword in the cluster
   df['Length'] = df['Suggestion'].astype(str).map(len)
   df = df.sort_values(by="Length", ascending=True)
+  
+  print("df columns =", df.columns)
 
   df['silot_terms'] = df.groupby('silot_terms')['Suggestion'].transform('first')
   df.sort_values(['silot_terms', "Suggestion"], ascending=[True, True], inplace=True)
