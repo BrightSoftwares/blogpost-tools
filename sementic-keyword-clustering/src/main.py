@@ -75,6 +75,9 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
     print("WARNING: You May Experience Crashes When Processing Over 50,000 Keywords at Once. Please consider smaller batches!")
   print("Uploaded Keyword CSV File Successfully!")
   print("Loaded csv df size = ", df.shape)
+
+  # remove spaces from column names
+  df.columns = df.columns.str.strip()
   
   # create the silot_terms column if not exists
   if "silot_terms" not in df.columns:
