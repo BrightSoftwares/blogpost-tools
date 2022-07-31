@@ -78,7 +78,7 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   
   # create the silot_terms column if not exists
   if "silot_terms" not in df.columns:
-    df['silot_terms'] = None
+    df["silot_terms"] = ""
 
   # standardise the keyword columns
   #df.rename(columns={"Search term": "Keyword", "keyword": "Keyword", "query": "Keyword", "query": "Keyword", "Top queries": "Keyword", "queries": "Keyword", "Keywords": "Keyword","keywords": "Keyword", "Search terms report": "Keyword"}, inplace=True)
