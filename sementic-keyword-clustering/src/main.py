@@ -99,6 +99,13 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   df = pd.concat(clustered_list_df)
   print("Final df shape", df.shape)
 
+  count_rows = df.shape[0]
+  remaining = df[ df["semantic_cluster"] == "zzz_no_cluster" ].shape[0]
+
+  uncluster_percent = (remaining / count_rows) * 100
+  clustered_percent = 100 - uncluster_percent
+  print(clustered_percent,"% of rows clustered successfully!")
+
   df.sort_values(["semantic_cluster", "Suggestion"], ascending=[True, True], inplace=True)
 
   df.to_csv(clustered_kw_file, index=False)
@@ -176,9 +183,9 @@ def cluster_dataframe(df, acceptable_confidence, cluster_accuracy, min_cluster_s
       if check_len == remaining:
           break
 
-  uncluster_percent = (remaining / count_rows) * 100
-  clustered_percent = 100 - uncluster_percent
-  print(clustered_percent,"% of rows clustered successfully!")
+  #uncluster_percent = (remaining / count_rows) * 100
+  #clustered_percent = 100 - uncluster_percent
+  #print(clustered_percent,"% of rows clustered successfully!")
   
   # make a new dataframe from the list of dataframe and merge back into the orginal df
   df_new = pd.concat(df_all)
@@ -188,7 +195,7 @@ def cluster_dataframe(df, acceptable_confidence, cluster_accuracy, min_cluster_s
   df['Length'] = df['Suggestion'].astype(str).map(len)
   df = df.sort_values(by="Length", ascending=True)
   
-  print("df columns =", df.columns)
+  #print("df columns =", df.columns)
 
   df['semantic_cluster'] = df.groupby('semantic_cluster')['Suggestion'].transform('first')
   df.sort_values(['semantic_cluster', "Suggestion"], ascending=[True, True], inplace=True)
