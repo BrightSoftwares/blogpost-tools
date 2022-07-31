@@ -154,11 +154,11 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   del df['Length']
 
   # move the cluster and keyword columns to the front
-  col = df.pop("Suggestion")
-  df.insert(0, col.name, col)
-
-  col = df.pop('semantic_cluster')
-  df.insert(0, col.name, col)
+  #col = df.pop("Suggestion")
+  #df.insert(0, col.name, col)
+  #
+  #col = df.pop('semantic_cluster')
+  #df.insert(0, col.name, col)
 
   df.sort_values(["semantic_cluster", "Suggestion"], ascending=[True, True], inplace=True)
 
