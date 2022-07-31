@@ -22,6 +22,8 @@ inputs:
   dataframe_batch_size:
     description: The max size of the keywords to cluster at once.
     default: 5000
+  categories_output_file:
+    description: The file path where the categories will be computed.
   
 
 outputs:
