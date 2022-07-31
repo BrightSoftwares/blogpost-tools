@@ -76,6 +76,8 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   print("Uploaded Keyword CSV File Successfully!")
   print("Loaded csv df size = ", df.shape)
   
+  # create the silot_terms column if not exists
+  
 
   # standardise the keyword columns
   #df.rename(columns={"Search term": "Keyword", "keyword": "Keyword", "query": "Keyword", "query": "Keyword", "Top queries": "Keyword", "queries": "Keyword", "Keywords": "Keyword","keywords": "Keyword", "Search terms report": "Keyword"}, inplace=True)
