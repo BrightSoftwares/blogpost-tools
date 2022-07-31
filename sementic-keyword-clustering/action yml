@@ -1,0 +1,30 @@
+name: "Semantic keyword clustering"
+
+description: "Cluster keywords using artificial intelligence transformers.
+
+inputs:
+  keyword_suggestions_file:
+    description: The path to the file where the keyword suggestions are located.
+  clustered_kw_file:
+    description: The path to the file where you want to store the result of the clustering
+  acceptable_confidence:
+    description: This controls the confidence of the detection encoding of the CSV file
+    default: 0.8
+  cluster_accuracy:
+    description: The accuracy of the cluster that will be generated 
+    default: 85
+  min_cluster_size:
+    description: The minimum number of keywords to make a cluster 
+    default: 2
+  transformer:
+    description: The transformer to use for the clustering. all-mpnet-base-v2 most accurate, all-MiniLM-L6-v2 is 5x faster
+    default: all-MiniLM-L6-v2
+  
+
+outputs:
+  clustered_file:
+    description: The path to the clustered file
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
