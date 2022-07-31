@@ -78,6 +78,7 @@ def cluster_keywords(keyword_suggestions_generation_file, clustered_kw_file, acc
   
   # create the silot_terms column if not exists
   if "silot_terms" not in df.columns:
+    print("Silot terms columns not found in columns. Adding an empty one.")
     df["silot_terms"] = ""
 
   # standardise the keyword columns
