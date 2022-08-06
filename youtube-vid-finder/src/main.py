@@ -9,7 +9,7 @@ from googleapiclient.errors import HttpError
 def get_yt_results_dataframe(obj_array):
   return pd.DataFrame(obj_array, columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
 
-def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results=25):
+def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results=10):
 
     # Load the results youtube videos
     print("Results file to load", yt_results_file)
