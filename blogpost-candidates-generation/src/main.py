@@ -37,7 +37,7 @@ def patch_dataframe_with_customdata(blogpost_candidates_df, keyword_suggestions_
         print("1.5 blogpost_candidates_df columns =", blogpost_candidates_df.columns)
     else:
       print("1.6 File {} not found. Nothing loaded.".format(keyword_suggestions_blogpost_file))
-      exiting_blogpost_candidates_df = pd.DataFrame([], columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone'])
+      exiting_blogpost_candidates_df = pd.DataFrame([], columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone', 'semantic_cluster'])
 
     # Patching the data
     blogpost_candidates_merged_df = blogpost_candidates_df.merge(exiting_blogpost_candidates_df, how='left', left_on='Suggestion', right_on='Suggestion')
@@ -56,6 +56,9 @@ def patch_dataframe_with_customdata(blogpost_candidates_df, keyword_suggestions_
     
     if 'cornerstone_x' in blogpost_candidates_merged_df.columns:
         blogpost_candidates_merged_df['cornerstone_x'] = blogpost_candidates_merged_df['cornerstone_x'] if blogpost_candidates_merged_df['cornerstone_y'].isnull else blogpost_candidates_merged_df['cornerstone_y']
+    
+    if 'semantic_cluster_x' in blogpost_candidates_merged_df.columns:
+        blogpost_candidates_merged_df['semantic_cluster_x'] = blogpost_candidates_merged_df['semantic_cluster_x'] if blogpost_candidates_merged_df['semantic_cluster_y'].isnull else blogpost_candidates_merged_df['semantic_cluster_y']
     
     if 'blogpost_created_x' in blogpost_candidates_merged_df.columns:
         blogpost_candidates_merged_df['blogpost_created_x'] = blogpost_candidates_merged_df['blogpost_created_x'] if blogpost_candidates_merged_df['blogpost_created_y'].isnull else blogpost_candidates_merged_df['blogpost_created_y']
