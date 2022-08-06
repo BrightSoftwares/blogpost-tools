@@ -102,7 +102,7 @@ def autocomplete(csv_fileName):
 
     except:
         suggestion_df = pd.DataFrame(
-            columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'category', 'blogpost_title', 'silot_terms', 'cornerstone'])
+            columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'category', 'blogpost_title', 'silot_terms', 'cornerstone', 'semantic_cluster'])
 
     suggestionCommon_list = []
     suggestionNew_list = []
@@ -152,10 +152,11 @@ def autocomplete(csv_fileName):
     keywords_df['blogpost_title'] = keywords_df['blogpost_title'] if 'blogpost_title' in keywords_df.columns else np.nan
     keywords_df['silot_terms'] = keywords_df['silot_terms'] if 'silot_terms' in keywords_df.columns else np.nan
     keywords_df['cornerstone'] = keywords_df['cornerstone'] if 'cornerstone' in keywords_df.columns else np.nan
+    keywords_df['semantic_cluster'] = keywords_df['semantic_cluster'] if 'semantic_cluster' in keywords_df.columns else np.nan
     
     # Keep the interesting columns
     keywords_df = keywords_df[['first_seen', 'last_seen',
-                               'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone']]
+                               'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone', 'semantic_cluster']]
     
     # Remove invalid suggestions
     keywords_df = keywords_df[ keywords_df["Suggestion"].apply(lambda x: len(x.split(" ")) <= 10) | keywords_df["Suggestion"].apply(lambda x: not any(elem in x for elem in r"\!@%,*{}<>;")) ]
