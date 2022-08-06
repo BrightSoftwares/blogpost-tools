@@ -4,25 +4,25 @@ description: "Finds a youtube video that best suits this title."
 
 inputs:
   youtube_api_key:
-    description: The API hey that allow us to query youtube. Create it on console.cloud.google.com.
+    description: 'The API hey that allow us to query youtube. Create it on console.cloud.google.com.'
     required: true
   yt_already_used_vids:
-    description: The file where we store the list of already used youtube videos, to avoid duplicates.
+    description: 'The file where we store the list of already used youtube videos, to avoid duplicates.'
   language:
     default: 'en'
   country:
     default: 'us'
   SRC_FOLDER:
-    description: The folder to analyse
+    description: 'The folder to analyse'
   yt_search_results_file:
-    description: In which file (full path) to store the youtube search results.
+    description: 'In which file (full path) to store the youtube search results.'
   youtube_video_duration:
-    description: The duration of the video you are looking for. Possible values: any, long (longer than 20 minutes), medium (between four and 20 minutes long (inclusive), short ( less than 4 minutes)
+    description: 'The duration of the video you are looking for. Possible values: any, long (longer than 20 minutes), medium (between four and 20 minutes long (inclusive), short ( less than 4 minutes)'
   
 
 outputs:
   yt_already_used_vids:
-    description: The path to the file that contains the list of used videos
+    description: 'The path to the file that contains the list of used videos'
 
 runs:
   using: "docker"
