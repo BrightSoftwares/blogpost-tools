@@ -21,6 +21,8 @@ for entry in entries:
         fileref = post['ref'] if 'ref' in post else None
         post_category = post['category'] if 'category' in post else []
         post_tags = post['tags'] if 'tags' in post else []
+        post_description = post['description'] if 'description' in post else None
+        post_image = post['image'] if 'image' in post else None
 
         print("post category: {} of type {}".format(post_category, type(post_category)))
         print("post tags: {} of type {}".format(post_tags, type(post_tags)))
@@ -49,6 +51,14 @@ for entry in entries:
             print("Saving pretified and ref tags")
             post['pretified'] = True
             post['ref'] = fileref
+            
+            # Make the image item appear in the frontmatter if there was no image supplied
+            if 'image' not in post:
+                post['image'] = None
+                
+            # If there was no description provided, we take the first 160 characters of the content
+            if 'description' not in post:
+                post['description'] = post.content[:160]
             
             print("Wordpress frontmatter variable = {} of type {}".format(wordpress_frontmatter, type(wordpress_frontmatter)))
             if wordpress_frontmatter == "true":
