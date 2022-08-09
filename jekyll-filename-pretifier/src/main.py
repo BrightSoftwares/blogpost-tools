@@ -20,9 +20,9 @@ for entry in entries:
         post_date = post['date'] if 'date' in post else None
         fileref = post['ref'] if 'ref' in post else None
         post_category = post['category'] if 'category' in post else []
-        post_tags = post['tags'] if 'tags' in post else []
         post_description = post['description'] if 'description' in post else None
         post_image = post['image'] if 'image' in post else None
+        post_tags = post['tags'] if 'tags' in post else []
 
         print("post category: {} of type {}".format(post_category, type(post_category)))
         print("post tags: {} of type {}".format(post_tags, type(post_tags)))
@@ -55,6 +55,16 @@ for entry in entries:
             # Make the image item appear in the frontmatter if there was no image supplied
             if 'image' not in post:
                 post['image'] = None
+                
+            # Make the tags item appear in the frontmatter if there was no tags supplied
+            if 'tags' not in post:
+                # We use the keyword_suggestion if there is any
+                if 'keyword_suggestion' in post:
+                    post['tags'] = post['keyword_suggestion'].split(' ')
+                else:
+                    post['tags'] = []
+                # Finally assign the tags
+                post_tags = post['tags']
                 
             # If there was no description provided, we take the first 160 characters of the content
             if 'description' not in post:
