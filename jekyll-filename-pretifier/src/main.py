@@ -1,5 +1,5 @@
 # importing the module
-from datetime import datetime
+from datetime import datetime, date
 from youtube_transcript_api import YouTubeTranscriptApi
 import frontmatter
 import os
@@ -30,7 +30,7 @@ for entry in entries:
         if pretified is not True and title is not None:
 
             if post_date is None:
-                post_date = datetime.now()
+                post_date = date.today() # datetime.now()
                 post['date'] = post_date
 
             if fileref is None:
