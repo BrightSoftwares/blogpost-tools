@@ -67,7 +67,7 @@ for entry in entries:
                 post_tags = post['tags']
                 
             # If there was no description provided, we take the first 160 characters of the content
-            if 'description' not in post:
+            if 'description' not in post or post['description'] == '':
                 post['description'] = post.content[:160]
             
             print("Wordpress frontmatter variable = {} of type {}".format(wordpress_frontmatter, type(wordpress_frontmatter)))
