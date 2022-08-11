@@ -76,7 +76,7 @@ for entry in entries:
                 post['featured_image'] = post['image']  if 'image' in post else None
                 post['wp_url'] = "{}".format(slugify(title.lower()))
                 post['menu_order'] = 0
-                post['post_date'] = "{} 10:29:02".format(post['date'])  if 'date' in post else None
+                post['post_date'] = "{} 03:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
                 post['post_status'] = "future"
 
