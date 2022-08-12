@@ -9,6 +9,7 @@ from slugify import slugify
 #folder = '../../en/_drafts/'
 folder = os.getenv('INPUT_DRAFTS_PATH')
 wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER', default=False)
+post_author_env = os.getenv('INPUT_POST_AUTHOR', 1)
 entries = os.listdir(folder)
 for entry in entries:
     print(entry)
@@ -22,6 +23,7 @@ for entry in entries:
         post_category = post['category'] if 'category' in post else []
         post_description = post['description'] if 'description' in post else None
         post_image = post['image'] if 'image' in post else None
+        post_author = post['post_author'] if 'post_author' in post else post_author_env
         post_tags = post['tags'] if 'tags' in post else []
 
         print("post category: {} of type {}".format(post_category, type(post_category)))
@@ -78,6 +80,7 @@ for entry in entries:
                 post['menu_order'] = 0
                 post['post_date'] = "{} 03:29:02".format(post['date'])  if 'date' in post else None
                 post['post_excerpt'] = post['description']  if 'description' in post else None
+                post['post_author'] = post_author
                 post['post_status'] = "future"
 
                 wp_post_category = [ cat for cat in post_category ]
