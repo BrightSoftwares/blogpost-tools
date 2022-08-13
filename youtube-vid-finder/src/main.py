@@ -163,7 +163,7 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
                 used_vids_df = pd.concat(
                     [used_vids_df, new_yt_video_df], sort=False)
             else:
-                print("Did not process this file because ytvideo_url = url ({}) or title was None ({})".format(
+                print("Did not process this file because ytvideo_url is NOT None ({}) or title is None ({})".format(
                     ytvideo_url, title))
 
         except Exception as e:
