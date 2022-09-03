@@ -18,6 +18,9 @@ inputs:
     description: 'In which file (full path) to store the youtube search results.'
   youtube_video_duration:
     description: 'The duration of the video you are looking for. Possible values: any, long (longer than 20 minutes), medium (between four and 20 minutes long (inclusive), short ( less than 4 minutes)'
+  yt_max_results:
+    description: 'The max youtube result to pull from youtube.'
+    default: 5
   
 
 outputs:
