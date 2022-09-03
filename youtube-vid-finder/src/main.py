@@ -182,10 +182,11 @@ folder = os.getenv('INPUT_SRC_FOLDER')
 DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
 yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
 yt_results_file = os.getenv('INPUT_YT_SEARCH_RESULTS_FILE')
+yt_max_results = os.getenv('INPUT_YT_MAX_RESULTS', 10)
 YOUTUBE_VIDEO_DURATION = os.getenv('INPUT_YOUTUBE_VIDEO_DURATION', 'any')
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
 
 #blogpost_to_ytvideo(folder, yt_already_used)
-blogpost_to_ytvideo(folder, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, DEVELOPER_KEY, yt_results_file, yt_already_used)
+blogpost_to_ytvideo(folder, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, DEVELOPER_KEY, yt_results_file, yt_already_used, yt_max_results)
