@@ -50,6 +50,9 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
 
       print("At the end of the processing we transform it into a dataframe")
       existing_result_df = get_yt_results_dataframe(theresults)
+      
+      # Save the results got from youtube
+      save_youtube_search(query, existing_result_df, yt_results_file)
 
 
     else:
@@ -136,7 +139,7 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
                 print("search_results = ", search_results)
                 
                 # Save the results got from youtube
-                save_youtube_search(title, search_results, yt_results_file)
+                #save_youtube_search(title, search_results, yt_results_file)
                 
                 # Check that the video is suitable for use
                 video_found = find_youtube_video(search_results, used_vids_df)
