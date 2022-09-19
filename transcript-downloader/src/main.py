@@ -28,11 +28,13 @@ def get_best_transcript(transcript_list, language, ignore_manually_generated=Tru
         print("This transcript is manually generated. Escaping")
         continue
       else:
+        print("Found the transcript with the right language code {}. Breacking out.".format(transcript.language_code))
         final_transcript = transcript
         break
+        
 
   if final_transcript is None:
-    # Not found, check if I can translate an existing one
+    print("Final transcript not found, check if I can translate an existing one")
     for transcript in transcript_list:
       print("Checking whetehr the translation {} ({}) is translatable to {}".format(transcript.language, transcript.language_code, language))
 
@@ -43,6 +45,7 @@ def get_best_transcript(transcript_list, language, ignore_manually_generated=Tru
         break
   
 
+  print("get_best_transcript > Finished. Returning final transcript", final_transcript)
   return final_transcript
   
 
@@ -76,11 +79,15 @@ def parse_time_duration(time_duration):
   #print("Parsing time duration", time_duration)
   #print("Parsing line time_duration: {}, duration: {}".format(time_duration, duration))
 
-  parsed_time = datetime.strptime(time_duration,"%H:%M:%S")
-  #delta = timedelta(hours=parsed_time.hour, minutes=parsed_time.minute, seconds=parsed_time.second)
-  ##print("  result:", delta)
-  #return delta
-  return parsed_time
+  try:
+    parsed_time = datetime.strptime(time_duration,"%H:%M:%S")
+    #delta = timedelta(hours=parsed_time.hour, minutes=parsed_time.minute, seconds=parsed_time.second)
+    ##print("  result:", delta)
+    #return delta
+    return parsed_time
+  execept Exception as e:
+    print("Unexpected error. Returning 00:00:00. Error Message = ", str(e))
+    return datetime.strptime("00:00:00","%H:%M:%S")
 
 
 def parse_line_duration(time_duration, duration):
@@ -101,6 +108,7 @@ def get_yt_video_transcript(video_id, language='en'):
     my_transcript = get_best_transcript(transcript_list, language)
 
     transcript_data = my_transcript.fetch()
+    print("get_best_transcript > result = ", transcript_data)
 
     # The idea here is: 
     # 0. We don't want manually created transcripts
@@ -150,7 +158,7 @@ def get_yt_video_transcript(video_id, language='en'):
         print(debug_str)
         transcript_data_string += "\n"
       except Exception as e:
-        print(str(e))
+        print("An error occured.", str(e))
 
     return transcript_data_string
 
