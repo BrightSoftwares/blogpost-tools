@@ -85,7 +85,7 @@ def parse_time_duration(time_duration):
     ##print("  result:", delta)
     #return delta
     return parsed_time
-  execept Exception as e:
+  except Exception as e:
     print("Unexpected error. Returning 00:00:00. Error Message = ", str(e))
     return datetime.strptime("00:00:00","%H:%M:%S")
 
