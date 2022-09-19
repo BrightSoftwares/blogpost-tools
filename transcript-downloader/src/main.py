@@ -45,7 +45,7 @@ def get_best_transcript(transcript_list, language, ignore_manually_generated=Tru
         break
   
 
-  print("get_best_transcript > Finished. Returning final transcript", final_transcript)
+  #print("get_best_transcript > Finished. Returning final transcript", final_transcript)
   return final_transcript
   
 
