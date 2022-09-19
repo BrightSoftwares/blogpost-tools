@@ -254,6 +254,8 @@ for entry in entries:
                 print("Adding the transcribed and lang tags")
                 post['transcribed'] = transcribed
                 post['lang'] = lang
+                print("Final transcription:", transcription)
+                print("transcribed? = ", transcribed)
                 print("Saving the content of the file")
                 filecontent = frontmatter.dumps(post)
                 with open(folder + "/" + entry, 'w') as f:
