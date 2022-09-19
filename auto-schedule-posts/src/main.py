@@ -92,9 +92,11 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, nb_days_ah
 
 src_folder_path = os.getenv('INPUT_SRC_FOLDER')
 src_folder_path = src_folder_path[-1] if src_folder_path.endswith("/") else src_folder_path
+print("Source folder = ", src_folder_path)
 
 dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
 dest_folder_path = dest_folder_path[-1] if dest_folder_path.endswith("/") else dest_folder_path
+print("Destination folder = ", dest_folder_path)
 
 days_mask = os.getenv('INPUT_DAYS_MASK')
 dry_run = os.getenv('INPUT_DRY_RUN')
