@@ -22,7 +22,7 @@ inputs:
   cloudinary_destfolder:
     description: 'The folder in which to upload the images in cloudinary'
   cloudinary_transformation:
-    description: 'The transformation to apply to the images"
+    description: 'The transformation to apply to the images'
   cloudinary_url:
     description: 'For authenticating against cloudinary. In the form of cloudinary://<api key>:<api secret>@<cloud name>. Find it on your cloudinary dashboard.'
   
