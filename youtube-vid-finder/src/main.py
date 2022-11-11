@@ -64,25 +64,39 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
 
 def find_youtube_video(results_df, used_vids_df):
 
+    print("Remove the used videos from the results")
+    print("results_df size", results_df.shape)
+    print("used_vids_df size", used_vids_df.shape)
+
+    values_list = used_vids_df['yt_video_id']
+    #print("Values list", values_list)
+
+    boolean_series = ~results_df.video_id.isin(values_list)
+    #print("boolean_series", boolean_series)
+
+    results_notused_df = results_df[boolean_series]
+    #print("results_notused_df size", results_notused_df.shape)
+
     # Add each result to the appropriate list, and then display the lists of
     # matching videos, channels, and playlists.
-    best_video_id = None
+    #best_video_id = None
 
-    for index, search_result in results_df.iterrows():
-        video_kind = search_result['video_kind']
-        video_title = search_result['video_title']
-        video_id = search_result['video_id']
-        video_description = search_result['video_description']
-        video_used = video_id in used_vids_df['yt_video_id'].unique()
+    #for index, search_result in results_notused_df.iterrows():
+    #    video_kind = search_result['video_kind']
+    #    video_title = search_result['video_title']
+    #    video_id = search_result['video_id']
+    #    video_description = search_result['video_description']
+    #    #video_used = video_id in used_vids_df['yt_video_id'].unique()
+    #    #print("Video with id {} already used? {}".format(video_id, video_used))
+    #
+    #    #if not video_used:
+    #    #    best_video_id = [video_title, video_id, video_description]
+    #    #    break
+    #    #else:
+    #    #    print("YT video is either not kind video = ({}) or is already used = ({})".format(
+    #    #        video_kind, video_used))
 
-        print("Video with id {} already used? {}".format(video_id, video_used))
-
-        if not video_used:
-            best_video_id = [video_title, video_id, video_description]
-            break
-        else:
-            print("YT video is either not kind video = ({}) or is already used = ({})".format(
-                video_kind, video_used))
+    best_video_id = results_notused_df.head(1) if len(results_notused_df) > 0 else None
 
     print("Best video id: ", best_video_id)
     return best_video_id
@@ -96,6 +110,7 @@ def save_youtube_search(query, results_df, dest_file):
 
   # Concat the dataframe
   yt_results_df = yt_results_df.append(results_df)
+  yt_results_df.drop_duplicates(inplace=True)
   
   # Save the final data
   print("yt_results_df = ", yt_results_df)
@@ -142,10 +157,12 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
                 #save_youtube_search(title, search_results, yt_results_file)
                 
                 # Check that the video is suitable for use
-                video_found = find_youtube_video(search_results, used_vids_df)
-                video_found_title = video_found[0]
-                video_found_id = video_found[1]
-                video_found_description = video_found[2]
+                video_found_df = find_youtube_video(search_results, used_vids_df)
+                video_found_title = video_found_df.iloc[0]['video_title']
+                video_found_id = video_found_df.iloc[0]['video_id']
+                video_found_description = video_found_df.iloc[0]['video_description']
+
+                print(">>>>> video_found_id = ", video_found_id)
 
                 print("Saving youtube_video and youtube_video_id tags")
                 post['youtube_video'] = "http://www.youtube.com/watch?v={}".format(
@@ -156,8 +173,8 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
 
                 print("Saving the content of the file")
                 filecontent = frontmatter.dumps(post)
-                with open(folder + "/" + entry, 'w') as f:
-                    f.write(filecontent)
+                #with open(folder + "/" + entry, 'w') as f:
+                #    f.write(filecontent)
 
                 new_yt_video_df = pd.DataFrame(
                     [video_found_id], columns=['yt_video_id'])
@@ -173,6 +190,7 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
             print("Error. = ", str(e))
 
     # Export the result to csv
+    used_vids_df.drop_duplicates(inplace=True)
     used_vids_df.to_csv(yt_already_used, index=False)
 
 
