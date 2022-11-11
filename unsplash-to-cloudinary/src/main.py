@@ -115,13 +115,13 @@ def save_unsplash_search(query, results_df, dest_file):
   unsplash_results_df.to_csv(dest_file, index=False)
 
 
-def upload_image_to_cloudinary(photo_link, cloudinary_dest_folder, cloudinary_transformation):
+def upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation):
   config = cloudinary.config(secure=True)
   #print("****1. Set up and configure the SDK:****\nCredentials: ", config.cloud_name, config.api_key, "\n")
 
   # Upload the image.
   # Set the asset's public ID and allow overwriting the asset with new versions
-  upload_response = cloudinary.uploader.upload(photo_link, folder = cloudinary_dest_folder, unique_filename = False, overwrite=True)
+  upload_response = cloudinary.uploader.upload(photo_link, folder = cloudinary_dest_folder, public_id = photo_id, unique_filename = False, overwrite=True)
   print("upload_response = ", upload_response)
   print("upload_response public id = ", upload_response['public_id'])
 
@@ -188,7 +188,7 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
                 print("Saving unsplash photos url as image url")
 
                 print("Upload photo link to cloudinary", photo_link)
-                cloudinary_image_url = upload_image_to_cloudinary(photo_link, cloudinary_dest_folder, cloudinary_transformation)
+                cloudinary_image_url = upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation)
 
                 post['image'] = cloudinary_image_url
 
