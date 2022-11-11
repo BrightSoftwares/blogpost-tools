@@ -173,8 +173,8 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
 
                 print("Saving the content of the file")
                 filecontent = frontmatter.dumps(post)
-                #with open(folder + "/" + entry, 'w') as f:
-                #    f.write(filecontent)
+                with open(folder + "/" + entry, 'w') as f:
+                    f.write(filecontent)
 
                 new_yt_video_df = pd.DataFrame(
                     [video_found_id], columns=['yt_video_id'])
