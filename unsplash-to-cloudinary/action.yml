@@ -1,0 +1,36 @@
+name: "Finds featured image for the blogpost"
+
+description: "Finds a suitable featured image in unsplash for the blogpost."
+
+inputs:
+  unsplash_access_key:
+    description: 'The API hey that allow us to query unsplash. Create it on https://unsplash.com/developers.'
+    required: true
+  already_used_items:
+    description: 'The file where we store the list of already used unsplash photos, to avoid duplicates.'
+  language:
+    default: 'en'
+  country:
+    default: 'us'
+  src_folder:
+    description: 'The folder to analyse'
+  search_results_file:
+    description: 'In which file (full path) to store the unsplash search results.'
+  max_results:
+    description: 'The max unsplash result to pull from youtube.'
+    default: 30
+  cloudinary_destfolder:
+    description: 'The folder in which to upload the images in cloudinary'
+  cloudinary_transformation:
+    description: 'The transformation to apply to the images"
+  cloudinary_url:
+    description: 'For authenticating against cloudinary. In the form of cloudinary://<api key>:<api secret>@<cloud name>. Find it on your cloudinary dashboard.'
+  
+
+outputs:
+  already_used_items:
+    description: 'The path to the file that contains the list of used unsplash photos'
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
