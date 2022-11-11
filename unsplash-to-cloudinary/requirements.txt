@@ -1,0 +1,8 @@
+pandas
+requests
+youtube-transcript-api
+python-frontmatter
+python-slugify
+google-api-python-client
+cloudinary
+pyunsplash
