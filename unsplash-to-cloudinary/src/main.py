@@ -17,7 +17,6 @@ import cloudinary.api
 def get_unsplash_results_dataframe(obj_array):
   return pd.DataFrame(obj_array, columns=['query', 'photo_id', 'photo_link'])
 
-
 def search_unsplash_image(query, api_access_key, results_file, max_results):
 
     # Load the results youtube videos
@@ -29,41 +28,27 @@ def search_unsplash_image(query, api_access_key, results_file, max_results):
     print(existing_result_df)
 
     if existing_result_df.empty:
-      print("No existing result found for this query. Asking youtube")
-      # Call the search.list method to retrieve results matching the specified
-      # query term.
-      #search_response = youtube.search().list(
-      #    q=query,
-      #    part='id,snippet',
-      #    maxResults=max_results,
-      #    order='relevance',
-      #    type='video',
-      #    videoDuration=YOUTUBE_VIDEO_DURATION,
-      #    # videoLicense='creativeCommon'
-      #).execute()
-      # instantiate PyUnsplash object
+      print("No existing result found for this query. Asking unsplash ...")
 
       pu = PyUnsplash(api_key=api_access_key)
 
       # Append the new data to it
       theresults = []
 
-      photos = pu.photos(type_='random', count=max_results, query=query, orientation='landscape')
-      for photo in photos.entries:
-        print(photo.id, photo.link_download)
-        theresults.append([query, photo.id, photo.link_download])
+      #photos = pu.photos(type_='random', count=max_results, query=query, orientation='landscape')
+      #photos = pu.search(type_='photos', per_page=max_results, query=query)
+      url = "https://api.unsplash.com/search/photos?page=1&query={}&client_id={}&orientation=landscape&per_page={}".format(query, api_access_key, max_results)
 
-      
-      #for search_result in search_response.get('items', []):
-      #  print(search_result)
-      #  video_kind = search_result['id']['kind']
-      ##
-      #  if video_kind == "youtube#video":
-      #    video_title = search_result['snippet']['title']
-      #    video_id = search_result['id']['videoId']
-      #    video_description = search_result['snippet']['description']
-      #
-      #    theresults.append([query, video_kind, video_title, video_id, video_description])
+      params = dict()
+
+      resp = requests.get(url=url, params=params)
+      data = resp.json() # Check the JSON Response Content documentation below
+      print(data)
+
+      for photo in data['results']:
+        print(photo)
+        print(photo['id'], photo['links']['download'])
+        theresults.append([query, photo['id'], photo['links']['download']])
 
       print("At the end of the processing we transform it into a dataframe")
       existing_result_df = get_unsplash_results_dataframe(theresults)
