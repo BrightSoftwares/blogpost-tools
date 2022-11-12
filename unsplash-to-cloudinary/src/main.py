@@ -11,6 +11,7 @@ from pyunsplash import PyUnsplash
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+import requests
 
 
 
