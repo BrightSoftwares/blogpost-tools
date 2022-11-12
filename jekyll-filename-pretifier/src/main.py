@@ -1,8 +1,8 @@
-# importing the module
 from datetime import datetime, date
 from youtube_transcript_api import YouTubeTranscriptApi
 import frontmatter
 import os
+import re
 from urllib.parse import urlparse, parse_qs
 from slugify import slugify
 
@@ -10,7 +10,32 @@ from slugify import slugify
 folder = os.getenv('INPUT_DRAFTS_PATH')
 wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER', default=False)
 post_author_env = os.getenv('INPUT_POST_AUTHOR', 1)
+dry_run = os.getenv('INPUT_DRY_RUN', False)
 entries = os.listdir(folder)
+
+def get_clean_description(content):
+
+  #print("get_clean_description > content =", content)
+  # Process line by line and 
+  #   ignore the lines that begin with #
+  #   ignore the lines that begin with ![
+  final_text = ""
+  for line in content.split("\n"):
+    # Remove tabs and line returns and white spaces
+    line_striped = line.strip(' \t\n\r') #re.sub('[\s+]', ' ', line)
+    #print("line_striped =", line_striped)
+
+    if not line_striped.startswith("#") and not line_striped.startswith("!["):
+      final_text = final_text + " " + line_striped
+      #final_text += " "
+
+  # Get 160 words instead of 160 characters.
+  
+  clean_description = " ".join(final_text.split(" ")[:160]).strip() # final_text[:160]
+  print("clean_description = ", clean_description)
+  return clean_description
+
+
 for entry in entries:
     print(entry)
     try:
@@ -70,7 +95,7 @@ for entry in entries:
                 
             # If there was no description provided, we take the first 160 characters of the content
             if 'description' not in post or post['description'] == '':
-                post['description'] = post.content[:160]
+                post['description'] = get_clean_description(post.content)
             
             print("Wordpress frontmatter variable = {} of type {}".format(wordpress_frontmatter, type(wordpress_frontmatter)))
             if wordpress_frontmatter == "true":
@@ -87,13 +112,16 @@ for entry in entries:
                 wp_post_tags = [ tg for tg in post_tags ]
                 post['taxonomy'] = { 'category': wp_post_category, 'post_tag': wp_post_tags }
 
-            print("Saving the content of the file")
-            filecontent = frontmatter.dumps(post)
-            with open(oldfilename, 'w') as f:
-                f.write(filecontent)
+            if dry_run == "true":
+              print("---> In dry run mode. Not saving files")
+            else:
+              print("Saving the content of the file")
+              filecontent = frontmatter.dumps(post)
+              with open(oldfilename, 'w') as f:
+                  f.write(filecontent)
 
-            print("Renaming the file to the correct file name")
-            os.rename(oldfilename, newfilename)
+              print("Renaming the file to the correct file name")
+              os.rename(oldfilename, newfilename)
 
         else:
             print("Did not process this file because Pretified = True ({}) or title was None ()".format(
