@@ -165,10 +165,10 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
             title = post['title'] if 'title' in post else None
             silot_terms = post['silot_terms'] if 'silot_terms' in post else None
             image = post['image'] if 'image' in post else None
-            image = None
+            #image = None
             #ytvideo_url = post['youtube_video'] if 'youtube_video' in post else None
 
-            if image is None and silot_terms is not None:
+            if (image is None or image == "null") and silot_terms is not None:
 
                 # Get the best video for this query
                 search_results = search_unsplash_image(silot_terms, api_access_key, results_file, max_results)
