@@ -171,7 +171,7 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
             if image is None and silot_terms is not None:
 
                 # Get the best video for this query
-                search_results = search_unsplash_image(title, api_access_key, results_file, max_results)
+                search_results = search_unsplash_image(silot_terms, api_access_key, results_file, max_results)
                 print("search_results = ", search_results)
                 
                 # Save the results got from youtube
