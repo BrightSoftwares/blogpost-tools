@@ -1,0 +1,41 @@
+name: "Keyword suggestions to blogpost"
+
+description: "Transform the keyword suggestions into markdown blog posts. Uses a seed of keywords."
+
+inputs:
+
+%env INPUT_SRC_FOLDER=/content/drive/MyDrive/ColabFiles/blogpost_samples/post_summarizer/src
+%env INPUT_DEST_FOLDER=/content/drive/MyDrive/ColabFiles/blogpost_samples/post_summarizer/dest
+%env INPUT_DRY_RUN=false
+%env INPUT_DEST_LANG=en
+%env INPUT_SUMMARIZER_MINLENGTH=60
+%env INPUT_SUMMARIZER_NBSENTENCES=25
+
+  src_folder:
+    description: The folder where we will pull the blog post candidates from
+    required: true
+  dest_folder:
+    description: The folder where we are going to generate the processed posts
+    required: true
+  dry_run:
+    description: Whether we process it for real or just simulating
+    default: false
+  dest_lang:
+    description: The destination language we will operate the summarization in.
+    default: 'en'
+  summarizer_minlength:
+    description: Minimum sentence length.
+    default: 60
+  summarizer_nbsentences:
+    description: The number of sentences we are going to generate.
+    default: 25
+
+  
+
+outputs:
+  dest_folder:
+    description: The path to the the generated blog posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
