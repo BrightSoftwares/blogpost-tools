@@ -1,0 +1,9 @@
+bert-extractive-summarizer
+newspaper3k
+python-frontmatter
+nltk
+markdownify
+tomd
+spacy==2.1.3
+transformers
+neuralcoref 
