@@ -3,14 +3,6 @@ name: "Keyword suggestions to blogpost"
 description: "Transform the keyword suggestions into markdown blog posts. Uses a seed of keywords."
 
 inputs:
-
-%env INPUT_SRC_FOLDER=/content/drive/MyDrive/ColabFiles/blogpost_samples/post_summarizer/src
-%env INPUT_DEST_FOLDER=/content/drive/MyDrive/ColabFiles/blogpost_samples/post_summarizer/dest
-%env INPUT_DRY_RUN=false
-%env INPUT_DEST_LANG=en
-%env INPUT_SUMMARIZER_MINLENGTH=60
-%env INPUT_SUMMARIZER_NBSENTENCES=25
-
   src_folder:
     description: The folder where we will pull the blog post candidates from
     required: true
