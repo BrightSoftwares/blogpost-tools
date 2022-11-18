@@ -45,4 +45,7 @@ RUN pip install tomd
 
 COPY . .
 
+RUN echo "Trigger the download of the models"
+RUN python src/trigger_aimodel_download.py
+
 CMD [ "python", "/src/main.py" ]
