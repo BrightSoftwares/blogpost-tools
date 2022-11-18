@@ -18,6 +18,10 @@ on:
     #tags:
     #  - '*'
   workflow_dispatch:
+  
+defaults:
+  run:
+    working-directory: ./post-summarizer
 
 jobs:
   push_to_registry:
@@ -111,9 +115,9 @@ jobs:
       
       - name: Build and push Docker image for API
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        #working-directory: ./post-summarizer
         with:
           context: .
-          working-directory: ./post-summarizer
           file: ./Dockerfile.postsummarizer
           push: true
           tags: ${{ steps.metaapi.outputs.tags }}
