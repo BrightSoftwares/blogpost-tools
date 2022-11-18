@@ -31,3 +31,5 @@ webencodings==0.5.1
 wrapt==1.10.10
 cython
 googletrans==3.1.0a0
+torch
+sentencepiece
