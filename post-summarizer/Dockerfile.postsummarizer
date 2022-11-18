@@ -12,6 +12,9 @@ RUN python3.6 -m pip install --upgrade wheel
 RUN python3.6 -m pip install -r requirements2.txt
 RUN python3.6 -m pip install --upgrade setuptools
 
+RUN echo "Create the transformers cache folders"
+RUN mkdir -p /transformers/cache/
+
 RUN python3.6 -m nltk.downloader wordnet
 RUN python3.6 -m spacy download en_core_web_lg
 RUN python3.6 -m spacy download en_vectors_web_lg
@@ -46,7 +49,6 @@ RUN pip install tomd
 COPY . .
 
 RUN echo "Trigger the download of the models"
-RUN mkdir -p /transformers/cache/
 RUN python src/trigger_aimodel_download.py
 
 CMD [ "python", "/src/main.py" ]
