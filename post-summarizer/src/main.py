@@ -99,8 +99,8 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
         print("Processing entry {}, dry run {} ({})".format(entry, dry_run, type(dry_run)))
         post = frontmatter.load(folder + "/" + entry)
         post_inspiration = post['post_inspiration'] if 'post_inspiration' in post else None
-        post_inspiration = "https://en.as.com/olympic_games/2024-olympic-games-in-paris-mascot-what-is-a-phryge-and-how-is-it-pronounced-n/"
-        post_inspiration = "https://www.euronews.com/culture/2022/11/16/liberte-egalite-clitoris-we-need-to-talk-about-the-controversial-french-olympic-mascot"
+        #post_inspiration = "https://en.as.com/olympic_games/2024-olympic-games-in-paris-mascot-what-is-a-phryge-and-how-is-it-pronounced-n/"
+        #post_inspiration = "https://www.euronews.com/culture/2022/11/16/liberte-egalite-clitoris-we-need-to-talk-about-the-controversial-french-olympic-mascot"
         post_length = len(post.content)
 
         if post_inspiration is not None and post_length > 200:
