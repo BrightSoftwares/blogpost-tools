@@ -3,6 +3,7 @@ bottle
 sympy
 simplejson
 spacy==2.1.0
+spacy-langdetect
 nltk
 textblob
 keras==2.0.9
