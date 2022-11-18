@@ -118,7 +118,7 @@ jobs:
         #working-directory: ./post-summarizer
         with:
           context: "./post-summarizer"
-          file: Dockerfile.postsummarizer
+          file: ./post-summarizer/Dockerfile.postsummarizer
           push: true
           tags: ${{ steps.metaapi.outputs.tags }}
           labels: ${{ steps.metaapi.outputs.labels }}
