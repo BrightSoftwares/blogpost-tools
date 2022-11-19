@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "${{ env.subfolder }}/**"
+      - "keyword-suggestion/**"
       
       
 jobs:
