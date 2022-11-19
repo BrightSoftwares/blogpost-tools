@@ -7,10 +7,6 @@ on:
     paths:
       - "keyword-suggestion/**"
 
-env:
-  SUBFOLDER: keyword-suggestion
-  IMAGENAME: keyword-suggestion
-
       
 jobs:
   build-and-publish-keyword-suggestion:
@@ -25,10 +21,10 @@ jobs:
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
-      image_name: ${{ env.IMAGENAME }}
+      image_name: keyword-suggestion
       tag: latest
-      subfolder_name: ${{ env.SUBFOLDER }}
-      dockerfile_name: Dockerfile.${{ env.IMAGENAME }}
+      subfolder_name: keyword-suggestion
+      dockerfile_name: Dockerfile.keyword-suggestion
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
