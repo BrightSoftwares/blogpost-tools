@@ -8,8 +8,8 @@ on:
       - "keyword-suggestion/**"
 
 env:
-  subfolder: keyword-suggestion
-  imagename: keyword-suggestion
+  SUBFOLDER: keyword-suggestion
+  IMAGENAME: keyword-suggestion
 
       
 jobs:
@@ -25,10 +25,10 @@ jobs:
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
-      image_name: ${{ env.imagename }}
+      image_name: ${{ env.IMAGENAME }}
       tag: latest
-      subfolder_name: ${{ env.subfolder }}
-      dockerfile_name: Dockerfile.${{env.imagename}}
+      subfolder_name: ${{ env.SUBFOLDER }}
+      dockerfile_name: Dockerfile.${{ env.IMAGENAME }}
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
