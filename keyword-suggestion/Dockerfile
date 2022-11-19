@@ -1,4 +1,4 @@
-FROM python:3
+FROM fullbright/keyword-suggestion:latest
 
 #COPY requirements.txt ./
 
