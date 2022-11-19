@@ -1,15 +1,16 @@
 name: Build and publish the keyword suggestions image
 
-env:
-  subfolder: keyword-suggestion
-  imagename: keyword-suggestion
 
 on:
   workflow_dispatch:
   push:
     paths:
       - "keyword-suggestion/**"
-      
+
+env:
+  subfolder: keyword-suggestion
+  imagename: keyword-suggestion
+
       
 jobs:
   build-and-publish-keyword-suggestion:
