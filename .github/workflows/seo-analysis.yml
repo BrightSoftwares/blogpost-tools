@@ -1,0 +1,29 @@
+name: Build and publish the SEO analysis image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'seo-analysis/**'
+      
+      
+jobs:
+  build-and-publish-seo-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a one line script
+        run: echo Hello from Github actions!
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: seoanalyser
+      tag: latest
+      subfolder_name: seo-analysis
+      dockerfile_name: Dockerfile.seoanalysis
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
