@@ -2,6 +2,7 @@ name: Build and publish the keyword suggestions image
 
 env:
   subfolder: keyword-suggestion
+  imagename: keyword-suggestion
 
 on:
   workflow_dispatch:
@@ -23,10 +24,10 @@ jobs:
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
-      image_name: keywordsuggestion
+      image_name: ${{ env.imagename }}
       tag: latest
       subfolder_name: ${{ env.subfolder }}
-      dockerfile_name: Dockerfile.keywordsuggestion
+      dockerfile_name: Dockerfile.${{env.imagename}}
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
