@@ -24,7 +24,7 @@ on:
 #    working-directory: ./post-summarizer
 
 env:
-  TRANSFORMERS_CACHE: /transformers_cache
+  #TRANSFORMERS_CACHE: /transformers_cache
   SUBFOLDER: post-summarizer
 
 jobs:
