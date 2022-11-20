@@ -103,7 +103,7 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
         #post_inspiration = "https://www.euronews.com/culture/2022/11/16/liberte-egalite-clitoris-we-need-to-talk-about-the-controversial-french-olympic-mascot"
         post_length = len(post.content)
 
-        if post_inspiration is not None and post_length > 200:
+        if post_inspiration is not None and post_length < 200:
           print("Processing post inspiration url", post_inspiration)
 
           # Let newspaper get the sumarry and keywords
@@ -155,7 +155,7 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
           
 
         else:
-          print("There is no post_inspiration in this entry {} or text is too short {}.".format(post_inspiration, post_length))
+          print("There is no post_inspiration in this entry {} or text is too long already {}.".format(post_inspiration, post_length))
 
       except Exception as e:
         print("Error for an entry. ", str(e))
