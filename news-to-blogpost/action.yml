@@ -2,6 +2,7 @@ name: "RSS news to blogpost"
 
 description: "Transform RSS feeds news into markdown blog posts. Uses a seed of keywords."
 
+inputs:
   keyword_suggestions_generation_folder:
     description: The folder where we are going to generate the suggestion file
     required: true
