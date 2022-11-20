@@ -36,39 +36,42 @@ def get_feedblogposturlused_df(file_url):
 
 def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blogpost_url_used_df):
   # Load the rss feed and get posts that has the  keywords
-  print("extract_blogposts > url = {}, silot_terms = {}, keywords = {}, since = {}".format(feed_url, silot_terms, keywords, since))
-  feed = feedparser.parse(feed_url)
+  try:
+    print("extract_blogposts > url = {}, silot_terms = {}, keywords = {}, since = {}".format(feed_url, silot_terms, keywords, since))
+    feed = feedparser.parse(feed_url)
 
-  #blogposts = []
-  for entry in feed.entries:
-    blogpost_title = entry['title']
-    blogpost_summary = entry['summary']
-    blogpost_link = entry['link']
-    blogpost_new_title = ""
+    #blogposts = []
+    for entry in feed.entries:
+      blogpost_title = entry['title']
+      blogpost_summary = entry['summary']
+      blogpost_link = entry['link']
+      blogpost_new_title = ""
 
-    print("Looking for keywords {} in title {} and summary".format(silot_terms, blogpost_title))
+      print("Looking for keywords {} in title {} and summary".format(silot_terms, blogpost_title))
 
-    keyword_array = silot_terms.split(" ")
-    all_keywords_found = True
+      keyword_array = silot_terms.split(" ")
+      all_keywords_found = True
 
-    for keyword_item in keyword_array:
-      all_keywords_found = (keyword_item in blogpost_title) or (keyword_item in blogpost_summary)
-      if not all_keywords_found:
-        print("keyword '{}' not found neither in title of summary. breaking from loop".format(keyword_item))
-        break
+      for keyword_item in keyword_array:
+        all_keywords_found = (keyword_item in blogpost_title) or (keyword_item in blogpost_summary)
+        if not all_keywords_found:
+          print("keyword '{}' not found neither in title of summary. breaking from loop".format(keyword_item))
+          break
 
-    if all_keywords_found:
-      if blogpost_link in feed_blogpost_url_used_df['blogpost_link'].values:
-        print("Link {} is already in the dataframe. Skipping...".format(blogpost_link))
+      if all_keywords_found:
+        if blogpost_link in feed_blogpost_url_used_df['blogpost_link'].values:
+          print("Link {} is already in the dataframe. Skipping...".format(blogpost_link))
+        else:
+          print("New blogpost inspiration found. Adding ...")
+          feed_blogpost_url_used_df.loc[len(feed_blogpost_url_used_df)] = [keywords, silot_terms, blogpost_title, blogpost_link, category]
       else:
-        print("New blogpost inspiration found. Adding ...")
-        feed_blogpost_url_used_df.loc[len(feed_blogpost_url_used_df)] = [keywords, silot_terms, blogpost_title, blogpost_link, category]
-    else:
-      print("Some keywords were not found. Skipping ...")
-        
+        print("Some keywords were not found. Skipping ...")
+          
+  except Exception as e:
+      print("extract_blogposts > An error occured. ", str(e))
+      #return False
 
   print(feed_blogpost_url_used_df)
-
   return feed_blogpost_url_used_df
 
 
