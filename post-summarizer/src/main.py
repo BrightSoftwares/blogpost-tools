@@ -13,7 +13,7 @@ import frontmatter
 import tomd
 import re
 
-os.environ['TRANSFORMERS_CACHE'] = '/transformers/cache'
+os.environ['TRANSFORMERS_CACHE'] = '/root/.cache/huggingface/transformers/'
 
 nltk.download('punkt')
 translator = Translator()
