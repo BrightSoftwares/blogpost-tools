@@ -1,0 +1,29 @@
+name: "RSS news to blogpost"
+
+description: "Transform RSS feeds news into markdown blog posts. Uses a seed of keywords."
+
+  keyword_suggestions_generation_folder:
+    description: The folder where we are going to generate the suggestion file
+    required: true
+  drafts_path:
+    description: The folder where the draft blogposts will be generated.
+  feeds_file:
+    description: The file path where we can file the file containing the list of rss files.
+  feed_blogpost_url_used:
+    description: The file where we are going to store the rss feed post url we already used.
+  keyword_suggestion_file:
+    description: The path to the keyword_suggestions.csv file that will be used as a source.
+    default: keyword_suggestions.csv
+  batch_size:
+    description: The amount of suggestion to process in a batch
+    default: 10
+
+  
+
+outputs:
+  keyword_suggestions:
+    description: The path to the the generated keyworrd suggestions file
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
