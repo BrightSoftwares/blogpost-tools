@@ -3,6 +3,7 @@ import frontmatter
 import os
 import re
 import glob
+import slugify
 
 translator = Translator()
 
@@ -60,6 +61,7 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
           title = post['title'] if 'title' in post else None
           ref = post['ref'] if 'ref' in post else None
           lang = post['lang'] if 'lang' in post else None
+          post_date = post['date'] if 'date' in post else None
 
 
           if lang is not None and ref is not None:
@@ -125,14 +127,23 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
                   print(transcription)
               finally:
                   print("Change the language tag")
-                  post['title'] = translate_posttitle(post['title'], post['lang'], dest_lang)
+                  translated_title = translate_posttitle(post['title'], post['lang'], dest_lang)
+                  post['title'] = translated_title
                   post['lang'] = dest_lang
                   post['pretified'] = False # So that the file name gets generated again
                   print("Saving the content of the file")
                   filecontent = frontmatter.dumps(post)
                   
+                  # Make sure we have a post date
+                  if post_date is None:
+                    post_date = date.today()
+                    post['date'] = post_date
+                  
+                  # Generate a translated file name
+                  newfilename = "{}/{}-{}.md".format(dest_folder_path, post_date.strftime("%Y-%m-%d"), slugify(translated_title.lower()))
+                  
                   if not dry_run:
-                    with open(dest_folder_path + "/" + os.path.basename(entry), 'w') as f:
+                    with open(newfilename, 'w') as f:
                         f.write(filecontent)
                   else:
                     print("In dry run mode, skipping file write ...")
