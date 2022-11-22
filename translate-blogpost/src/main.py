@@ -3,7 +3,7 @@ import frontmatter
 import os
 import re
 import glob
-import slugify
+from slugify import slugify
 
 translator = Translator()
 
