@@ -142,7 +142,7 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
                   # Generate a translated file name
                   newfilename = "{}/{}-{}.md".format(dest_folder_path, post_date.strftime("%Y-%m-%d"), slugify(translated_title.lower()))
                   
-                  if not dry_run:
+                  if dry_run != "true":
                     with open(newfilename, 'w') as f:
                         f.write(filecontent)
                   else:
