@@ -205,6 +205,7 @@ for entry in entries:
         title = post['title'] if 'title' in post else None
         ytvideo_url = post['youtube_video'] if 'youtube_video' in post else None
         transcribed = post['transcribed'] if 'transcribed' in post else None
+        post_inspiration = post['post_inspiration'] if 'post_inspiration' in post else None
         lang = post['lang'] if 'lang' in post else 'en'
         # nb_words = len(post.content.split())
         # contains_readmore = 1 if "Read more" in post.content else 0
@@ -225,7 +226,7 @@ for entry in entries:
         # print(post.metadata)
         # print("YT video: {}, title: {}".format(ytvideo, title))
 
-        if ytvideo_url is not None and ytvideo_url != '' and transcribed is not True:
+        if ytvideo_url is not None and post_inspiration is None and ytvideo_url != '' and transcribed is not True:
         
             transcription = ""
             try:
@@ -269,5 +270,8 @@ for entry in entries:
                 with open(folder + "/" + entry, 'w') as f:
                     f.write(filecontent)
 
+        else:
+          print(" >>> Won't process this file ({}) because ytvideo_url is None ({}) or post_inspiration is not None ({}) or ytvideo_url == '' ({}) or transcribed is True ({})".format(entry, ytvideo_url, post_inspiration, ytvideo_url, transcribed))
+          
     except Exception as e:
         print("Error. = ", str(e))
