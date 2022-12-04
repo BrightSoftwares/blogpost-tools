@@ -86,6 +86,7 @@ def process_rss_feeds(feeds_csv, suggestions_file, feedblogposturlused_df):
   since = today - timedelta(days=7)
 
   for index, feed_url in rss_feed_df.iterrows():
+    print("Processing feed {}".format(feed_url)
     for index_keyword, keywords in suggestions_file_df.iterrows():
       # Extract blog posts
       feedblogposturlused_df = extract_blogposts(feed_url['feed_url'], keywords['Suggestion'], keywords['silot_terms'], keywords['category'], since, feedblogposturlused_df)
