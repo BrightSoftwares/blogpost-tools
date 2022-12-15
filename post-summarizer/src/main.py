@@ -136,7 +136,8 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
           # Translate the text before saving
           #translated_text = translate_large_text2(thebody_md, dest_lang)
           #print("Translated text = ", translated_text[:100])
-          post.content = article.summary
+          #post.content = article.summary
+          post.content = article_bert_summarry
 
           post["orig_post_authors"] = article.authors
           post["orig_post_publish_date"] = article.publish_date
