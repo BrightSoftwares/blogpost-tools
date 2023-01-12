@@ -1,5 +1,5 @@
 git+https://github.com/PrithivirajDamodaran/Parrot_Paraphraser.git
-bert-extractive-summarizer
+#bert-extractive-summarizer
 newspaper3k
 python-frontmatter
 nltk
