@@ -1,6 +1,6 @@
+pandas==1.2.4
 git+https://github.com/PrithivirajDamodaran/Parrot_Paraphraser.git
 #bert-extractive-summarizer
-pandas==1.2.4
 newspaper3k
 python-frontmatter
 nltk
