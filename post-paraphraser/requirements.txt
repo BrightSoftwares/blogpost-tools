@@ -1,0 +1,10 @@
+git+https://github.com/PrithivirajDamodaran/Parrot_Paraphraser.git
+bert-extractive-summarizer
+newspaper3k
+python-frontmatter
+nltk
+markdownify
+tomd
+transformers
+neuralcoref
+rpunct
