@@ -41,9 +41,9 @@ def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blo
     
     # Do request using requests library and timeout
     try:
-        resp = requests.get(rss_feed, timeout=20.0)
+        resp = requests.get(feed_url, timeout=20.0)
     except requests.ReadTimeout:
-        logger.warn("Timeout when reading RSS %s", rss_feed)
+        logger.warn("Timeout when reading RSS %s", feed_url)
         return feed_blogpost_url_used_df
 
     # Put it to memory stream object universal feedparser
