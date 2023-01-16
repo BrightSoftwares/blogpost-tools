@@ -2,6 +2,7 @@ import concurrent.futures
 from datetime import date
 from datetime import datetime, timedelta
 from slugify import slugify
+from io import BytesIO
 import pandas as pd
 import frontmatter
 import feedparser
