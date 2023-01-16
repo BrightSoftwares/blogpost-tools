@@ -38,7 +38,20 @@ def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blo
   # Load the rss feed and get posts that has the  keywords
   try:
     print("extract_blogposts > url = {}, silot_terms = {}, keywords = {}, since = {}".format(feed_url, silot_terms, keywords, since))
-    feed = feedparser.parse(feed_url)
+    
+    # Do request using requests library and timeout
+    try:
+        resp = requests.get(rss_feed, timeout=20.0)
+    except requests.ReadTimeout:
+        logger.warn("Timeout when reading RSS %s", rss_feed)
+        return feed_blogpost_url_used_df
+
+    # Put it to memory stream object universal feedparser
+    content = BytesIO(resp.content)
+
+    # Parse content
+    #feed = feedparser.parse(feed_url) # Old implementation, is subject to connection hang
+    feed = feedparser.parse(content)
 
     #blogposts = []
     for entry in feed.entries:
