@@ -1,10 +1,12 @@
 from newspaper import Article, fulltext, Config
+from newspaper.utils import BeautifulSoup
 from markdownify import markdownify as md
 from rpunct import RestorePuncts
 #from spacy_langdetect import LanguageDetector
 #from spacy.language import Language
 #from googletrans import Translator
 from summarizer import Summarizer
+from lxml import etree
 import traceback
 import spacy
 import nltk
@@ -16,6 +18,7 @@ import re
 from parrot import Parrot
 import torch
 import warnings
+import json
 
 
 warnings.filterwarnings("ignore")
@@ -98,7 +101,7 @@ def paraphrase_text(text):
       rest_of_title = text
 
     #para_phrases = parrot.augment(input_phrase=rest_of_title, do_diverse = True)
-    para_phrases = parrot.rephrase(input_phrase=rest_of_title, do_diverse = False, adequacy_threshold = 0.79,
+    para_phrases = parrot.rephrase(input_phrase=rest_of_title, do_diverse = False, adequacy_threshold = 0.79, 
                                fluency_threshold = 0.70, use_gpu=True)
     print("para_phrases = ", para_phrases)
 
@@ -173,9 +176,16 @@ def paraphrase_markdown_text_with_nltk(md_text):
 
     ready_paraphrase = '\n'.join(paraphrased_md_text)
     print("  ** Length after : ", len(ready_paraphrase))
+
+    # Print the final result
+    print("="*100)
+    print("Final md file")
+    print("="*100)
+    print(ready_paraphrase)
+    
     return ready_paraphrase
 
-def process_post_inspiration(post_inspiration_url):
+def process_post_inspiration(post_inspiration_url, article_xpath=None):
   user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
   config = Config()
   config.browser_user_agent = user_agent
@@ -186,7 +196,21 @@ def process_post_inspiration(post_inspiration_url):
   article.parse()
   article.nlp()
 
-  article_text = fulltext(article.html)
+
+  final_post_title = paraphrase_markdown_text_with_nltk(article.title)
+  print(" >>> final_post_title = ", final_post_title)
+
+  filtered_html = article.html
+
+  if article_xpath is not None:
+    soup = BeautifulSoup(article.html, 'html.parser')
+    article_lddata = json.loads("".join(soup.find("script", {"type":"application/ld+json"}).contents))
+
+    dom = etree.HTML(str(soup))
+    filtered_html = dom.xpath(article_xpath)[0].text
+
+
+  article_text = fulltext(filtered_html)
   article_text = article_text.replace('\ufeff', '')
   #print("Article text = ", article_text)
 
@@ -217,56 +241,51 @@ def process_post_inspiration(post_inspiration_url):
   # Paraphrase the text
   final_post_content = paraphrase_markdown_text_with_nltk(thebody_md)
 
-  # Print the final result
-  print("="*100)
-  print("Final md file")
-  print("="*100)
-  print(final_post_content)
 
   # Translate the text before saving
   #translated_text = translate_large_text2(thebody_md, dest_lang)
   #print("Translated text = ", translated_text[:100])
   #post.content = article.summary
 
-  return final_post_content, article
+  return final_post_content, final_post_title, article
 
 
-def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_length, dry_run=False):
-  print("post summarizer > nb sentences = {}, min_length = {}".format(nb_sentences, min_length))
+def post_paraphraser(folder, dest_folder_path, dest_lang, nb_sentences, min_length, dry_run=False):
+  print("post paraphraser > nb sentences = {}, min_length = {}".format(nb_sentences, min_length))
   entries = os.listdir(folder)
   for entry in entries:
+
+    if entry.endswith(".md"):
 
       try:
         print("Processing entry {}, dry run {} ({})".format(entry, dry_run, type(dry_run)))
         post = frontmatter.load(folder + "/" + entry)
         post_inspiration = post['post_inspiration'] if 'post_inspiration' in post else None
+        paraphrase_status = post['paraphrase_status'] if 'paraphrase_status' in post else "Done"
         #post_length = len(post.content)
         
-        #post_inspiration = "https://en.as.com/olympic_games/2024-olympic-games-in-paris-mascot-what-is-a-phryge-and-how-is-it-pronounced-n/"
-        #post_inspiration = "https://www.euronews.com/culture/2022/11/16/liberte-egalite-clitoris-we-need-to-talk-about-the-controversial-french-olympic-mascot"
-        #post_inspiration = "https://www.pymnts.com/healthcare/2022/digital-platforms-seen-as-potential-cure-for-healthcare-access-challenges"
-        #post_inspiration = "http://linuxize.com/post/docker-run-command/"
-        #post_inspiration = "https://fintech.global/2022/12/05/nationwide-smart365-partner-to-boost-automation-in-mortgage-processes/"
-        #post_inspiration = "https://www.everydayhealth.com/migraine/guide/treatment/nerve-stimulation-devices/"
-        #post_inspiration = "https://www.thedroneu.com/adu-01074-dji-phantom-4-pro-v2/"
         #post_inspiration = "https://diydrones.com/profiles/blogs/revolutionizing-the-oil-and-gas-industry-using-nested-drone-syste"
         post_length = 0
         
         
 
-        if post_inspiration is not None and post_length < 200:
+        if post_inspiration is not None and post_length < 200 and paraphrase_status != "Done":
           print("Processing post inspiration url", post_inspiration)
 
           try:
-            final_post_content, article = process_post_inspiration(post_inspiration)
+            final_post_content, final_post_title, article = process_post_inspiration(post_inspiration)
             post.content = final_post_content
-            post.title = paraphrase_markdown_text_with_nltk(article.title)
+
+            final_post_title = paraphrase_markdown_text_with_nltk(article.title)
+            post.title = final_post_title
 
             post["orig_post_authors"] = article.authors
             post["orig_post_publish_date"] = article.publish_date
             post["orig_post_top_image"] = article.top_image
             post["orig_post_keywords"] = article.keywords
             post["orig_post_title"] = article.title
+            post["paraphrase_status"] = paraphrase_status
+            post["prettify"] = "false"
             #post["orig_post_summary"] = article.summary
           except Exception as e1:
             error_str = "An error occured: {}".format(str(e1))
@@ -284,11 +303,13 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
           
 
         else:
-          print("There is no post_inspiration in this entry {} or text is too long already {}.".format(post_inspiration, post_length))
+          print("There is no post_inspiration in this entry {} or text is too long already {} or paraphrase_status is Done {}.".format(post_inspiration, post_length, paraphrase_status))
 
       except Exception as e:
         print("Error for an entry. ", str(e))
         traceback.print_exc()
+    else:
+      print("Entry {} does not end in .md. Not processing".format(entry))
 
 
 
@@ -296,7 +317,12 @@ def post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_lengt
 folder = os.getenv('INPUT_SRC_FOLDER')
 dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
 dry_run = os.getenv('INPUT_DRY_RUN')
-dest_lang = os.getenv('INPUT_DEST_LANG')
+dest_lang = os.getenv('INPUT_DEST_LANG', 'en')
 nb_sentences = int(os.getenv('INPUT_SUMMARIZER_NBSENTENCES', 5))
 min_length = int(os.getenv('INPUT_SUMMARIZER_MINLENGTH', 60))
-post_summarizer(folder, dest_folder_path, dest_lang, nb_sentences, min_length, dry_run)
+
+#post_inspiration = "https://www.suasnews.com/2023/01/deep-blue-and-easa-work-together-to-improve-drone-standards-and-regulations/"
+
+#process_post_inspiration("https://womensconcepts.com/skincare/coconut-oil-benefits-for-skin")
+
+post_paraphraser(folder, dest_folder_path, dest_lang, nb_sentences, min_length, dry_run="false")
