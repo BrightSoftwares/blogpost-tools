@@ -1,5 +1,5 @@
 #FROM python:3-slim
-FROM python:3.6
+FROM python:3.8
 
 COPY requirements.txt ./
 #COPY requirements2.txt ./
@@ -7,34 +7,37 @@ COPY requirements.txt ./
 #RUN apt-get update && apt-get upgrade && apt-get install -y gcc g++ python3-dev
 
 #RUN pip install --no-cache-dir -r requirements.txt
-RUN python3.6 -m pip install pip --upgrade
-RUN python3.6 -m pip install --upgrade wheel
-RUN python3.6 -m pip install -r requirements.txt
-RUN python3.6 -m pip install --upgrade setuptools
+RUN python3.8 -m pip install pip --upgrade
+RUN python3.8 -m pip install --upgrade wheel
+RUN python3.8 -m pip install -r requirements.txt
+RUN python3.8 -m pip install --upgrade setuptools
 
 #RUN echo "Create the transformers cache folders"
 #RUN mkdir -p /transformers/cache/
 
-RUN python3.6 -m nltk.downloader wordnet
-#RUN python3.6 -m spacy download en_core_web_lg
-#RUN python3.6 -m spacy download en_vectors_web_lg
-RUN python3.6 -m textblob.download_corpora
+RUN python3.8 -m nltk.downloader wordnet
+#RUN python3.8 -m spacy download en_core_web_lg
+#RUN python3.8 -m spacy download en_vectors_web_lg
 
-#RUN python3.6 -m spacy download en_core_web_sm
+RUN python3.8 -m pip install textblob
+RUN python3.8 -m textblob.download_corpora
 
-#RUN pip install neuralcoref
+#RUN python3.8 -m spacy download en_core_web_sm
 
-RUN wget https://github.com/huggingface/neuralcoref/archive/master.zip -o neuralcoref.zip
-RUN apt-get update && apt-get install unzip
-RUN ls -lah
-RUN unzip master.zip
-WORKDIR /neuralcoref-master/
-RUN ls -lah
-RUN python3.6 setup.py install
+##RUN pip install neuralcoref
+#
+#RUN wget https://github.com/huggingface/neuralcoref/archive/master.zip -o 
+#neuralcoref.zip
+#RUN apt-get update && apt-get install unzip
+#RUN ls -lah
+#RUN unzip master.zip
+#WORKDIR /neuralcoref-master/
+#RUN ls -lah
+#RUN python3.8 setup.py install
 
 WORKDIR /
 ADD src /app
-RUN cp -Rvf /neuralcoref-master/neuralcoref /app/neuralcoref
+#RUN cp -Rvf /neuralcoref-master/neuralcoref /app/neuralcoref
 
 RUN pip install bert-extractive-summarizer
 RUN pip install newspaper3k
