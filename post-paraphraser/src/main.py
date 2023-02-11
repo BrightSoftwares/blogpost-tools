@@ -29,7 +29,7 @@ nltk.download('punkt')
 #model = Summarizer()
 #Init models (make sure you init ONLY once if you integrate this to your code)
 parrot = Parrot(model_tag="prithivida/parrot_paraphraser_on_T5", use_gpu=False)
-#rpunct = RestorePuncts()
+rpunct = RestorePuncts(use_cuda=False)
 
 
 def replace_codeblock_with_tokens_template(content, tokens_array, regex, replacement_counter):
@@ -102,7 +102,7 @@ def paraphrase_text(text):
 
     #para_phrases = parrot.augment(input_phrase=rest_of_title, do_diverse = True)
     para_phrases = parrot.rephrase(input_phrase=rest_of_title, do_diverse = False, adequacy_threshold = 0.79, 
-                               fluency_threshold = 0.70, use_gpu=True)
+                               fluency_threshold = 0.70, use_gpu=False)
     print("para_phrases = ", para_phrases)
 
     if para_phrases == None:
