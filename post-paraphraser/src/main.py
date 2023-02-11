@@ -29,7 +29,7 @@ nltk.download('punkt')
 #model = Summarizer()
 #Init models (make sure you init ONLY once if you integrate this to your code)
 parrot = Parrot(model_tag="prithivida/parrot_paraphraser_on_T5", use_gpu=False)
-rpunct = RestorePuncts()
+#rpunct = RestorePuncts()
 
 
 def replace_codeblock_with_tokens_template(content, tokens_array, regex, replacement_counter):
