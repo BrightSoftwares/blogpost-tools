@@ -7,4 +7,5 @@ markdownify
 tomd
 transformers
 neuralcoref
-rpunct
+#rpunct
+git+https://github.com/ernie-mlg/rpunct.git
