@@ -11,7 +11,7 @@ import requests
 import string
 import json
 import time
-import os
+import os, re
 
 charList = " " + string.ascii_lowercase + string.digits
 
@@ -34,6 +34,12 @@ def get_feedblogposturlused_df(file_url):
   except:
     return pd.DataFrame(columns=['Suggestion', 'silot_terms', 'blogpost_title', 'blogpost_link', 'category'])
 
+def clean_rss_post_link(link):
+  link = link.replace("https://www.google.com/url?rct=j&sa=t&url=", "")
+  link = re.sub("&ct=.*", "", link)
+  return link
+
+
 
 def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blogpost_url_used_df):
   # Load the rss feed and get posts that has the  keywords
@@ -44,7 +50,7 @@ def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blo
     try:
         resp = requests.get(feed_url, timeout=20.0)
     except requests.ReadTimeout:
-        logger.warn("Timeout when reading RSS %s", feed_url)
+        print("Timeout when reading RSS %s" % (feed_url))
         return feed_blogpost_url_used_df
 
     # Put it to memory stream object universal feedparser
@@ -58,7 +64,7 @@ def extract_blogposts(feed_url, keywords, silot_terms, category, since, feed_blo
     for entry in feed.entries:
       blogpost_title = entry['title']
       blogpost_summary = entry['summary']
-      blogpost_link = entry['link']
+      blogpost_link = clean_rss_post_link(entry['link'])
       blogpost_new_title = ""
 
       print("Looking for keywords {} in title {} and summary".format(silot_terms, blogpost_title))
