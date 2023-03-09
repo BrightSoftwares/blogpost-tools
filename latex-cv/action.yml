@@ -4,6 +4,7 @@ description: "Generate CV using Latex."
 
 inputs:
   cv_type:
+    default: 'my own boss'
     description: the type of the cv you will generate 
   
 
