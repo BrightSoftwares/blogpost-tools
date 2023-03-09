@@ -5,4 +5,8 @@ FROM texlive/texlive
 
 #WORKDIR infographics2/fr
 
+RUN mkdir /tools
+
+COPY build_cv.sh /tools/
+
 #CMD ["pdflatex", "main.tex"] 
