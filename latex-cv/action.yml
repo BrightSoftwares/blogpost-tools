@@ -1,0 +1,14 @@
+name: "Latex CV"
+
+description: "Generate CV using Latex."
+
+inputs:
+  
+
+outputs:
+  dest_folder:
+    description: The path to the the generated blog posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
