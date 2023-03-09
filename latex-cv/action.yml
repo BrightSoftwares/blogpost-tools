@@ -3,9 +3,9 @@ name: "Latex CV"
 description: "Generate CV using Latex."
 
 inputs:
-  cv_type:
-    default: 'my own boss'
-    description: the type of the cv you will generate 
+  src_folder:
+    required: true
+    description: The location of the main.tex file to compile 
   
 
 outputs:
