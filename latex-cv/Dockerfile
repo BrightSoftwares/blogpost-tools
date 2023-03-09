@@ -9,4 +9,4 @@ RUN mkdir /tools
 
 COPY build_cv.sh /tools/
 
-#CMD ["pdflatex", "main.tex"] 
+CMD ["bash", "/tools/build_cv.sh"] 
