@@ -1,3 +1,3 @@
-FROM ubuntu
+FROM texlive/texlive
 
-RUN bash tests/testall.sh
+CMD ["pdflatex"] 
