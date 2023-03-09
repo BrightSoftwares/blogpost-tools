@@ -1,4 +1,4 @@
-FFROM texlive/texlive 
+FROM texlive/texlive 
 #FROM ubuntu
 
 #RUN apt-get update && apt-get install -y wget
