@@ -10,10 +10,8 @@ RUN tar -xvzf install-tl-unx.tar.gz -C /tmp/myinstall_dir
 RUN ls -la /tmp/myinstall_dir
 
 WORKDIR /tmp/myinstall_dir
-RUN cd /tmp/myinstall_dir/install-tl-*
+RUN cd /tmp/myinstall_dir/install-tl-* && chmod +x install-tl  && ./install-tl --profile=$PROJECTDIR/texlive.profile
 
-RUN chmod +x install-tl 
-RUN ./install-tl --profile=$PROJECTDIR/texlive.profile
 RUN PATH=/usr/local/texlive/2017/bin/x86_64-linux:$PATH
 RUN pdflatex -v
 WORKDIR $PROJECTDIR
