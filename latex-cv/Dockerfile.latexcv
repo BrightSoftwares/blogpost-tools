@@ -1,5 +1,7 @@
 FROM ubuntu
 
+RUN apt-get update && apt-get install -y wget
+
 RUN PROJECTDIR=$(pwd)
 RUN cd /tmp 
 RUN wget http://ftp.fau.de/ctan/systems/texlive/tlnet/install-tl-unx.tar.gz 
@@ -7,7 +9,8 @@ RUN tar -xvzf install-tl-unx.tar.gz -C /tmp/myinstall_dir
 RUN ls -la /tmp
 WORKDIR /tmp/myinstall_dir
 #cd install-tl-*
-RUN chmod +x install-tl && ./install-tl --profile=$PROJECTDIR/texlive.profile
+RUN chmod +x install-tl 
+RUN ./install-tl --profile=$PROJECTDIR/texlive.profile
 RUN PATH=/usr/local/texlive/2017/bin/x86_64-linux:$PATH
 RUN pdflatex -v
 WORKDIR $PROJECTDIR
