@@ -1,6 +1,7 @@
 FROM ubuntu
 
 RUN PROJECTDIR=$(pwd) && cd /tmp && wget http://ftp.fau.de/ctan/systems/texlive/tlnet/install-tl-unx.tar.gz && tar -xvzf install-tl-unx.tar.gz -C /tmp/myinstall_dir
+RUN ls -la /tmp
 WORKDIR /tmp/myinstall_dir
 #cd install-tl-*
 RUN chmod +x install-tl && ./install-tl --profile=$PROJECTDIR/texlive.profile
