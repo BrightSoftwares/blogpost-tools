@@ -3,6 +3,8 @@ name: "Latex CV"
 description: "Generate CV using Latex."
 
 inputs:
+  cv_type:
+    description: the type of the cv you will generate 
   
 
 outputs:
