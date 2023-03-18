@@ -96,6 +96,9 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   print("Generating the to pages to optimized in priority")
   df_optimize_priority = df_traffic.sort_values(by='impressions', ascending=False).head(50)
   df_optimize_priority.drop('paragraphs', inplace=True, axis=1)
+
+  print("Reorganizing the columns")
+  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_both", "hreflang", "generator", "title", "description", "absolute_links", "canonical", "robots"]]
   df_optimize_priority.to_csv("to_optimize_priority.csv")
 
 
