@@ -15,6 +15,33 @@ def in_title(row):
     else:
         return 0
 
+def in_subheading(row, subheading):
+    subheading_name = "{}s".format(subheading)
+    
+    if row[subheading_name] is None:
+        return 0
+    if str(row['query']) in row[subheading_name].lower():
+        return 1
+    else:
+        return 0
+        
+def in_h1s(row):
+    return in_subheading(row, "h1")
+    
+def in_h2s(row):
+    return in_subheading(row, "h2")
+    
+def in_h3s(row):
+    return in_subheading(row, "h3")
+    
+def in_h4s(row):
+    return in_subheading(row, "h4")
+    
+def in_h5s(row):
+    return in_subheading(row, "h5")
+    
+def in_h6s(row):
+    return in_subheading(row, "h6")
 
 def in_description(row):
     if row['description'] is None:
@@ -85,20 +112,51 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   in_description_df = df_traffic.apply(in_description, axis=1)
   in_description_df = in_description_df if not in_description_df.empty else []
   print("In description df=", in_description_df)
+  
+  in_h1s_df = df_traffic.apply(in_h1s, axis=1)
+  in_h1s_df = in_h1s_df if not in_h1s_df.empty else []
+  print("In h1s df=", in_h1s_df)
+  
+  in_h2s_df = df_traffic.apply(in_h2s, axis=1)
+  in_h2s_df = in_h2s_df if not in_h2s_df.empty else []
+  print("In h2s df=", in_h2s_df)
+  
+  in_h3s_df = df_traffic.apply(in_h3s, axis=1)
+  in_h3s_df = in_h3s_df if not in_h3s_df.empty else []
+  print("In h3s df=", in_h3s_df)
+  
+  in_h4s_df = df_traffic.apply(in_h4s, axis=1)
+  in_h4s_df = in_h4s_df if not in_h4s_df.empty else []
+  print("In h4s df=", in_h4s_df)
+  
+  in_h5s_df = df_traffic.apply(in_h5s, axis=1)
+  in_h5s_df = in_h5s_df if not in_h5s_df.empty else []
+  print("In h5s df=", in_h5s_df)
+  
+  in_h6s_df = df_traffic.apply(in_h6s, axis=1)
+  in_h6s_df = in_h6s_df if not in_h6s_df.empty else []
+  print("In h6s df=", in_h6s_df)
 
   df_traffic = df_traffic.assign(in_title=in_title_df)
   df_traffic = df_traffic.assign(in_description=in_description_df)
+  df_traffic = df_traffic.assign(in_h1s=in_h1s_df)
+  df_traffic = df_traffic.assign(in_h2s=in_h2s_df)
+  df_traffic = df_traffic.assign(in_h3s=in_h3s_df)
+  df_traffic = df_traffic.assign(in_h4s=in_h4s_df)
+  df_traffic = df_traffic.assign(in_h5s=in_h5s_df)
+  df_traffic = df_traffic.assign(in_h6s=in_h6s_df)
   df_traffic['in_both'] = np.where(df_traffic['in_title'] + df_traffic['in_description'] == 2, 1, 0)
 
   df_traffic.to_csv('traffic.csv', index=False)
   df_traffic.head()
 
   print("Generating the to pages to optimized in priority")
-  df_optimize_priority = df_traffic.sort_values(by='impressions', ascending=False).head(50)
+  print("Sorting the data by in both asc")
+  df_optimize_priority = df_traffic.sort_values(by='in_both', ascending=True).head(50)
   df_optimize_priority.drop('paragraphs', inplace=True, axis=1)
 
   print("Reorganizing the columns")
-  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_both", "hreflang", "generator", "title", "description", "absolute_links", "canonical", "robots"]]
+  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_both", "hreflang", "generator", "title", "description", "h1s", "h2s", "h3s", "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"]]
   df_optimize_priority.to_csv("to_optimize_priority.csv")
 
 
