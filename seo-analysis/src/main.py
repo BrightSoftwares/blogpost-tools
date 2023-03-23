@@ -156,7 +156,7 @@ def generate_optimizations(sitemap_url, service_account_json_file_path, site_url
   df_optimize_priority.drop('paragraphs', inplace=True, axis=1)
 
   print("Reorganizing the columns")
-  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_both", "hreflang", "generator", "title", "description", "h1s", "h2s", "h3s", "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"]]
+  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_h1s", "in_h2s", "in_h3s", "in_h4s", "in_h5s", "in_h6s", "in_both", "hreflang", "generator", "title", "description", "h1s", "h2s", "h3s", "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"]]
   df_optimize_priority.to_csv("to_optimize_priority.csv")
 
 
