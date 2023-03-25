@@ -250,14 +250,14 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
   il_requirements.to_csv("{}/internallinking_per_silot_terms.csv".format(dst_folder_tosaveresults), index=False)
 
 
-codeblocks_results = extract_codeblocks(md_content)
-print(codeblocks_results)
-
-headers_results = extract_headers(md_content)
-print(headers_results)
-
-wikilinks_results = extract_wikilinks(md_content)
-print(wikilinks_results)
+# codeblocks_results = extract_codeblocks(md_content)
+# print(codeblocks_results)
+# 
+# headers_results = extract_headers(md_content)
+# print(headers_results)
+# 
+# wikilinks_results = extract_wikilinks(md_content)
+# print(wikilinks_results)
 
 st_df = md2df_by_silotterms(src_folder_toscan, dst_folder_tosaveresults)
 
