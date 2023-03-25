@@ -68,9 +68,10 @@ def extract_wikilinks(data_str):
 
 def md2df_by_silotterms(folder_to_scan, dst_folder_tosaveresults):
   silot_terms_df = pd.DataFrame(columns=['silot_terms', 'title', 'path', 'cornerstone', 'categories'])
-  entries = os.listdir(folder_to_scan)
+  entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f))] # os.listdir(folder_to_scan)
 
   for entry in entries:
+
     post = frontmatter.load(folder_to_scan + "/" + entry)
     silot_terms = post['silot_terms'] if 'silot_terms' in post else "unknown"
     cornerstone = post['cornerstone'] if 'cornerstone' in post else "no"
@@ -252,10 +253,10 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
 
 # codeblocks_results = extract_codeblocks(md_content)
 # print(codeblocks_results)
-# 
+
 # headers_results = extract_headers(md_content)
 # print(headers_results)
-# 
+
 # wikilinks_results = extract_wikilinks(md_content)
 # print(wikilinks_results)
 
