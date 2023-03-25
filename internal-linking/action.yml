@@ -2,14 +2,7 @@ name: "Generate the internal linking opportunities"
 
 description: "Generate the list of internal linking."
 
-inputs:
-  source_path:
-    description: The path to the folder where the draft posts are located
-  wordpress_frontmatter:
-    description: Set to true if you want to add frontmatter variables to push your post to wordpress with git-it-write
-    default: False
-    type: boolean
-    
+inputs:    
   src_folder_toscan:
     description: The path to the folder where the markdown posts are stored.
   dst_folder_tosaveresults:
