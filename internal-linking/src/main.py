@@ -71,21 +71,24 @@ def md2df_by_silotterms(folder_to_scan, dst_folder_tosaveresults):
   entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f))] # os.listdir(folder_to_scan)
 
   for entry in entries:
-
-    post = frontmatter.load(folder_to_scan + "/" + entry)
-    silot_terms = post['silot_terms'] if 'silot_terms' in post else "unknown"
-    cornerstone = post['cornerstone'] if 'cornerstone' in post else "no"
-    title = post['title'] if 'title' in post else None
-    categories = post['categories'] if 'categories' in post else ''
-    # pretified = post['pretified'] if 'pretified' in post else None
-    # post_date = post['date'] if 'date' in post else None
-    # fileref = post['ref'] if 'ref' in post else None
-    # post_category = post['category'] if 'category' in post else []
-    # post_description = post['description'] if 'description' in post else None
-    # post_image = post['image'] if 'image' in post else None
-    # post_author = post['post_author'] if 'post_author' in post else post_author_env
-    # post_tags = post['tags'] if 'tags' in post else []
-    silot_terms_df.loc[len(silot_terms_df)] = [silot_terms, title, entry, cornerstone, categories]
+    try:
+      print("Processing entry", entry)
+      post = frontmatter.load(folder_to_scan + "/" + entry)
+      silot_terms = post['silot_terms'] if 'silot_terms' in post else "unknown"
+      cornerstone = post['cornerstone'] if 'cornerstone' in post else "no"
+      title = post['title'] if 'title' in post else None
+      categories = post['categories'] if 'categories' in post else ''
+      # pretified = post['pretified'] if 'pretified' in post else None
+      # post_date = post['date'] if 'date' in post else None
+      # fileref = post['ref'] if 'ref' in post else None
+      # post_category = post['category'] if 'category' in post else []
+      # post_description = post['description'] if 'description' in post else None
+      # post_image = post['image'] if 'image' in post else None
+      # post_author = post['post_author'] if 'post_author' in post else post_author_env
+      # post_tags = post['tags'] if 'tags' in post else []
+      silot_terms_df.loc[len(silot_terms_df)] = [silot_terms, title, entry, cornerstone, categories]
+    except Exception as e:
+      print("Error, something unexpected occured", str(e))
 
   print("Save the result into a csv file")
   silot_terms_df.to_csv("{}/silot_terms.csv".format(dst_folder_tosaveresults), index=False)
