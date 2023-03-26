@@ -187,7 +187,7 @@ def generate_full_link_and_text(post_title, post_link, anchor_df, link_text_df):
     anchor_text = eligible_anchors.sample().head()['link_text'].iloc[0]
 
   # Replace the tokens
-  full_link_and_text = full_link_and_text.replace("[topic]", post_title).replace("[[link to blog post]]", "[[{}|{}]]".format(post_link, anchor_text))
+  full_link_and_text = full_link_and_text.replace("[topic]", post_title.lower()).replace("[[link to blog post]]", "[[{}|{}]]".format(post_link, anchor_text))
   print("full link and text for post '{}' with full link '{}' is '{}'".format(post_title, post_link, full_link_and_text))
   return full_link_and_text
 
