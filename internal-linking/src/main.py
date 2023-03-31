@@ -635,7 +635,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
     try:
       
       #has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
-      has_linked, text_linked, new_content = link_content3(current_item.src_file, current_item.dst_file, aliases_df)
+      has_linked, text_linked, new_content = link_content3(folder_to_scan, current_item.src_file, current_item.dst_file, aliases_df)
       # print("***** Found Link = ", has_linked)
 
       # Save new content in the file
