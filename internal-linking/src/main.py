@@ -219,7 +219,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
               # full_link = "[[{}|{}]]".format(post_wklinks_value ,link_text)
               
           print("Checking if we need to generate another full link and text")
-          current_il_requirements = il_requirements.loc[il_requirements['src_file'] == current_post.path & il_requirements['dst_file'] == other_post.path & il_requirements['silot_terms'] == silot_terms]
+          current_il_requirements = il_requirements.loc[(il_requirements['src_file'] == current_post.path) & (il_requirements['dst_file'] == other_post.path) & (il_requirements['silot_terms'] == silot_terms)]
           print("Current il requirements for dst_file", current_il_requirements)
           if not has_link_to_dst_post and current_il_requirements.empty:
             _, post_link, full_link_and_text = generate_full_link_and_text(other_post.title, other_post.path, anchor_df, link_text_df)
