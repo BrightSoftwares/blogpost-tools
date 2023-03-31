@@ -396,6 +396,9 @@ def link_content2(content, page_titles, page_aliases):
   
 
 def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
+    updated_txt = ""
+    anchor_text = ""
+    link_found = False
     # Get all the aliases that corresponds to the destination file
     dst_aliases_df = aliases_df.loc[aliases_df['dst_file'] == dst_file]
     
@@ -412,10 +415,13 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
       # If we find a match we stop looking for other links, for this dst file
       if len(updated_txt) != len(post.content):
         print("linked = %s" % (current_item.link_text))
-        return True, current_item.link_text, updated_txt
+        anchor_text = current_item.link_text
+        link_found = True
+        break
+        
     
-    print("Nothing found in src file {}. Returning False and None, None".format(src_file))
-    return False, None, None
+    #print("Nothing found in src file {}. Returning False and None, None".format(src_file))
+    return link_found, anchor_text, updated_txt
 
 
 def unlink_text(txt):
@@ -636,7 +642,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
     # Load the post using the frontmatter
     try:
       
-      #has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
+      print("Linking content from {} to {}".format(current_item.src_file, current_item.dst_file))
       has_linked, text_linked, new_content = link_content3(folder_to_scan, current_item.src_file, current_item.dst_file, aliases_df)
       print("***** Found Link = ", has_linked)
 
