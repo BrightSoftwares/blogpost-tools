@@ -569,6 +569,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
     try:
       post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
       has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
+      post.content = new_content
       # print("***** Found Link = ", has_linked)
 
       # Save new content in the file
@@ -581,8 +582,9 @@ def autolink(folder_to_scan, audited_df, aliases_df):
               print("---> In dry run mode. Not saving files")
         else:
           print("Saving auto linked post")
+          filecontent = frontmatter.dumps(post)
           with open(folder_to_scan + "/" + current_item.dst_file, 'w') as f:
-            f.write(new_content)
+            f.write(filecontent)
 
     except Exception as e:
       print("bad error for file {}".format(current_item.dst_file), str(e))
