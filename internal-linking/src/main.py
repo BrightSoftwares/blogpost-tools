@@ -218,7 +218,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
               link_text = link_text[1:] if link_text.startswith('|') else link_text
               # full_link = "[[{}|{}]]".format(post_wklinks_value ,link_text)
               
-          if not has_link_to_dst_post:
+          if not has_link_to_dst_post and other_post.full_link_and_text == "":
             _, post_link, full_link_and_text = generate_full_link_and_text(other_post.title, other_post.path, anchor_df, link_text_df)
 
           il_requirements.loc[len(il_requirements)] = [silot_terms, current_post.path, other_post.path, cornerstone, has_link_to_dst_post, link_text, full_link, full_link_and_text]
@@ -636,8 +636,11 @@ def autolink(folder_to_scan, audited_df, aliases_df):
   print("Start linking content ...")
   #print("Page titles = ", list_page_titles)
   #print("Page aliases = ", list_page_aliases)
+  
+  # Process only the src -> dst that are not linked yet
+  audited_notlinked_df = audited_df.loc[ audited_df['link_exist'] == False ]
 
-  for current_item_index, current_item in audited_df.iterrows():
+  for current_item_index, current_item in audited_notlinked_df.iterrows():
     has_linked = False
     # Load the post using the frontmatter
     try:
