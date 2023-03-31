@@ -146,7 +146,7 @@ def generate_full_link_and_text(post_title, post_link, anchor_df, link_text_df):
   sample_text = link_text_df.sample().head()
   print("generate_full_link_and_text > sample =", sample_text)
   full_link_and_text = sample_text['internal_link_text'].iloc[0]
-  print("generate_full_link_and_text > full_link_and_text =", full_link_and_text)
+  # print("generate_full_link_and_text > full_link_and_text =", full_link_and_text)
 
   # Get the corresponding anchor text
   # If none if found, use the post title
@@ -162,7 +162,7 @@ def generate_full_link_and_text(post_title, post_link, anchor_df, link_text_df):
 
   # Replace the tokens
   full_link_and_text = full_link_and_text.replace("[topic]", post_title.lower()).replace("[[link to blog post]]", "[[{}|{}]]".format(post_link, anchor_text))
-  print("full link and text for post '{}' with full link '{}' is '{}'".format(post_title, post_link, full_link_and_text))
+  # print("full link and text for post '{}' with full link '{}' is '{}'".format(post_title, post_link, full_link_and_text))
   return anchor_text, post_link, full_link_and_text
 
 
@@ -207,7 +207,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
           full_link_and_text = ""
           full_link = "[[{}|{}]]".format(other_post.path, other_post.title)
 
-          print("    Check if the src post {} has links to {} in the wikilink list {}".format(current_post.path, other_post.path, post_wklinks))
+          # print("    Check if the src post {} has links to {} in the wikilink list {}".format(current_post.path, other_post.path, post_wklinks))
           for post_wklinks_key in post_wklinks.keys():
             post_wklinks_value = post_wklinks[post_wklinks_key]
 
@@ -271,6 +271,9 @@ def link_title(title, txt):
 
 
 def link_title2(title, txt, page_aliases):
+    # title = the link_text we will use as text anchor
+    # txt = the full body of the post, where we will look for the anchor text
+    # page_aliases = a dict of link_text and dst_file
     updated_txt = txt
     # find instances of the title where it's not surrounded by [], | or other letters
     matches = re.finditer('(?<!([\[\w\|]))' + re.escape(title.lower()) + '(?!([\|\]\w]))', txt.lower())
@@ -293,6 +296,44 @@ def link_title2(title, txt, page_aliases):
                 updated_title = title
                 # handle aliases
                 if title in page_aliases: updated_title = page_aliases[title]
+                # handle the display text if it doesn't match the page title
+                if txt_to_link != updated_title: updated_title += '|' + txt_to_link
+                # create the link and update our text
+                updated_txt = updated_txt[:m.start() + offset] + '[[' + updated_title + ']]' + updated_txt[m.end() + offset:]
+                # change our offset due to modifications to the document
+                offset = offset + (len(updated_title) + 4 - len(txt_to_link))  # pairs of double brackets adds 4 chars
+                # if wikipedia mode is on, return after first link is created
+                if wikipedia_mode: return updated_txt
+            
+    return updated_txt
+  
+  
+def link_title3(link_text, content, dst_file):
+    # title = the link_text we will use as text anchor
+    # txt = the full body of the post, where we will look for the anchor text
+    # page_aliases = a dict of link_text and dst_file
+    updated_txt = content
+    # find instances of the title where it's not surrounded by [], | or other letters
+    matches = re.finditer('(?<!([\[\w\|]))' + re.escape(link_text.lower()) + '(?!([\|\]\w]))', content.lower())
+    offset = 0 # track the offset of our matches (start index) due to document modifications
+    
+    for m in matches:
+        # get the original text to link
+        txt_to_link = updated_txt[m.start() + offset:m.end() + offset]
+        
+        # where is the next ]]?
+        next_closing_index = updated_txt.find("]]", m.end() + offset)
+        # where is the next [[?
+        next_opening_index = updated_txt.find("[[", m.end() + offset)   
+        
+        # only proceed to link if our text is not already enclosed in a link
+        # don't link if there's a ]] ahead, but no [[ (can happen with first few links)
+        if not (next_opening_index == -1 and next_closing_index > -1):
+            # proceed to link if no [[ or ]] ahead (first link) or [[ appears before ]]
+            if (next_opening_index == -1 and next_closing_index == -1) or (next_opening_index < next_closing_index):
+                updated_title = link_text
+                # handle aliases
+                updated_title = dst_file
                 # handle the display text if it doesn't match the page title
                 if txt_to_link != updated_title: updated_title += '|' + txt_to_link
                 # create the link and update our text
@@ -352,6 +393,27 @@ def link_content2(content, page_titles, page_aliases):
           break
     
     return generated_links, page_title, content
+  
+
+def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
+    # Get all the aliases that corresponds to the destination file
+    dst_aliases_df = aliases_df.loc[aliases_df['dst_file'] == dst_file]
+    
+    # Shuffle the data to inject randomness
+    dst_aliases_df = dst_aliases_df.sample(frac = 1)
+
+    # iterate through our page titles
+    for current_item_index, current_item in dst_aliases_df:
+      # Attempt to link the src content to the destination using one of the aliases
+      post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
+      updated_txt = link_title3(current_item.link_text, post.content, dst_file)
+      
+      # If we find a match we stop looking for other links, for this dst file
+      if len(updated_txt) != len(post.content):
+        print("linked = %s" % (current_item.link_text))
+        return True, current_item.link_text, updated_txt
+    
+    return None, None, None
 
 
 def unlink_text(txt):
@@ -571,8 +633,9 @@ def autolink(folder_to_scan, audited_df, aliases_df):
     has_linked = False
     # Load the post using the frontmatter
     try:
-      post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
-      has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
+      
+      #has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
+      has_linked, text_linked, new_content = link_content3(current_item.src_file, current_item.dst_file, aliases_df)
       # print("***** Found Link = ", has_linked)
 
       # Save new content in the file
@@ -585,6 +648,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
               print("---> In dry run mode. Not saving files")
         else:
           print("Saving auto linked post")
+          post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
           post.content = new_content
           filecontent = frontmatter.dumps(post)
           
