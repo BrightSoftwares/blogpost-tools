@@ -345,7 +345,11 @@ def link_content2(content, page_titles, page_aliases):
                 # print("Linked text =", updated_txt)
 
             # lowercase our updated text for the next round of search
-            content_low = content.lower()        
+            content_low = content.lower() 
+        
+        # We stop linking when 1 link is found
+        if generated_links:
+          break
     
     return generated_links, page_title, content
 
@@ -583,9 +587,10 @@ def autolink(folder_to_scan, audited_df, aliases_df):
           print("Saving auto linked post")
           post.content = new_content
           filecontent = frontmatter.dumps(post)
-          #with open(folder_to_scan + "/" + current_item.dst_file, 'w') as f:
+          
           with open(folder_to_scan + "/" + current_item.src_file, 'w') as f:
             f.write(filecontent)
+            
 
     except Exception as e:
       print("bad error for file {}".format(current_item.dst_file), str(e))
