@@ -583,8 +583,10 @@ def autolink(folder_to_scan, audited_df, aliases_df):
           print("Saving auto linked post")
           post.content = new_content
           filecontent = frontmatter.dumps(post)
-          with open(folder_to_scan + "/" + current_item.dst_file, 'w') as f:
-            f.write(filecontent)
+          #with open(folder_to_scan + "/" + current_item.dst_file, 'w') as f:
+          with open(folder_to_scan + "/" + current_item.src_file, 'w') as f:
+            #f.write(filecontent)
+            frontmatter.dump(post, f)
 
     except Exception as e:
       print("bad error for file {}".format(current_item.dst_file), str(e))
