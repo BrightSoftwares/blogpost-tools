@@ -406,7 +406,7 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
     dst_aliases_df = dst_aliases_df.sample(frac = 1)
 
     # iterate through our page titles
-    for current_item_index, current_item in dst_aliases_df:
+    for current_item_index, current_item in dst_aliases_df.iterrows():
       # Attempt to link the src content to the destination using one of the aliases
       print("Processing src = {} and dst = {}".format(current_item.src_file, current_item.dst_file))
       post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
