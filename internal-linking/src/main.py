@@ -144,7 +144,7 @@ def md2df_by_silotterms(folder_to_scan, dst_folder_tosaveresults):
 def generate_full_link_and_text(post_title, post_link, anchor_df, link_text_df):
   # Get a random text from the link text dataframe
   sample_text = link_text_df.sample().head()
-  print("generate_full_link_and_text > sample =", sample_text)
+  #print("generate_full_link_and_text > sample =", sample_text)
   full_link_and_text = sample_text['internal_link_text'].iloc[0]
   # print("generate_full_link_and_text > full_link_and_text =", full_link_and_text)
 
@@ -152,9 +152,9 @@ def generate_full_link_and_text(post_title, post_link, anchor_df, link_text_df):
   # If none if found, use the post title
   regex = ".*{}.*".format(post_link[11:-3])
   # regex = ".*solutions.*"
-  print("Filtering anchor with the regex", regex)
+  #print("Filtering anchor with the regex", regex)
   eligible_anchors = anchor_df[anchor_df.path.str.match(regex, na=False)]
-  print("Eligible anchors =", eligible_anchors)
+  #print("Eligible anchors =", eligible_anchors)
   if eligible_anchors.empty:
     anchor_text = post_title
   else:
@@ -405,6 +405,7 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
     # iterate through our page titles
     for current_item_index, current_item in dst_aliases_df:
       # Attempt to link the src content to the destination using one of the aliases
+      print("Processing src = {} and dst = {}".format(current_item.src_file, current_item.dst_file))
       post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
       updated_txt = link_title3(current_item.link_text, post.content, dst_file)
       
@@ -413,7 +414,8 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
         print("linked = %s" % (current_item.link_text))
         return True, current_item.link_text, updated_txt
     
-    return None, None, None
+    print("Nothing found in src file {}. Returning False and None, None".format(src_file))
+    return False, None, None
 
 
 def unlink_text(txt):
@@ -626,8 +628,8 @@ def autolink(folder_to_scan, audited_df, aliases_df):
 
   # Linking the content
   print("Start linking content ...")
-  print("Page titles = ", list_page_titles)
-  print("Page aliases = ", list_page_aliases)
+  #print("Page titles = ", list_page_titles)
+  #print("Page aliases = ", list_page_aliases)
 
   for current_item_index, current_item in audited_df.iterrows():
     has_linked = False
@@ -636,7 +638,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
       
       #has_linked, text_linked, new_content = link_content2(post.content, list_page_titles, list_page_aliases)
       has_linked, text_linked, new_content = link_content3(folder_to_scan, current_item.src_file, current_item.dst_file, aliases_df)
-      # print("***** Found Link = ", has_linked)
+      print("***** Found Link = ", has_linked)
 
       # Save new content in the file
       if has_linked:
