@@ -3,7 +3,7 @@ name: "Generate aliases.csv file"
 description: "Generate aliases.csv file that will be used in internal linking."
 
 inputs:    
-  src_keyword_suggestion_merged:
+  keyword_suggestion_merged:
     description: The full path to the keyword suggestions merged csv file. This file should contain silot_terms and Suggestion columns. This file tells which keyword suggestion belongs to which silot_terms.
   src_interlinking_csv:
     description: The full path to the interlinking csv file. This file must contain the silot_terms and dst_file columns. This file tells which post file belongs to which silot terms.
