@@ -24,8 +24,8 @@ def generate_aliases_file(src_keyword_suggestion_merged, src_interlinking_csv, d
   #         aliases_df.loc[len(aliases_df)] = [current_item.dst_file, kw_current_item.Suggestion]
 
   print("Converting the two silot_terms columns types to string")
-  il_df['silot_terms'] = pd.Series(df['silot_terms'], dtype=pd.StringDtype()) # il_df['silot_terms'].astype("string")
-  kwfiltered_df['silot_terms'] = pd.Series(df['silot_terms'], dtype=pd.StringDtype()) # kwfiltered_df['silot_terms'].astype("string")
+  il_df['silot_terms'] = pd.Series(il_df['silot_terms'], dtype=pd.StringDtype()) # il_df['silot_terms'].astype("string")
+  kwfiltered_df['silot_terms'] = pd.Series(kwfiltered_df['silot_terms'], dtype=pd.StringDtype()) # kwfiltered_df['silot_terms'].astype("string")
   
   print(il_df)
   print(kwfiltered_df)
