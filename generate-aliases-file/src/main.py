@@ -23,6 +23,10 @@ def generate_aliases_file(src_keyword_suggestion_merged, src_interlinking_csv, d
 
   #         aliases_df.loc[len(aliases_df)] = [current_item.dst_file, kw_current_item.Suggestion]
 
+  print("Converting the two silot_terms columns types to string")
+  il_df['silot_terms'] = il_df['silot_terms'].astype("string")
+  kwfiltered_df['silot_terms'] = kwfiltered_df['silot_terms'].astype("string")
+
   aliases_df = pd.merge(il_df, kwfiltered_df, on="silot_terms")
   aliases_df = aliases_df[['dst_file', 'Suggestion']]
   aliases_df = aliases_df.rename(columns={"Suggestion": "link_text"})
