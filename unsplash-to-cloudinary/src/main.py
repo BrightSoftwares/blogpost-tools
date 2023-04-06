@@ -149,15 +149,17 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
         try:
             post = frontmatter.load(folder + "/" + entry)
             title = post['title'] if 'title' in post else None
+            image_search_query = post['image_search_query'] if 'image_search_query' in post else None
             silot_terms = post['silot_terms'] if 'silot_terms' in post else None
+            image_search_query = silot_terms if image_search_query is None else image_search_query
             image = post['image'] if 'image' in post else None
             #image = None
             #ytvideo_url = post['youtube_video'] if 'youtube_video' in post else None
 
-            if (image is None or image == "null") and silot_terms is not None:
+            if (image is None or image == "null") and image_search_query is not None:
 
                 # Get the best video for this query
-                search_results = search_unsplash_image(silot_terms, api_access_key, results_file, max_results)
+                search_results = search_unsplash_image(image_search_query, api_access_key, results_file, max_results)
                 print("search_results = ", search_results)
                 
                 # Save the results got from youtube
