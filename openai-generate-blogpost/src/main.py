@@ -42,6 +42,9 @@ def generate_post(post_subject, brands, internal_links, references, keywords):
         )
       except RETRIABLE_EXCEPTIONS as e:
         error = "A retriable error occurred: %s" % e
+      except Exception as e:
+        error = "An unexpected error occured. Breaking the loop. Error = : %s" % e
+        return None
 
       if error is not None:
         print(error)
@@ -180,8 +183,13 @@ def collect_posts_to_generate(channel):
 
       # post_subject, brands, internal_links, references, keywords
       post_content = generate_post(post_title, post_brands, post_internal_urls, post_references, post_keywords)
-      save_post(post_title, post_content, dst_generated_posts)
-      mark_post_as_completed(channel, post_id)
+      
+      print("Save the post only if the result os not none")
+      if post_content is not None:
+        save_post(post_title, post_content, dst_generated_posts)
+        mark_post_as_completed(channel, post_id)
+      else:
+        print("The post content is None ({}). Not saving the content of the post. ({})".format(post_content, post_title))
 
 # post_title = "Run docker on homelab"
 # post_content = generate_post(post_title, "Home Assistant, Google Home", None, None, "docker, homelab, do it yourself")
