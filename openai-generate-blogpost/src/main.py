@@ -137,6 +137,7 @@ def generate_post_prompt(post_subject, brands, internal_links, references, keywo
       """.format(post_subject, brands_prompt, internal_linking_prompt, references_prompts, keywords_prompts)
 
 def mark_post_as_completed(channel, post_id):
+  print("Marking post {} in channel {} as completed".format(post_id, channel))
   json_api_url = posts_requests_base_url + "?channel=" + channel + "&row=" + str(post_id)
   r = requests.post(json_api_url)
   print("exec result =" + r.text)
@@ -146,6 +147,7 @@ def mark_post_as_completed(channel, post_id):
   # json_results = r_json['results']
 
 def collect_posts_to_generate(channel):
+  print("Collecting posts from channel {}".format(channel))
   json_api_url = posts_requests_base_url + "?channel=" + channel
   r = requests.get(json_api_url)
   print("collect_posts_to_generate > API call, response text = " + r.text)
