@@ -127,6 +127,7 @@ def generate_post_prompt(post_subject, brands, internal_links, references, keywo
       Write The article In Your Own Words Rather Than Copying And Pasting From Other Sources. 
       Consider perplexity and burstiness when creating content, ensuring high levels of both without losing specificity or context. 
       Use fully detailed paragraphs that engage the reader. 
+      Generate programming code block and command line commands where necessary.
       Write In A Conversational Style As Written By A Human (Use An Informal Tone, Utilize Personal Pronouns, Keep It Simple, Engage The Reader, Use The Active Voice, Keep It Brief, Use Rhetorical Questions, and Incorporate Analogies And Metaphors).  
       End with a conclusion paragraph and 5 unique FAQs After The Conclusion. 
       this is important to Bold the Title and all headings of the article, and use appropriate headings for H tags.
