@@ -102,21 +102,21 @@ def save_post(title, silot_terms, content, dst_folder):
 
 def generate_post_prompt(post_subject, brands, internal_links, references, keywords):
     brands_prompt = """
-    Include some of these brands: 
+    Include some carefully picked brands from this list: 
     {}
     """.format(brands) if brands is not None and brands != "" else ""
 
     internal_linking_prompt = """
-    and these links for external SEO: 
+    and some carefully picked links from this list for external SEO: 
     {}
     """.format(internal_links) if internal_links is not None and internal_links != "" else ""
 
     references_prompts = """
-      Include references like: {}.
+      Pick from references from this list and include them into the post: {}.
     """.format(references) if references is not None and references != "" else ""
     
     keywords_prompts = """
-      Also include these keywords: {}.
+      Also include some carefully picked keywords from this list: {}.
     """.format(keywords) if keywords is not None and keywords != "" else ""
 
     return """I Want You To Act As A Content Writer Very Proficient SEO Writer Writes Fluently English. 
