@@ -79,13 +79,14 @@ def generate_post(post_subject, brands, internal_links, references, keywords):
             return final_content
 
 
-def save_post(title, content, dst_folder):
+def save_post(title, silot_terms, content, dst_folder):
     frontmatter = """
     ---
     title: {}
     date: {}
+    silot_terms: {}
     ---
-    """.format(title, datetime.today().strftime('%Y-%m-%d'))
+    """.format(title, datetime.today().strftime('%Y-%m-%d'), silot_terms)
 
     final_content = """
     {}
@@ -186,7 +187,7 @@ def collect_posts_to_generate(channel):
       
       print("Save the post only if the result os not none")
       if post_content is not None:
-        save_post(post_title, post_content, dst_generated_posts)
+        save_post(post_title, post_silot_terms, post_content, dst_generated_posts)
         mark_post_as_completed(channel, post_id)
       else:
         print("The post content is None ({}). Not saving the content of the post. ({})".format(post_content, post_title))
