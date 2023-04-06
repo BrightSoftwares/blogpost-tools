@@ -104,20 +104,20 @@ def generate_post_prompt(post_subject, brands, internal_links, references, keywo
     brands_prompt = """
     Include some of these brands: 
     {}
-    """.format(brands) if brands is not None else ""
+    """.format(brands) if brands is not None and brands != "" else ""
 
     internal_linking_prompt = """
     and these links for external SEO: 
     {}
-    """.format(internal_links) if internal_links is not None else ""
+    """.format(internal_links) if internal_links is not None and internal_links != "" else ""
 
     references_prompts = """
       Include references like: {}.
-    """.format(references) if references is not None else ""
+    """.format(references) if references is not None and references != "" else ""
     
     keywords_prompts = """
       Also include these keywords: {}.
-    """.format(keywords) if keywords is not None else ""
+    """.format(keywords) if keywords is not None and keywords != "" else ""
 
     return """I Want You To Act As A Content Writer Very Proficient SEO Writer Writes Fluently English. 
       First Create Two Tables. First Table Should be the Outline of the Article and the Second Should be the Article. 
