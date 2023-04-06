@@ -1,31 +1,35 @@
 name: "OpenAI blog post generator"
-
 description: "Generate blog posts based on prompts given to openai api"
 
-inputs:    
+inputs:
 
-  keyword_suggestion_merged:
+posts_channel = os.getenv('INPUT_CHANNEL') # "keyword_suggestions_merged.csv"
+posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
+dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS') # "internallinking_per_silot_terms.csv"
+MAX_RETRIES = int(os.getenv('INPUT_MAX_RETIES'))
+max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
+temperature = int(os.getenv('INPUT_TEMPERATURE'))
 
-    description: The full path to the keyword suggestions merged csv file. This file should contain silot_terms and Suggestion columns. This file tells which keyword suggestion belongs to which silot_terms.
-
-  src_interlinking_csv:
-
-    description: The full path to the interlinking csv file. This file must contain the silot_terms and dst_file columns. This file tells which post file belongs to which silot terms.
-
-  dst_aliases_file:
-
-    description: The full path to the aliases.csv file where the result will be stored.
-
-  
+  channel:
+    description: The channel where we are going to pull the post requirements from.
+  posts_requests_base_url:
+    description: The url to the api where we have the posts requirements. No trailing slash at the end.
+  dst_generated_posts:
+    description: The location where we are going to store the generated posts.
+  max_retries:
+    description: The number of time we are going to ask retry when openai fail.
+    default: 5
+  max_tokens:
+    description: The maximum number of tokens to use for the generation of this post.
+    default: 2500
+  temperature:
+    description: The higher this number, the more freestyle the content of the post will be.
+    default: 0
 
 outputs:
-
   updated_posts:
-
     description: A list of updated posts
 
 runs:
-
   using: "docker"
-
   image: "Dockerfile"
