@@ -9,7 +9,7 @@ import json
 posts_channel = os.getenv('INPUT_CHANNEL') # "keyword_suggestions_merged.csv"
 posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
 dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS') # "internallinking_per_silot_terms.csv"
-MAX_RETRIES = int(os.getenv('INPUT_MAX_RETIES'))
+MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES'))
 max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
 temperature = int(os.getenv('INPUT_TEMPERATURE'))
 
