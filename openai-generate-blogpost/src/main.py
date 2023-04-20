@@ -31,6 +31,7 @@ def generate_post(post_subject, brands, internal_links, references, keywords):
     while True:
       continuation_attemps += 1
       history += prompt
+      retry = 0
 
       try:
         print("Generating post for the prompt: ", history)
@@ -81,18 +82,18 @@ def generate_post(post_subject, brands, internal_links, references, keywords):
 
 def save_post(title, silot_terms, content, dst_folder):
     frontmatter = """
-    ---
-    title: {}
-    date: {}
-    silot_terms: {}
-    ---
-    """.format(title, datetime.today().strftime('%Y-%m-%d'), silot_terms)
+---
+title: {}
+date: {}
+silot_terms: {}
+---
+""".format(title, datetime.today().strftime('%Y-%m-%d'), silot_terms)
 
     final_content = """
-    {}
+{}
 
-    {}
-    """.format(frontmatter, content)
+{}
+""".format(frontmatter, content)
 
     filename = "{} - {}".format(datetime.today().strftime('%Y-%m-%d-%h-%M-%s'), title)
 
