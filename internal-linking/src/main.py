@@ -35,6 +35,90 @@ print("Processing markdown files")
 #   except:
 #     return pd.DataFrame(columns=['Suggestion', 'silot_terms', 'blogpost_title', 'blogpost_link', 'category'])
 
+def replace_with_tokens(content, pattern, replacement_counter):
+  tokens_array = []
+  # Find the code blocks
+  # pattern = re.compile(r"```.*?```", re.DOTALL)
+  matches = pattern.findall(content)
+  # print(matches)
+
+  # Replace code blocks with tokens
+  # replacement_counter = 10000
+  for amatch in matches:
+    try:
+      print("Processing match =", amatch)
+      codeblock_text = amatch
+      replacement_token = "##@@{}@@##".format(replacement_counter)
+      content = content.replace(codeblock_text, replacement_token)
+      tokens_array.append([codeblock_text, replacement_token])
+      replacement_counter = replacement_counter + 1
+    except Exception as e:
+      print("replace_with_tokens > Error: ", str(e))
+
+  # return the array where we have the tokens and the content
+  return tokens_array, content
+
+
+def extract_headers(data_str):
+  print("Extract headers")
+  return extract_data_with_regex(data_str, "^#+\s(.*)$")
+
+def extract_codeblocks(data_str):
+  print("Extract code blocks")
+  return extract_data_with_regex(data_str, "`{3}([\w]*)\n([\S\s]+?)\n`{3}")
+
+def extract_inline_codeblocks(data_str):
+  print("Extract inline code blocks")
+  return extract_data_with_regex(data_str, "`{3}([\w]*)\n([\S\s]+?)\n`{3}")
+
+def extract_wikilinks(data_str):
+  print("Extract wikilinks")
+  return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
+
+def replace_codeblock_with_tokens(content):
+  print(">>> Replacing codeblocks")
+  replacement_counter = 10000
+  pattern = re.compile(r"```.*?```", re.DOTALL)
+
+  return replace_with_tokens(content, pattern, replacement_counter)
+
+def replace_title_with_tokens(content):
+  print(">>> Replacing titles")
+  replacement_counter = 30000
+  pattern = re.compile(r"^#+\s.*$", re.MULTILINE)
+
+  return replace_with_tokens(content, pattern, replacement_counter)
+
+def replace_link_with_tokens(content):
+  print(">>> Replacing links")
+  replacement_counter = 40000
+  # pattern = re.compile(r"\[([^\[]+)\](\(.*\))", re.DOTALL)
+  pattern = re.compile(r"\[[^\[]+\]\(.*\)", re.MULTILINE)
+
+  return replace_with_tokens(content, pattern, replacement_counter)
+
+def replace_image_with_tokens(content):
+  print(">>> Replacing images")
+  replacement_counter = 50000
+  # pattern = re.compile(r'!\[[^\]]*\]\((.*?)\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
+  # pattern = re.compile(r'!\[[^\]]*\]\(.*?\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
+  pattern = re.compile(r'!\[.*?\]\(.*?\)', re.MULTILINE)
+
+  return replace_with_tokens(content, pattern, replacement_counter)
+
+def replace_tokens_with_codeblocks(content, tokens):
+  print(">>> Replacing back")
+  for token in tokens:
+    try:
+      print("Replacing back token {} with token {}".format(token[1], token[0]))
+      content = content.replace(token[1], token[0])
+    except Exception as e:
+      print("replace_tokens_with_codeblocks > Error while replacing back token. = ", str(e))
+
+  # return the array where we have the tokens and the content
+  return content
+
+
 def generate_aliases_ymls(df, aliases_yml, aliases_yml_filtered):
   data = {}
 
@@ -98,21 +182,6 @@ def extract_data_with_regex(data_str, regex):
           results.update({current_key: current_value})
   return results
 
-def extract_headers(data_str):
-  print("Extract headers")
-  return extract_data_with_regex(data_str, "^#+\s(.*)$")
-
-def extract_codeblocks(data_str):
-  print("Extract code blocks")
-  return extract_data_with_regex(data_str, "`{3}([\w]*)\n([\S\s]+?)\n`{3}")
-
-def extract_inline_codeblocks(data_str):
-  print("Extract code blocks")
-  return extract_data_with_regex(data_str, "`{3}([\w]*)\n([\S\s]+?)\n`{3}")
-
-def extract_wikilinks(data_str):
-  print("Extract wikilinks")
-  return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
 
 def md2df_by_silotterms(folder_to_scan, dst_folder_tosaveresults):
   silot_terms_df = pd.DataFrame(columns=['silot_terms', 'title', 'path', 'cornerstone', 'categories'])
@@ -315,7 +384,14 @@ def link_title3(link_text, content, dst_file):
     # title = the link_text we will use as text anchor
     # txt = the full body of the post, where we will look for the anchor text
     # page_aliases = a dict of link_text and dst_file
-    updated_txt = content
+
+    # Replace text with tokens
+    tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(content)
+    tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+    tokens_array_links, content_links = replace_link_with_tokens(content_images)
+    tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
+
+    updated_txt = content_titles
     # find instances of the title where it's not surrounded by [], | or other letters
     matches = re.finditer('(?<!([\[\w\|]))' + re.escape(link_text.lower()) + '(?!([\|\]\w]))', content.lower())
     offset = 0 # track the offset of our matches (start index) due to document modifications
@@ -346,7 +422,14 @@ def link_title3(link_text, content, dst_file):
                 # if wikipedia mode is on, return after first link is created
                 if wikipedia_mode: return updated_txt
             
-    return updated_txt
+
+    # Replace tokens with text
+    content_codeblocks_replaced = replace_tokens_with_codeblocks(updated_txt, tokens_array_codeblocks)
+    content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
+    content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+    content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+
+    return content_titles_replaced
 
 
 def link_content(content):
@@ -674,6 +757,9 @@ def autolink(folder_to_scan, audited_df, aliases_df):
       print("bad error for file {}".format(current_item.dst_file), str(e))
 
   return audited_df
+
+# # Testing only the markdown example above
+# link_title3("kubernetes", md_content, "mydstfile")
 
 # codeblocks_results = extract_codeblocks(md_content)
 # print(codeblocks_results)
