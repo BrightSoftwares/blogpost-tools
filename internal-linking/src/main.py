@@ -76,21 +76,21 @@ def extract_wikilinks(data_str):
   return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
 
 def replace_codeblock_with_tokens(content):
-  # print(">>> Replacing codeblocks")
+  print(">>> Replacing codeblocks")
   replacement_counter = 10000
   pattern = re.compile(r"```.*?```", re.DOTALL)
 
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_title_with_tokens(content):
-  # print(">>> Replacing titles")
+  print(">>> Replacing titles")
   replacement_counter = 30000
   pattern = re.compile(r"^#+\s.*$", re.MULTILINE)
 
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_link_with_tokens(content):
-  # print(">>> Replacing links")
+  print(">>> Replacing links")
   replacement_counter = 40000
   # pattern = re.compile(r"\[([^\[]+)\](\(.*\))", re.DOTALL)
   pattern = re.compile(r"\[[^\[]+\]\(.*\)", re.MULTILINE)
@@ -98,7 +98,7 @@ def replace_link_with_tokens(content):
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_image_with_tokens(content):
-  # print(">>> Replacing images")
+  print(">>> Replacing images")
   replacement_counter = 50000
   # pattern = re.compile(r'!\[[^\]]*\]\((.*?)\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
   # pattern = re.compile(r'!\[[^\]]*\]\(.*?\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
@@ -107,7 +107,7 @@ def replace_image_with_tokens(content):
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_tokens_with_codeblocks(content, tokens):
-  # print(">>> Replacing back")
+  print(">>> Replacing back")
   for token in tokens:
     try:
       # print("Replacing back token {} with token {}".format(token[1], token[0]))
@@ -117,6 +117,24 @@ def replace_tokens_with_codeblocks(content, tokens):
 
   # return the array where we have the tokens and the content
   return content
+
+def replace_all_with_tokens(initial_content):
+  # Replace text with tokens
+  tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(initial_content)
+  tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+  tokens_array_images, content_images = replace_image_with_tokens(content_titles)
+  tokens_array_links, content_links = replace_link_with_tokens(content_images)
+
+  return tokens_array_codeblocks, tokens_array_titles, tokens_array_images, tokens_array_links, content_links # Return the final content
+
+
+def replace_back_all(new_content, tokens_array_codeblocks, tokens_array_images, tokens_array_links, tokens_array_titles):
+  content_codeblocks_replaced = replace_tokens_with_codeblocks(new_content, tokens_array_codeblocks)
+  content_titles_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_titles)
+  content_images_replaced = replace_tokens_with_codeblocks(content_titles_replaced, tokens_array_images)
+  content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+
+  return content_links_replaced
 
 
 def generate_aliases_ymls(df, aliases_yml, aliases_yml_filtered):
@@ -387,13 +405,13 @@ def link_title3(link_text, content, dst_file):
 
     # Replace text with tokens
     tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(content)
-    tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+    tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+    tokens_array_images, content_images = replace_image_with_tokens(content_titles)
     tokens_array_links, content_links = replace_link_with_tokens(content_images)
-    tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
 
-    updated_txt = content_titles
+    updated_txt = content_links
     # find instances of the title where it's not surrounded by [], | or other letters
-    matches = re.finditer('(?<!([\[\w\|]))' + re.escape(link_text.lower()) + '(?!([\|\]\w]))', content.lower())
+    matches = re.finditer('(?<!([\[\w\|]))' + re.escape(link_text.lower()) + '(?!([\|\]\w]))', content_links.lower())
     offset = 0 # track the offset of our matches (start index) due to document modifications
     
     for m in matches:
@@ -574,13 +592,13 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
 
       # protect data by replacing them with tokens
       tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
-      tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+      tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+      tokens_array_images, content_images = replace_image_with_tokens(content_titles)
       tokens_array_links, content_links = replace_link_with_tokens(content_images)
-      tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
 
       # search and generate the internal link
       print("link_content3 > Searching the aliases in title")
-      updated_txt, anchor_text, link_found = link_title4(aliases_regex_str, post.content, dst_file)
+      updated_txt, anchor_text, link_found = link_title4(aliases_regex_str, content_links, dst_file)
       print(" link_content3 > Done. Link found ? =", link_found)
 
       if len(updated_txt) != len(post.content):
@@ -875,11 +893,11 @@ def autolink(folder_to_scan, audited_df, aliases_df):
       post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
 
       tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
-      tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+      tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+      tokens_array_images, content_images = replace_image_with_tokens(content_titles)
       tokens_array_links, content_links = replace_link_with_tokens(content_images)
-      tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
 
-      has_linked, text_linked, new_content = link_content4(folder_to_scan, content_titles, current_item.dst_file, aliases_df)
+      has_linked, text_linked, new_content = link_content4(folder_to_scan, content_links, current_item.dst_file, aliases_df)
 
       content_codeblocks_replaced = replace_tokens_with_codeblocks(new_content, tokens_array_codeblocks)
       content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
@@ -946,7 +964,10 @@ def perform_internal_linking():
 
 
 # # Testing only the markdown example above
-# link_title3("kubernetes", md_content, "mydstfile")
-
+# tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(md_content)
+# tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+# tokens_array_images, content_images = replace_image_with_tokens(content_titles)
+# tokens_array_links, content_links = replace_link_with_tokens(content_images)
+# link_title4("(kubernetes|start)", content_links, "mydstfile")
 
 perform_internal_linking()
