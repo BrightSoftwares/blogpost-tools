@@ -46,7 +46,7 @@ def replace_with_tokens(content, pattern, replacement_counter):
   # replacement_counter = 10000
   for amatch in matches:
     try:
-      print("Processing match =", amatch)
+      # print("Processing match =", amatch)
       codeblock_text = amatch
       replacement_token = "##@@{}@@##".format(replacement_counter)
       content = content.replace(codeblock_text, replacement_token)
@@ -76,21 +76,21 @@ def extract_wikilinks(data_str):
   return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
 
 def replace_codeblock_with_tokens(content):
-  print(">>> Replacing codeblocks")
+  # print(">>> Replacing codeblocks")
   replacement_counter = 10000
   pattern = re.compile(r"```.*?```", re.DOTALL)
 
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_title_with_tokens(content):
-  print(">>> Replacing titles")
+  # print(">>> Replacing titles")
   replacement_counter = 30000
   pattern = re.compile(r"^#+\s.*$", re.MULTILINE)
 
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_link_with_tokens(content):
-  print(">>> Replacing links")
+  # print(">>> Replacing links")
   replacement_counter = 40000
   # pattern = re.compile(r"\[([^\[]+)\](\(.*\))", re.DOTALL)
   pattern = re.compile(r"\[[^\[]+\]\(.*\)", re.MULTILINE)
@@ -98,7 +98,7 @@ def replace_link_with_tokens(content):
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_image_with_tokens(content):
-  print(">>> Replacing images")
+  # print(">>> Replacing images")
   replacement_counter = 50000
   # pattern = re.compile(r'!\[[^\]]*\]\((.*?)\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
   # pattern = re.compile(r'!\[[^\]]*\]\(.*?\s*("(?:.*[^"])")?\s*\)', re.MULTILINE)
@@ -107,10 +107,10 @@ def replace_image_with_tokens(content):
   return replace_with_tokens(content, pattern, replacement_counter)
 
 def replace_tokens_with_codeblocks(content, tokens):
-  print(">>> Replacing back")
+  # print(">>> Replacing back")
   for token in tokens:
     try:
-      print("Replacing back token {} with token {}".format(token[1], token[0]))
+      # print("Replacing back token {} with token {}".format(token[1], token[0]))
       content = content.replace(token[1], token[0])
     except Exception as e:
       print("replace_tokens_with_codeblocks > Error while replacing back token. = ", str(e))
@@ -430,6 +430,59 @@ def link_title3(link_text, content, dst_file):
     content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
 
     return content_titles_replaced
+  
+  
+def link_title4(link_regex, content, dst_file):
+
+    updated_txt = content
+    anchor_text = "unknown"
+    link_found = False
+    # find instances of the title where it's not surrounded by [], | or other letters
+    matches = re.finditer(link_regex, content.lower())
+    offset = 0 # track the offset of our matches (start index) due to document modifications
+    
+    for m in matches:
+      try:
+        # get the original text to link
+        txt_to_link = updated_txt[m.start() + offset:m.end() + offset]
+        
+        # where is the next ]]?
+        next_closing_index = updated_txt.find("]]", m.end() + offset)
+        # where is the next [[?
+        next_opening_index = updated_txt.find("[[", m.end() + offset)   
+        
+        # only proceed to link if our text is not already enclosed in a link
+        # don't link if there's a ]] ahead, but no [[ (can happen with first few links)
+        if not (next_opening_index == -1 and next_closing_index > -1):
+            # proceed to link if no [[ or ]] ahead (first link) or [[ appears before ]]
+            if (next_opening_index == -1 and next_closing_index == -1) or (next_opening_index < next_closing_index):
+                print(">>> link_title4 > We found a match = {} in file {}".format(txt_to_link, dst_file))
+                # updated_title = txt_to_link
+                # handle aliases
+                updated_title = dst_file
+
+                # handle the display text if it doesn't match the page title
+                if txt_to_link != updated_title: updated_title += '|' + txt_to_link
+
+                # create the link and update our text
+                updated_txt = updated_txt[:m.start() + offset] + '[[' + updated_title + ']]' + updated_txt[m.end() + offset:]
+
+                # change our offset due to modifications to the document
+                offset = offset + (len(updated_title) + 4 - len(txt_to_link))  # pairs of double brackets adds 4 chars
+
+                # # if wikipedia mode is on, return after first link is created
+                # if wikipedia_mode: return updated_txt
+                # print("5")
+
+                # Mark this match as good and return the data
+                anchor_text = txt_to_link
+                link_found = True
+
+                break
+      except Exception as e:
+        print("link_title4 > Error : ", str(e))
+
+    return updated_txt, anchor_text, link_found
 
 
 def link_content(content):
@@ -487,24 +540,107 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
     link_found = False
     # Get all the aliases that corresponds to the destination file
     dst_aliases_df = aliases_df.loc[aliases_df['dst_file'] == dst_file]
-    
+    dst_aliases_df = dst_aliases_df.drop_duplicates() # Removing duplicates
     # Shuffle the data to inject randomness
     dst_aliases_df = dst_aliases_df.sample(frac = 1)
 
-    # iterate through our page titles
-    for current_item_index, current_item in dst_aliases_df.iterrows():
-      # Attempt to link the src content to the destination using one of the aliases
-      #print("Processing src = {} and dst = {}".format(src_file, dst_file))
-      post = frontmatter.load(folder_to_scan + "/" + src_file)
-      updated_txt = link_title3(current_item.link_text, post.content, dst_file)
+    
+    ## -- Initial solution --
+    # # iterate through our page titles
+    # for current_item_index, current_item in dst_aliases_df.iterrows():
+    #   # Attempt to link the src content to the destination using one of the aliases
+    #   #print("Processing src = {} and dst = {}".format(src_file, dst_file))
+    #   post = frontmatter.load(folder_to_scan + "/" + src_file)
+    #   updated_txt = link_title3(current_item.link_text, post.content, dst_file)
       
-      # If we find a match we stop looking for other links, for this dst file
+    #   # If we find a match we stop looking for other links, for this dst file
+    #   if len(updated_txt) != len(post.content):
+    #     print("linked = %s" % (current_item.link_text))
+    #     anchor_text = current_item.link_text
+    #     link_found = True
+    #     break
+    ## -- End of initial solution --
+    
+    ## -- Alternate solution to improve performances --
+    # Turn the aliases into a regex
+    aliases_list = dst_aliases_df["link_text"].values.tolist()
+    print(aliases_list)
+    if len(aliases_list) > 0: # No need to prepare the regex if there is nothing to search for
+      aliases_regex_str = "({})".format("|".join(aliases_list))
+      print("link_content3 > Regex str from aliases = ", aliases_regex_str)
+
+      # Find the matches for the aliases_regex_str in the content
+      post = frontmatter.load(folder_to_scan + "/" + src_file)
+
+      # protect data by replacing them with tokens
+      tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
+      tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+      tokens_array_links, content_links = replace_link_with_tokens(content_images)
+      tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
+
+      # search and generate the internal link
+      print("link_content3 > Searching the aliases in title")
+      updated_txt, anchor_text, link_found = link_title4(aliases_regex_str, post.content, dst_file)
+      print(" link_content3 > Done. Link found ? =", link_found)
+
       if len(updated_txt) != len(post.content):
-        print("linked = %s" % (current_item.link_text))
-        anchor_text = current_item.link_text
         link_found = True
-        break
-        
+
+      # restore data by replacing back the tokens
+      content_codeblocks_replaced = replace_tokens_with_codeblocks(updated_txt, tokens_array_codeblocks)
+      content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
+      content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+      content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+      
+
+    else:
+      print("link_content3 > Nothing to link for this dst_file")
+    
+    #print("Nothing found in src file {}. Returning False and None, None".format(src_file))
+    return link_found, anchor_text, updated_txt
+
+def link_content4(folder_to_scan, src_content_replaced_with_tokens, dst_file, aliases_df):
+    updated_txt = ""
+    anchor_text = ""
+    link_found = False
+    # Get all the aliases that corresponds to the destination file
+    dst_aliases_df = aliases_df.loc[aliases_df['dst_file'] == dst_file]
+    dst_aliases_df = dst_aliases_df.drop_duplicates() # Removing duplicates
+    # Shuffle the data to inject randomness
+    dst_aliases_df = dst_aliases_df.sample(frac = 1)
+    
+    ## -- Alternate solution to improve performances --
+    # Turn the aliases into a regex
+    aliases_list = dst_aliases_df["link_text"].values.tolist()
+    # print(aliases_list)
+    if len(aliases_list) > 0: # No need to prepare the regex if there is nothing to search for
+      aliases_regex_str = "({})".format("|".join(aliases_list))
+      print("link_content4 > Regex str from aliases = ", aliases_regex_str)
+
+      # # Find the matches for the aliases_regex_str in the content
+      # post = frontmatter.load(folder_to_scan + "/" + src_file)
+
+      # # protect data by replacing them with tokens
+      # tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
+      # tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+      # tokens_array_links, content_links = replace_link_with_tokens(content_images)
+      # tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
+
+      # search and generate the internal link
+      updated_txt, anchor_text, link_found = link_title4(aliases_regex_str, src_content_replaced_with_tokens, dst_file)
+
+      # if len(updated_txt) != len(src_content_replaced_with_tokens):
+      #   link_found = True
+
+      # # restore data by replacing back the tokens
+      # content_codeblocks_replaced = replace_tokens_with_codeblocks(updated_txt, tokens_array_codeblocks)
+      # content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
+      # content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+      # content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+      
+
+    else:
+      print("link_content4 > Nothing to link for this dst_file")
     
     #print("Nothing found in src file {}. Returning False and None, None".format(src_file))
     return link_found, anchor_text, updated_txt
@@ -659,7 +795,7 @@ def run_obs_linkr():
   page_titles = sorted(page_titles, key=lambda x: len(x), reverse=True)
 
   # get text from clipboard
-  clip_txt = pyperclip.paste()
+  # clip_txt = pyperclip.paste()
   #print('--- clipboard text ---')
   #print(clip_txt)
   print('----------------------')
@@ -682,7 +818,7 @@ def run_obs_linkr():
       linked_txt = link_content(clip_txt)
 
   # send the linked text to the clipboard
-  pyperclip.copy(linked_txt)
+  # pyperclip.copy(linked_txt)
   #print(clip_txt)
   print('----------------------')
   print('linked text copied to clipboard')
@@ -727,12 +863,31 @@ def autolink(folder_to_scan, audited_df, aliases_df):
   audited_notlinked_df = audited_df.loc[ audited_df['link_exist'] == False ]
 
   for current_item_index, current_item in audited_notlinked_df.iterrows():
+  # for current_item_index, current_item in audited_notlinked_df.head(2).iterrows():
     has_linked = False
     # Load the post using the frontmatter
     try:
       
       print("Linking content from {} to {}".format(current_item.src_file, current_item.dst_file))
-      has_linked, text_linked, new_content = link_content3(folder_to_scan, current_item.src_file, current_item.dst_file, aliases_df)
+      # has_linked, text_linked, new_content = link_content3(folder_to_scan, current_item.src_file, current_item.dst_file, aliases_df)
+
+      # Load the file to process it's content
+      post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
+
+      tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
+      tokens_array_images, content_images = replace_image_with_tokens(content_codeblock)
+      tokens_array_links, content_links = replace_link_with_tokens(content_images)
+      tokens_array_titles, content_titles = replace_title_with_tokens(content_links)
+
+      has_linked, text_linked, new_content = link_content4(folder_to_scan, content_titles, current_item.dst_file, aliases_df)
+
+      content_codeblocks_replaced = replace_tokens_with_codeblocks(new_content, tokens_array_codeblocks)
+      content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
+      content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+      content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+
+      final_content = content_titles_replaced
+      
       print("***** Found Link = ", has_linked)
 
       # Save new content in the file
@@ -746,7 +901,7 @@ def autolink(folder_to_scan, audited_df, aliases_df):
         else:
           print("Saving auto linked post")
           post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
-          post.content = new_content
+          post.content = final_content
           filecontent = frontmatter.dumps(post)
           
           with open(folder_to_scan + "/" + current_item.src_file, 'w') as f:
@@ -758,33 +913,40 @@ def autolink(folder_to_scan, audited_df, aliases_df):
 
   return audited_df
 
+def perform_internal_linking():
+
+  # codeblocks_results = extract_codeblocks(md_content)
+  # print(codeblocks_results)
+
+  # headers_results = extract_headers(md_content)
+  # print(headers_results)
+
+  # wikilinks_results = extract_wikilinks(md_content)
+  # print(wikilinks_results)
+
+  st_df = md2df_by_silotterms(src_folder_toscan, dst_folder_tosaveresults)
+
+  anchor_df = pd.read_csv(anchor_text_to_post)
+  link_text_df = pd.read_csv(internal_link_text_file)
+  aliases_df = pd.read_csv(aliases_csv_file)
+
+  # Step 1: AUDIT - Parse the files and list src, dst, is linked, anchor text
+  # Step 1.1: GENERATE MANUAL LINK - For src, dst files that are not linked, generate a linked text to ease manual linking
+  audited_df = generate_internal_linking_requirements(st_df, src_folder_toscan, dst_folder_tosaveresults, anchor_df, link_text_df)
+
+  # Step 2: AUTOLINK - Load the aliases files (contains dst, link_text) inputed by human to try to autolink.
+  autolinked_df = autolink(src_folder_toscan, audited_df, aliases_df)
+
+  # Save the results of the audit
+  print("Sort the df before saving it")
+  autolinked_df = autolinked_df.sort_values(['silot_terms', 'link_exist'], ascending = [False, True])
+  print("Saving the analysis result")
+  autolinked_df.to_csv("{}/internallinking_per_silot_terms.csv".format(dst_folder_tosaveresults), index=False)
+
+
+
 # # Testing only the markdown example above
 # link_title3("kubernetes", md_content, "mydstfile")
 
-# codeblocks_results = extract_codeblocks(md_content)
-# print(codeblocks_results)
 
-# headers_results = extract_headers(md_content)
-# print(headers_results)
-
-# wikilinks_results = extract_wikilinks(md_content)
-# print(wikilinks_results)
-
-st_df = md2df_by_silotterms(src_folder_toscan, dst_folder_tosaveresults)
-
-anchor_df = pd.read_csv(anchor_text_to_post)
-link_text_df = pd.read_csv(internal_link_text_file)
-aliases_df = pd.read_csv(aliases_csv_file)
-
-# Step 1: AUDIT - Parse the files and list src, dst, is linked, anchor text
-# Step 1.1: GENERATE MANUAL LINK - For src, dst files that are not linked, generate a linked text to ease manual linking
-audited_df = generate_internal_linking_requirements(st_df, src_folder_toscan, dst_folder_tosaveresults, anchor_df, link_text_df)
-
-# Step 2: AUTOLINK - Load the aliases files (contains dst, link_text) inputed by human to try to autolink.
-autolinked_df = autolink(src_folder_toscan, audited_df, aliases_df)
-
-# Save the results of the audit
-print("Sort the df before saving it")
-autolinked_df = autolinked_df.sort_values(['silot_terms', 'link_exist'], ascending = [False, True])
-print("Saving the analysis result")
-autolinked_df.to_csv("{}/internallinking_per_silot_terms.csv".format(dst_folder_tosaveresults), index=False)
+perform_internal_linking()
