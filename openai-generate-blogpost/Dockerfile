@@ -1,9 +1,7 @@
-FROM python:3
+FROM fullbright/openai-generate-blogpost:latest
 
-COPY requirements.txt ./
-
-RUN pip install --no-cache-dir -r requirements.txt
-
+WORKDIR /
+ADD src /app
 COPY . .
 
 CMD [ "python", "/src/main.py" ]
