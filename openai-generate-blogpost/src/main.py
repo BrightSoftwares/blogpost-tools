@@ -9,15 +9,17 @@ import json
 posts_channel = os.getenv('INPUT_CHANNEL') # "keyword_suggestions_merged.csv"
 posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
 dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS') # "internallinking_per_silot_terms.csv"
-MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES'))
+MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', 5))
 max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
 temperature = int(os.getenv('INPUT_TEMPERATURE'))
+BATCH_SIZE = int(os.getenv('INPUT_BATCH_SIZE', 5))
+useexternal_prompt = bool(os.getenv('INPUT_USEEXTERNAL_PROMPT', False))
 
 openai.api_key = os.getenv('INPUT_OPENAI_API_KEY') # "aliases.csv"
 
 RETRIABLE_EXCEPTIONS = (openai.error.RateLimitError, openai.error.APIConnectionError, openai.error.APIError)
 
-def generate_post(post_subject, brands, internal_links, references, keywords):
+def generate_post(post_subject, brands, internal_links, references, keywords, prompt):
     response = None
     nb_reties = 0
     continuation_attemps = 0
@@ -26,7 +28,7 @@ def generate_post(post_subject, brands, internal_links, references, keywords):
     error = None
     history = ""
 
-    prompt = generate_post_prompt(post_subject, brands, internal_links, references, keywords)
+    # prompt = useexternal_prompt ?  generate_post_prompt(post_subject, brands, internal_links, references, keywords)
 
     while True:
       continuation_attemps += 1
@@ -164,7 +166,7 @@ def collect_posts_to_generate(channel):
 
   print("Got the json url")
   if json_results:
-    for post in json_results:
+    for post in json_results[:BATCH_SIZE]:
       # [
       # 1,
       # "drone pilot license",
@@ -182,17 +184,24 @@ def collect_posts_to_generate(channel):
       post_internal_urls = post[4]
       post_silot_terms = post[5]
       post_keywords = post[6]
+      remote_prompt = post[8]
       post_references = None
 
+      prompt = remote_prompt if useexternal_prompt else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
+
       # post_subject, brands, internal_links, references, keywords
-      post_content = generate_post(post_title, post_brands, post_internal_urls, post_references, post_keywords)
-      
-      print("Save the post only if the result os not none")
-      if post_content is not None:
-        save_post(post_title, post_silot_terms, post_content, dst_generated_posts)
-        mark_post_as_completed(channel, post_id)
+      if prompt.strip() != "":
+        post_content = generate_post(post_title, post_brands, post_internal_urls, post_references, post_keywords, prompt)
+
+        print("Save the post only if the result os not none")
+        if post_content is not None:
+          save_post(post_title, post_silot_terms, post_content, dst_generated_posts)
+          mark_post_as_completed(channel, post_id)
+        else:
+          print("The post content is None ({}). Not saving the content of the post. ({})".format(post_content, post_title))
+
       else:
-        print("The post content is None ({}). Not saving the content of the post. ({})".format(post_content, post_title))
+        print("The prompt is empty ({}). Not requesting openai".format(prompt))
 
 # post_title = "Run docker on homelab"
 # post_content = generate_post(post_title, "Home Assistant, Google Home", None, None, "docker, homelab, do it yourself")
