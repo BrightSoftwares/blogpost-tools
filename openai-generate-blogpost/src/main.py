@@ -5,6 +5,7 @@ import random
 import time
 import requests
 import json
+import frontmatter
 
 posts_channel = os.getenv('INPUT_CHANNEL') # "keyword_suggestions_merged.csv"
 posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
@@ -83,24 +84,32 @@ def generate_post(post_subject, brands, internal_links, references, keywords, pr
 
 
 def save_post(title, silot_terms, content, dst_folder):
-    frontmatter = """
----
-title: {}
-date: {}
-silot_terms: {}
----
-""".format(title, datetime.today().strftime('%Y-%m-%d'), silot_terms)
+  post = frontmatter.loads("---\n---\n")
+  post['title'] = title
+  post['date'] = datetime.today().strftime('%Y-%m-%d')
+  post['silot_terms'] = silot_terms
+  post.content = content
 
-    final_content = """
-{}
+#     frontmatter = """
+# ---
+# title: {}
+# date: {}
+# silot_terms: {}
+# ---
+# """.format(title, , silot_terms)
 
-{}
-""".format(frontmatter, content)
+#     final_content = """
+# {}
 
-    filename = "{} - {}".format(datetime.today().strftime('%Y-%m-%d-%h-%M-%s'), title)
+# {}
+# """.format(frontmatter, content)
 
-    with open(dst_folder + "/" + filename + ".md", 'w') as f:
-      f.write(final_content)
+  final_content = frontmatter.dumps(post)
+
+  filename = "{} - {}".format(datetime.today().strftime('%Y-%m-%d-%h-%M-%s'), title)
+
+  with open(dst_folder + "/" + filename + ".md", 'w') as f:
+    f.write(final_content)
 
 
 def generate_post_prompt(post_subject, brands, internal_links, references, keywords):
@@ -205,7 +214,9 @@ def collect_posts_to_generate(channel):
 
 # post_title = "Run docker on homelab"
 # post_content = generate_post(post_title, "Home Assistant, Google Home", None, None, "docker, homelab, do it yourself")
-# save_post(post_title, post_content, dst_generated_posts)
+# save_post(post_title, "my silot term", "This is a totally fake content", dst_generated_posts)
+# save_post(title, silot_terms, content, dst_folder)
+
 
 collect_posts_to_generate(posts_channel)
 # mark_post_as_completed(posts_channel, 3)
