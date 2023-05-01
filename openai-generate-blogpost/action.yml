@@ -23,7 +23,7 @@ inputs:
     default: 5
   useexternal_prompt:
     description: Whether to use the prompt from the API or generate it locally
-    default: False
+    default: false
 
 outputs:
   updated_posts:
