@@ -18,6 +18,12 @@ inputs:
   temperature:
     description: The higher this number, the more freestyle the content of the post will be.
     default: 0
+  batch_size:
+    description: The number of posts to process per run
+    default: 5
+  useexternal_prompt:
+    description: Whether to use the prompt from the API or generate it locally
+    default: False
 
 outputs:
   updated_posts:
