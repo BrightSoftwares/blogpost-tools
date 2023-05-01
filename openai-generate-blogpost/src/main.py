@@ -14,7 +14,7 @@ MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', 5))
 max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
 temperature = int(os.getenv('INPUT_TEMPERATURE'))
 BATCH_SIZE = int(os.getenv('INPUT_BATCH_SIZE', 5))
-useexternal_prompt = bool(os.getenv('INPUT_USEEXTERNAL_PROMPT', False))
+useexternal_prompt = os.getenv('INPUT_USEEXTERNAL_PROMPT', "false")
 
 openai.api_key = os.getenv('INPUT_OPENAI_API_KEY') # "aliases.csv"
 
@@ -29,7 +29,6 @@ def generate_post(post_subject, brands, internal_links, references, keywords, pr
     error = None
     history = ""
 
-    # prompt = useexternal_prompt ?  generate_post_prompt(post_subject, brands, internal_links, references, keywords)
 
     while True:
       continuation_attemps += 1
@@ -164,7 +163,7 @@ def mark_post_as_completed(channel, post_id):
   # json_results = r_json['results']
 
 def collect_posts_to_generate(channel):
-  print("Collecting posts from channel {}".format(channel))
+  print("Collecting posts from channel {}, with batch size {} and useexternal_prompt = ({})".format(channel, BATCH_SIZE, useexternal_prompt))
   json_api_url = posts_requests_base_url + "?channel=" + channel
   r = requests.get(json_api_url)
   print("collect_posts_to_generate > API call, response text = " + r.text)
@@ -196,7 +195,7 @@ def collect_posts_to_generate(channel):
       remote_prompt = post[8]
       post_references = None
 
-      prompt = remote_prompt if useexternal_prompt else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
+      prompt = remote_prompt if useexternal_prompt == "true" else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
 
       # post_subject, brands, internal_links, references, keywords
       if prompt.strip() != "":
