@@ -49,7 +49,8 @@ def search_unsplash_image(query, api_access_key, results_file, max_results):
       for photo in data['results']:
         print(photo)
         print(photo['id'], photo['links']['download'])
-        theresults.append([query, photo['id'], photo['links']['download']])
+        # theresults.append([query, photo['id'], photo['links']['download']])
+        pd.concat(theresults, [query, photo['id'], photo['links']['download']])
 
       print("At the end of the processing we transform it into a dataframe")
       existing_result_df = get_unsplash_results_dataframe(theresults)
