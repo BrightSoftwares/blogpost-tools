@@ -49,8 +49,8 @@ def search_unsplash_image(query, api_access_key, results_file, max_results):
       for photo in data['results']:
         print(photo)
         print(photo['id'], photo['links']['download'])
-        # theresults.append([query, photo['id'], photo['links']['download']])
-        theresults = pd.concat([theresults, [query, photo['id'], photo['links']['download']]])
+        theresults.append([query, photo['id'], photo['links']['download']])
+        #theresults = pd.concat([theresults, [query, photo['id'], photo['links']['download']]])
 
       print("At the end of the processing we transform it into a dataframe")
       existing_result_df = get_unsplash_results_dataframe(theresults)
@@ -94,8 +94,8 @@ def save_unsplash_search(query, results_df, dest_file):
   #print("results_df = ", results_df)
 
   # Concat the dataframe
-  # unsplash_results_df = unsplash_results_df.append(results_df)
-  unsplash_results_df = pd.concat([unsplash_results_df, results_df])
+  unsplash_results_df = unsplash_results_df.append(results_df)
+  #unsplash_results_df = pd.concat([unsplash_results_df, results_df])
   unsplash_results_df.drop_duplicates(inplace=True)
   
   # Save the final data
