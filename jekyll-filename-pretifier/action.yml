@@ -9,6 +9,20 @@ inputs:
     description: Set to true if you want to add frontmatter variables to push your post to wordpress with git-it-write
     default: False
     type: boolean
+  dry_run:
+    description: Whether to save generated files
+    default: false
+  siloterm_to_links_file:
+    description: The csv file where we have the mapping between the silot term and the links
+  siloterm_to_categories_file:
+    description: The csv file where we have the mapping between the silot term and the categories
+  default_author:
+    description: Who should be the default author of the blog posts
+  default_layout:
+    description: What should be the default layout of the blog posts
+  category_type:
+    description: Does your site use categories or category to manage the categories
+    default: category
   
 
 outputs:
