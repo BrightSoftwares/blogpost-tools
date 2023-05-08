@@ -45,6 +45,9 @@ def generate_silottermtocategories_file(file_path, folder_to_scan):
     except Exception as e:
       print("Error occured during analysis of the file {}. ".format(entry), str(e))
 
+  # Remove the duplicates
+  df = df.drop_duplicates()
+
   # Save the result to csv
   df.to_csv(file_path, index=None)
 
@@ -73,7 +76,10 @@ def generate_silottermtolinks_file(file_path, folder_to_scan):
         print("Cannot process this silot term ({}) for link ({}) because they are empty or None".format(current_silotterm, current_links))
     except Exception as e:
       print("Error occured during analysis of the file {}. ".format(entry), str(e))
-
+  
+  # Remove the duplicates
+  df = df.drop_duplicates()
+  
   # Save the result to csv
   df.to_csv(file_path, index=None)
 
@@ -88,7 +94,8 @@ def silotterm_to_categories(silot_term, categories_df):
   if df.empty:
     return None
   else:
-    return df["category"].values
+    unique_values = list(dict.fromkeys(df["category"].values))
+    return unique_values
 
 def silotterm_to_links(silot_term, links_df):
   # Filter the silot term and get the categories
@@ -98,7 +105,8 @@ def silotterm_to_links(silot_term, links_df):
   if df.empty:
     return None
   else:
-    return df["link"].values
+    unique_values = list( dict.fromkeys(df["link"].values) )
+    return unique_values
 
 
 
