@@ -35,7 +35,7 @@ def generate_silottermtocategories_file(file_path, folder_to_scan):
     try:
       post = frontmatter.load(os.path.join(folder_to_scan, entry))
       current_silotterm = post['silot_terms']  if 'silot_terms' in post else None
-      current_categories = post['categories']  if 'categories' in post else []
+      current_categories = post[category_type]  if category_type in post else []
 
       if current_silotterm != "" and current_silotterm is not None and current_categories is not None and len(current_categories) > 0:
         for category in current_categories:
