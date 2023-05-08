@@ -23,8 +23,15 @@ inputs:
   category_type:
     description: Does your site use categories or category to manage the categories
     default: category
-  
-
+  generate_silotermtolinksfile_if_missing:
+    description: Should we generate the links mapping file if missing?
+    default: false
+  generate_silotermtocategoriesfile_if_missing:
+    description: Should we generate categories mapping file if missing?
+    default: false
+  file_generation_src_path:
+    description: Path to the folder where examples of files we can pull the mapping from
+    
 outputs:
   updated_posts:
     description: A list of updated posts
