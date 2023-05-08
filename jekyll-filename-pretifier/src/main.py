@@ -267,10 +267,21 @@ def pretify_files(links_df, categories_df):
       except Exception as e:
           print("Error. = ", str(e))
 
-# generate_silottermtocategories_file(silot_term_to_categories, file_generation_src_path)
-# generate_silottermtolinks_file(silot_term_to_links, file_generation_src_path)
-silot_term_to_categories_df = pd.read_csv(silot_term_to_categories) if os.path.exists(silot_term_to_categories) else generate_silottermtocategories_file(silot_term_to_categories, file_generation_src_path)
-silot_term_to_links_df = pd.read_csv(silot_term_to_links) if os.path.exists(silot_term_to_links) else generate_silottermtolinks_file(silot_term_to_links, file_generation_src_path)
+# Generate the categories mapping file
+if os.path.exists(silot_term_to_categories):
+  silot_term_to_categories_df = pd.read_csv(silot_term_to_categories)
+elif generate_silottermtolinks_file_if_missing == 'true':
+  silot_term_to_categories_df = generate_silottermtocategories_file(silot_term_to_categories, file_generation_src_path)
+else:
+  print("I am not authorized to generate the file ({}) and File does not exists ({}) ".format(generate_silottermtolinks_file_if_missing, silot_term_to_categories))
+
+# Generate the links mapping file
+if os.path.exists(silot_term_to_links):
+  silot_term_to_links_df = pd.read_csv(silot_term_to_links)
+elif generate_silottermtocategories_file_if_missing == 'true':
+  silot_term_to_links_df = generate_silottermtolinks_file(silot_term_to_links, file_generation_src_path)
+else:
+  print("I am not authorized to generate the file ({}) and File does not exists ({}) ".format(generate_silottermtocategories_file_if_missing, silot_term_to_links))
 
 pretify_files(silot_term_to_links_df, silot_term_to_categories_df)
 # process_blogpost(frontmatter.loads("---\ntitle: The idle post\nsilot_terms: docker compose\n---\n\n Here is the content"), folder, "an idle post", silot_term_to_categories_df, silot_term_to_links_df)
