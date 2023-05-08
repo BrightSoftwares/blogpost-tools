@@ -17,7 +17,68 @@ silot_term_to_categories = os.getenv('INPUT_SILOTERM_TO_CATEGORIES_FILE', None)
 default_author = os.getenv('INPUT_DEFAULT_AUTHOR', None)
 default_layout = os.getenv('INPUT_DEFAULT_LAYOUT', None)
 category_type = os.getenv('INPUT_CATEGORY_TYPE', "categories")
+generate_silottermtolinks_file_if_missing = os.getenv('INPUT_GENERATE_SILOTERMTOLINKSFILE_IF_MISSING', False)
+generate_silottermtocategories_file_if_missing = os.getenv('INPUT_GENERATE_SILOTERMTOCATEGORIESFILE_IF_MISSING', False)
+file_generation_src_path = os.getenv('INPUT_FILE_GENERATION_SRC_PATH')
 entries = os.listdir(folder)
+
+
+def generate_silottermtocategories_file(file_path, folder_to_scan):
+  print("Generating silot term to categories file from {} to {}".format(folder_to_scan, file_path))
+  # An empty dataframe
+  df = pd.DataFrame(columns=['silot_terms', 'category'])
+  # Load the files in the path
+  entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f))]
+
+  # Fill in the dataframe
+  for entry in entries:
+    try:
+      post = frontmatter.load(os.path.join(folder_to_scan, entry))
+      current_silotterm = post['silot_terms']  if 'silot_terms' in post else None
+      current_categories = post['categories']  if 'categories' in post else []
+
+      if current_silotterm != "" and current_silotterm is not None and current_categories is not None and len(current_categories) > 0:
+        for category in current_categories:
+          df.loc[len(df)] = [current_silotterm, category]
+      else:
+        print("Cannot process this silot term ({}) for categories ({}) because they are empty or None".format(current_silotterm, current_categories))
+    except Exception as e:
+      print("Error occured during analysis of the file {}. ".format(entry), str(e))
+
+  # Save the result to csv
+  df.to_csv(file_path, index=None)
+
+  # Return the dataframe
+  return df
+
+
+def generate_silottermtolinks_file(file_path, folder_to_scan):
+  print("Generating silot term to links file from {} to {}".format(folder_to_scan, file_path))
+  # An empty dataframe
+  df = pd.DataFrame(columns=['silot_terms', 'link'])
+  # Load the files in the path
+  entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f))]
+
+  # Fill in the dataframe
+  for entry in entries:
+    try:
+      post = frontmatter.load(os.path.join(folder_to_scan, entry))
+      current_silotterm = post['silot_terms']  if 'silot_terms' in post else None
+      current_links = post['seo']['links']  if 'seo' in post else []
+
+      if current_silotterm != "" and current_silotterm is not None and current_links is not None and len(current_links) > 0:
+        for link in current_links:
+          df.loc[len(df)] = [current_silotterm, link]
+      else:
+        print("Cannot process this silot term ({}) for link ({}) because they are empty or None".format(current_silotterm, current_links))
+    except Exception as e:
+      print("Error occured during analysis of the file {}. ".format(entry), str(e))
+
+  # Save the result to csv
+  df.to_csv(file_path, index=None)
+
+  # Return the dataframe
+  return df
 
 def silotterm_to_categories(silot_term, categories_df):
   # Filter the silot term and get the categories
@@ -206,8 +267,10 @@ def pretify_files(links_df, categories_df):
       except Exception as e:
           print("Error. = ", str(e))
 
-silot_term_to_categories_df = pd.read_csv(silot_term_to_categories)
-silot_term_to_links_df = pd.read_csv(silot_term_to_links)
+# generate_silottermtocategories_file(silot_term_to_categories, file_generation_src_path)
+# generate_silottermtolinks_file(silot_term_to_links, file_generation_src_path)
+silot_term_to_categories_df = pd.read_csv(silot_term_to_categories) if os.path.exists(silot_term_to_categories) else generate_silottermtocategories_file(silot_term_to_categories, file_generation_src_path)
+silot_term_to_links_df = pd.read_csv(silot_term_to_links) if os.path.exists(silot_term_to_links) else generate_silottermtolinks_file(silot_term_to_links, file_generation_src_path)
 
 pretify_files(silot_term_to_links_df, silot_term_to_categories_df)
 # process_blogpost(frontmatter.loads("---\ntitle: The idle post\nsilot_terms: docker compose\n---\n\n Here is the content"), folder, "an idle post", silot_term_to_categories_df, silot_term_to_links_df)
