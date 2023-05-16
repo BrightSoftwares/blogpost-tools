@@ -30,7 +30,7 @@ inputs:
     description: Should we generate categories mapping file if missing?
     default: false
   file_generation_src_path:
-    description: Path to the folder where examples of files we can pull the mapping from
+    description: Path to the folder where examples of files we can pull the mapping from. The script will read the posts in this folder and generate a mapping file silot_terms to categories or silot_terms to links. Then this mapping will be used to fill the category and links frontmatter values.
     
 outputs:
   updated_posts:
