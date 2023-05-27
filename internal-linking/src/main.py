@@ -455,6 +455,12 @@ def link_title4(link_regex, content, dst_file):
     updated_txt = content
     anchor_text = "unknown"
     link_found = False
+    
+    # Remove the .md from the dst_file if there is one
+    if dst_file.endswith(".md"):
+      dst_file = dst_file[:-3]
+      print("dst_file without .md extension = ", dst_file)
+      
     # find instances of the title where it's not surrounded by [], | or other letters
     matches = re.finditer(link_regex, content.lower())
     offset = 0 # track the offset of our matches (start index) due to document modifications
