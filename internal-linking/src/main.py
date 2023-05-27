@@ -590,6 +590,7 @@ def link_content3(folder_to_scan, src_file, dst_file, aliases_df):
     aliases_list = dst_aliases_df["link_text"].values.tolist()
     print(aliases_list)
     if len(aliases_list) > 0: # No need to prepare the regex if there is nothing to search for
+      aliases_list = ["\b{}\b".format(i) for i in aliases_list]
       aliases_regex_str = "({})".format("|".join(aliases_list))
       print("link_content3 > Regex str from aliases = ", aliases_regex_str)
 
