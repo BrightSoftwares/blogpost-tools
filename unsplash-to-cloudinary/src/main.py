@@ -182,6 +182,13 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
   
                   print("Upload photo link to cloudinary", photo_link)
                   cloudinary_image_url = upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation)
+                
+                  new_items_df = pd.DataFrame(
+                      [photo_id], columns=['item_id'])
+
+                  # Add the video to the used videos file
+                  used_vids_df = pd.concat(
+                      [used_vids_df, new_items_df], sort=False)
                 else:
                   print("find_best_item = None :(. No image found. Try to add a 'image_search_query' in the frontmatter to search for another image.")
 
@@ -193,12 +200,6 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
                 with open(folder + "/" + entry, 'w') as f:
                     f.write(filecontent)
 
-                new_items_df = pd.DataFrame(
-                    [photo_id], columns=['item_id'])
-
-                # Add the video to the used videos file
-                used_vids_df = pd.concat(
-                    [used_vids_df, new_items_df], sort=False)
 
                 # Move file to destination if operation was successful
                 if cloudinary_image_url is not None: # The operation was successful
