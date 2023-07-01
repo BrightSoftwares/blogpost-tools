@@ -168,18 +168,24 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
                 #save_youtube_search(title, search_results, yt_results_file)
                 
                 # Check that the video is suitable for use
+                cloudinary_image_url = None
                 video_found_df = find_best_item(search_results, used_vids_df)
-                photo_id = video_found_df.iloc[0]['photo_id']
-                photo_link = video_found_df.iloc[0]['photo_link']
-                #video_found_description = video_found_df.iloc[0]['video_description']
 
-                print(">>>>> photo_id = ", photo_id)
+                if video_found_df is not None:
+                  photo_id = video_found_df.iloc[0]['photo_id']
+                  photo_link = video_found_df.iloc[0]['photo_link']
+                  #video_found_description = video_found_df.iloc[0]['video_description']
+  
+                  print(">>>>> photo_id = ", photo_id)
+  
+                  print("Saving unsplash photos url as image url")
+  
+                  print("Upload photo link to cloudinary", photo_link)
+                  cloudinary_image_url = upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation)
+                else:
+                  print("find_best_item = None :(. No image found. Try to add a 'image_search_query' in the frontmatter to search for another image.")
 
-                print("Saving unsplash photos url as image url")
-
-                print("Upload photo link to cloudinary", photo_link)
-                cloudinary_image_url = upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation)
-
+                # Saving the image
                 post['image'] = cloudinary_image_url
 
                 print("Saving the content of the file")
