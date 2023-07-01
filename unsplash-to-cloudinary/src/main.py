@@ -208,7 +208,7 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
                     entry_src_fullpath = os.path.join(folder, entry)
                     entry_dst_fullpath = os.path.join(destination_folder, entry)
                     print("Moving file ({}) to destination ({})".format(entry_src_fullpath, entry_dst_fullpath))
-                    os.path.rename(entry_src_fullpath, entry_dst_fullpath)
+                    os.rename(entry_src_fullpath, entry_dst_fullpath)
                   else:
                     print("Not moving file because destination_folder is not set")
                 else:
