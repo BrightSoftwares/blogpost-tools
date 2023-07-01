@@ -123,7 +123,7 @@ def upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, clo
   return srcURL
 
 
-def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_csv, cloudinary_dest_folder, cloudinary_transformation, max_results=10):
+def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_csv, cloudinary_dest_folder, cloudinary_transformation, max_results=10, destination_folder=None):
     
     # Loading already used videos
     try:
@@ -199,6 +199,19 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
                 # Add the video to the used videos file
                 used_vids_df = pd.concat(
                     [used_vids_df, new_items_df], sort=False)
+
+                # Move file to destination if operation was successful
+                if cloudinary_image_url is not None: # The operation was successful
+                  if destination_folder is not None:
+                    print("Moving successful post ({}) to destination folder ({})".format(entry, destination_folder))
+                    entry_src_fullpath = os.path.join(folder, entry)
+                    entry_dst_fullpath = os.path.join(destination_folder, entry)
+                    print("Moving file ({}) to destination ({})".format(entry_src_fullpath, entry_dst_fullpath))
+                    os.path.rename(entry_src_fullpath, entry_dst_fullpath)
+                  else:
+                    print("Not moving file because destination_folder is not set")
+                else:
+                  print("Operation was not successful. Not moving to destination")
             else:
                 print("Did not process this file because image is NOT None ({}) or silot_terms is None ({})".format(
                     image, silot_terms))
@@ -217,6 +230,7 @@ def unsplash_to_cloudinary(folder, api_access_key, results_file, already_used_cs
 #   https://cloud.google.com/console
 # Please ensure that you have enabled the YouTube Data API for your project.
 folder = os.getenv('INPUT_SRC_FOLDER')
+destination_folder = os.getenv('INPUT_DST_FOLDER')
 DEVELOPER_KEY = os.getenv('INPUT_UNSPLASH_ACCESS_KEY')
 already_used_items = os.getenv('INPUT_ALREADY_USED_ITEMS')
 results_file = os.getenv('INPUT_SEARCH_RESULTS_FILE')
@@ -228,4 +242,4 @@ cloudinary_transformation = os.getenv('INPUT_CLOUDINARY_TRANSFORMATION', 'BlogIm
 #YOUTUBE_API_VERSION = 'v3'
 
 
-unsplash_to_cloudinary(folder, DEVELOPER_KEY, results_file, already_used_items, cloudinary_dest_folder, cloudinary_transformation, max_results)
+unsplash_to_cloudinary(folder, DEVELOPER_KEY, results_file, already_used_items, cloudinary_dest_folder, cloudinary_transformation, max_results, destination_folder)
