@@ -46,7 +46,7 @@ def is_unsplash_to_cloudinary(post):
   image = post['image']  if 'image' in post else None
   print("is_unsplash_to_cloudinary >>> image = {}".format(image))
 
-  return image is not None and image != 'null'
+  return image is not None and image != "null"
 
 
 def is_youtube_vid_finder(post):
