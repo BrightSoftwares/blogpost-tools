@@ -3,6 +3,12 @@ import os
 import importlib
 
 dry_run = os.getenv('INPUT_DRY_RUN')
+min_content_nb_characters = int(os.getenv('INPUT_MIN_CONTENT_NB_CHARACTERS', 1000))
+
+def is_content_enough(post):
+  nb_characters = len(post.content)
+  print("is_content_enough >>> nb characters = ", nb_characters)
+  return nb_characters > min_content_nb_characters
 
 def is_auto_scheduled(post):
   date = post['date'] if 'date' in post else None
@@ -14,7 +20,7 @@ def is_bloginspritation_converter(post):
   post_inspiration = post['post_inspiration']  if 'post_inspiration' in post else None
   nb_characters = len(post.content)
   print("is_bloginspritation_converter >>> post inspiration = {}, nb_characters = {}".format(post_inspiration, nb_characters))
-  return post_inspiration is not None and nb_characters < 1000
+  return post_inspiration is not None and nb_characters > min_content_nb_characters
 
 
 def is_jekyll_filename_pretified(post):
@@ -26,14 +32,14 @@ def is_jekyll_filename_pretified(post):
 def is_suggestions_to_blogposted(post):
   nb_characters = len(post.content)
   print("is_suggestions_to_blogposted >>> nb_characters = {}".format(nb_characters))  
-  return nb_characters > 1000
+  return nb_characters > min_content_nb_characters
 
 
 def is_transcript_downloaded(post):
   transcribed = post['transcribed']  if 'transcribed' in post else None
   nb_characters = len(post.content)
   print("is_transcript_downloaded >>> transcribed = {}, nb_characters = {}".format(transcribed, nb_characters))
-  return transcribed is not None and nb_characters < 1000
+  return transcribed is not None and nb_characters > min_content_nb_characters
 
 
 def is_unsplash_to_cloudinary(post):
@@ -85,6 +91,9 @@ def move_to_destination(folder_to_scan, destination, condition_func):
       except Exception as e:
         print("Error, something unexpected occured", str(e))
 
+def is_ready_for_publication(post):
+  return is_content_enough(post) and is_jekyll_filename_pretified(post) and is_unsplash_to_cloudinary(post)
+
 
 src_folder = os.getenv('INPUT_SRC_PATH')
 dst_folder = os.getenv('INPUT_DST_PATH')
@@ -119,6 +128,12 @@ def move_unsplashtocloudinary_to_destination():
 
 def move_youtubevidfinder_to_destination():
   move_to_destination(src_folder, dst_folder, is_youtube_vid_finder)
+
+def move_iscontentenough_to_destination():
+  move_to_destination(src_folder, dst_folder, is_content_enough)
+
+def move_readyforpublication_to_destination():
+  move_to_destination(src_folder, dst_folder, is_ready_for_publication)
 
 
 
