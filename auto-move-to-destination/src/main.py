@@ -26,7 +26,7 @@ def is_bloginspritation_converter(post):
 def is_jekyll_filename_pretified(post):
   pretified = post['pretified']  if 'pretified' in post else None
   print("is_jekyll_filename_pretified >>> pretified = {}".format(pretified))
-  return pretified is not None and pretified == 'true'
+  return pretified is not None and pretified == True
 
 
 def is_suggestions_to_blogposted(post):
