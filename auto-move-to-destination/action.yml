@@ -1,0 +1,20 @@
+name: "Blog posts auto mover to destination"
+
+description: "Move the blog post to it's destination if all tests passes"
+
+inputs:
+  src_folder:
+    description: The path to the folder where the source posts are located
+  dst_folder:
+    description: The path to the folder where you want to move the files
+  function_to_run:
+    description: The function you want to run
+  
+
+outputs:
+  moved_posts:
+    description: A list of moved posts
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
