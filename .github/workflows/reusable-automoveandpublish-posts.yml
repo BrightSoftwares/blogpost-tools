@@ -1,13 +1,9 @@
-name: Auto Move and Publish Posts
+name: Reusable Auto Move and Publish Posts
 
 on:
   workflow_dispatch:
   workflow_call:
     inputs:
-      lang:
-        required: true
-        type: string
-        default: en
       transcriptdownloader_srcpath:
         required: true
         type: string
