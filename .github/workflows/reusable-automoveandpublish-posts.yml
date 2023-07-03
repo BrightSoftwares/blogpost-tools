@@ -46,9 +46,6 @@ on:
       featuredimagefinder_cloudinarytransformation:
         required: true
         type: string
-      featuredimagefinder_cloudinaryurl:
-        required: true
-        type: string
       pretifier_srcpath:
         required: true
         type: string
@@ -60,7 +57,7 @@ on:
         type: boolean
       pretifier_wordpressfrontmatter:
         required: true
-        type: string
+        type: boolean
       pretifier_postauthor:
         required: true
         type: string
@@ -136,18 +133,18 @@ jobs:
       - name: Move from download transcript -> generated raw content
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/200_youtube_download_transcript/
-          dst_path: /github/workspace/_drafts/300_generated_raw_content/
-          dry_run: false
+          src_path: ${{ inputs.transcriptdownloader_srcpath }}
+          dst_path: ${{ inputs.transcriptdownloader_dstpath }}
+          dry_run: ${{ inputs.transcriptdownloader_dryrun }}
           function_to_run: move_transcriptdownloader_to_destination
 
       # bloginspritation-converter: from rss inpired post -> generated raw content
       - name: Move from rss inpired post -> generated raw content
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/200_rss_inspired_posts/
-          dst_path: /github/workspace/_drafts/300_generated_raw_content/
-          dry_run: false
+          src_path: ${{ inputs.rssconverter_srcpath }} # /github/workspace/_drafts/200_rss_inspired_posts/
+          dst_path: ${{ inputs.rssconverter_dstpath }} # /github/workspace/_drafts/300_generated_raw_content/
+          dry_run: ${{ inputs.rssconverter_dryrun }} # false
           function_to_run: move_iscontentenough_to_destination
 
       ## (3) Clean up the post proposals
@@ -158,80 +155,80 @@ jobs:
       - name: Unsplash to Cloudinary - Beautify folder
         uses: BrightSoftwares/blogpost-tools/unsplash-to-cloudinary@main
         with:
-          src_folder: /github/workspace/_drafts/400_refined_content/
+          src_folder: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/400_refined_content/
           unsplash_access_key: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-          already_used_items: /github/workspace/_drafts/unsplash_videos_used.csv
-          search_results_file: /github/workspace/_drafts/unsplash_search_results.csv
-          max_results: 30
-          cloudinary_destfolder: eagles-techs.com.blog/
-          cloudinary_transformation: ETBlogImage
+          already_used_items: ${{ inputs.featuredimagefinder_alreadyuseditems }} # /github/workspace/_drafts/unsplash_videos_used.csv
+          search_results_file: ${{ inputs.featuredimagefinder_searchresultsfile }} # /github/workspace/_drafts/unsplash_search_results.csv
+          max_results: ${{ inputs.featuredimagefinder_max_results }} # 30
+          cloudinary_destfolder: ${{ inputs.featuredimagefinder_cloudinarydestfolder }} # eagles-techs.com.blog/
+          cloudinary_transformation: ${{ inputs.featuredimagefinder_cloudinarytransformation }} # ETBlogImage
           cloudinary_url: ${{ secrets.ClOUDINARY_URL }}
           
       - name: Move from refined content -> featured image generated
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/400_refined_content/
-          dst_path: /github/workspace/_drafts/500_featured_image_generated/
-          dry_run: false
+          src_path: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/400_refined_content/
+          dst_path: ${{ inputs.featuredimagefinder_dstpath }} # /github/workspace/_drafts/500_featured_image_generated/
+          dry_run: ${{ inputs.featuredimagefinder_dryrun }} # false
           function_to_run: move_unsplashtocloudinary_to_destination
 
       # jekyll-filename-pretifier: from featured image generated -> pretified
       - name: Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
         with:
-          drafts_path: /github/workspace/_drafts/500_featured_image_generated/
-          wordpress_frontmatter: true
-          post_author: 3
-          dry_run: false
-          siloterm_to_links_file: /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_links.csv
-          siloterm_to_categories_file: /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_categories.csv
-          default_author: full
-          default_layout: flexstart-blog-single
-          category_type: category
-          generate_silotermtolinksfile_if_missing: true
-          generate_silotermtocategoriesfile_if_missing: true
-          file_generation_src_path: /github/workspace/_posts/
+          drafts_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/500_featured_image_generated/
+          wordpress_frontmatter: ${{ inputs.pretifier_wordpressfrontmatter }} # true
+          post_author: ${{ inputs.pretifier_postauthor }} # 3
+          dry_run: ${{ inputs.pretifier_dryrun }} # false
+          siloterm_to_links_file: ${{ inputs.pretifier_silotermtolinksfile }} # /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_links.csv
+          siloterm_to_categories_file: ${{ inputs.pretifier_silotermtocategoriesfile }} # /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_categories.csv
+          default_author: ${{ inputs.pretifier_defaultauthor }} # full
+          default_layout: ${{ inputs.pretifier_defaultlayout }} # flexstart-blog-single
+          category_type: ${{ inputs.pretifier_categorytype }} # category
+          generate_silotermtolinksfile_if_missing: ${{ inputs.pretifier_generatesilotermtolinksfileifmissing }} # true
+          generate_silotermtocategoriesfile_if_missing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }} # true
+          file_generation_src_path: ${{ inputs.pretifier_filegenerationsrcpath }} # /github/workspace/_posts/
 
       - name: Move from featured image generated -> pretified
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/500_featured_image_generated/
-          dst_path: /github/workspace/_drafts/501_beautified_content/
-          dry_run: false
+          src_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/500_featured_image_generated/
+          dst_path: ${{ inputs.pretifier_dstpath }} # /github/workspace/_drafts/501_beautified_content/
+          dry_run: ${{ inputs.pretifier_dryrun }} # false
           function_to_run: move_jekyllfilenamepretifier_to_destination
 
       # auto-schedule-posts: pretified -> auto-scheduled (ready to publish)
       - name: Reschedule posts - beautified posts
         uses: BrightSoftwares/blogpost-tools/auto-schedule-posts@main
         with:
-          src_folder: /github/workspace/_drafts/501_beautified_content/
-          dest_folder: /github/workspace/_drafts/501_beautified_content/
-          dry_run: false
-          days_mask: Mon Wed Fri Sun
-          nb_days_ahead: 2
+          src_folder: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
+          dest_folder: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
+          dry_run: ${{ inputs.autoschedule_dryrun }} # false
+          days_mask: ${{ inputs.autoschedule_days_mask }} # Mon Wed Fri Sun
+          nb_days_ahead: ${{ inputs.autoschedule_nbdaysahead }} # 2
 
       - name: Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
         with:
-          drafts_path: /github/workspace/_drafts/501_beautified_content/
-          wordpress_frontmatter: true
-          post_author: 3
-          dry_run: false
-          siloterm_to_links_file: /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_links.csv
-          siloterm_to_categories_file: /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_categories.csv
-          default_author: full
-          default_layout: flexstart-blog-single
-          category_type: category
-          generate_silotermtolinksfile_if_missing: true
-          generate_silotermtocategoriesfile_if_missing: true
-          file_generation_src_path: /github/workspace/_posts/
+          drafts_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/501_beautified_content/
+          wordpress_frontmatter: ${{ inputs.pretifier_wordpressfrontmatter }} # true
+          post_author: ${{ inputs.pretifier_postauthor }} # 3
+          dry_run: ${{ inputs.pretifier_dryrun }} # false
+          siloterm_to_links_file: ${{ inputs.pretifier_silotermtolinksfile }} # /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_links.csv
+          siloterm_to_categories_file: ${{ inputs.pretifier_silotermtocategoriesfile }} # /github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_categories.csv
+          default_author: ${{ inputs.pretifier_defaultauthor }} # full
+          default_layout: ${{ inputs.pretifier_defaultlayout }} # flexstart-blog-single
+          category_type: ${{ inputs.pretifier_categorytype }} # category
+          generate_silotermtolinksfile_if_missing: ${{ inputs.pretifier_generatesilotermtolinksfileifmissing }} # true
+          generate_silotermtocategoriesfile_if_missing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }} # true
+          file_generation_src_path: ${{ inputs.pretifier_filegenerationsrcpath }} # /github/workspace/_posts/
 
       - name: Move pretified -> auto-scheduled (ready to publish)
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/501_beautified_content/
-          dst_path: /github/workspace/_drafts/600_auto_scheduled/
-          dry_run: false
+          src_path: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
+          dst_path: ${{ inputs.autoschedule_dstpath }} # /github/workspace/_drafts/600_auto_scheduled/
+          dry_run: ${{ inputs.autoschedule_dryrun }} # false
           function_to_run: move_autoscheduleposts_to_destination
       
       ## (5) Manual publication ? from auto-scheduled -> _posts/<lang>
@@ -239,9 +236,9 @@ jobs:
       - name: Manual publication ? from auto-scheduled -> _posts/<lang>
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
-          src_path: /github/workspace/_drafts/600_auto_scheduled/
-          dst_path: /github/workspace/_posts/
-          dry_run: false
+          src_path: ${{ inputs.manualpublication_srcpath }} # /github/workspace/_drafts/600_auto_scheduled/
+          dst_path: ${{ inputs.manualpublication_dstpath }} # /github/workspace/_posts/
+          dry_run: ${{ inputs.manualpublication_dryrun }} # false
           function_to_run: move_readyforpublication_to_destination
           
       - run: |
