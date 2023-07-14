@@ -137,6 +137,9 @@ jobs:
           dst_path: ${{ inputs.transcriptdownloader_dstpath }}
           dry_run: ${{ inputs.transcriptdownloader_dryrun }}
           function_to_run: move_transcriptdownloader_to_destination
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # bloginspritation-converter: from rss inpired post -> generated raw content
       - name: Move from rss inpired post -> generated raw content
@@ -163,6 +166,9 @@ jobs:
           cloudinary_destfolder: ${{ inputs.featuredimagefinder_cloudinarydestfolder }} # eagles-techs.com.blog/
           cloudinary_transformation: ${{ inputs.featuredimagefinder_cloudinarytransformation }} # ETBlogImage
           cloudinary_url: ${{ secrets.ClOUDINARY_URL }}
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           
       - name: Move from refined content -> featured image generated
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
@@ -206,6 +212,9 @@ jobs:
           dry_run: ${{ inputs.autoschedule_dryrun }} # false
           days_mask: ${{ inputs.autoschedule_days_mask }} # Mon Wed Fri Sun
           nb_days_ahead: ${{ inputs.autoschedule_nbdaysahead }} # 2
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
@@ -222,6 +231,9 @@ jobs:
           generate_silotermtolinksfile_if_missing: ${{ inputs.pretifier_generatesilotermtolinksfileifmissing }} # true
           generate_silotermtocategoriesfile_if_missing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }} # true
           file_generation_src_path: ${{ inputs.pretifier_filegenerationsrcpath }} # /github/workspace/_posts/
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Move pretified -> auto-scheduled (ready to publish)
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
