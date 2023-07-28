@@ -9,6 +9,7 @@ from slugify import slugify
 
 #folder = '../../en/_drafts/'
 folder = os.getenv('INPUT_DRAFTS_PATH')
+force_pretify = os.getenv('INPUT_FORCE_PRETIFY', False)
 wordpress_frontmatter = os.getenv('INPUT_WORDPRESS_FRONTMATTER', default=False)
 post_author_env = os.getenv('INPUT_POST_AUTHOR', 1)
 dry_run = os.getenv('INPUT_DRY_RUN', False)
@@ -149,7 +150,7 @@ def process_blogpost(post, folder, entry, categories_df, links_df):
   print("post category: {} of type {}".format(post_category, type(post_category)))
   print("post tags: {} of type {}".format(post_tags, type(post_tags)))
 
-  if pretified is not True and title is not None:
+  if (pretified is not True and title is not None) or force_pretify:
 
       if post_date is None:
           post_date = date.today() # datetime.now()
@@ -259,8 +260,8 @@ def process_blogpost(post, folder, entry, categories_df, links_df):
         os.rename(oldfilename, newfilename)
 
   else:
-      print("Did not process this file because Pretified = True ({}) or title was None ()".format(
-          pretified, title))
+      print("Did not process this file because Pretified = True ({}) or title was None () or force_pretify was ({})".format(
+          pretified, title, force_pretify))
 
 def pretify_files(links_df, categories_df):
 
