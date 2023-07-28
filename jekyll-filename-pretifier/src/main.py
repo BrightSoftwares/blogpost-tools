@@ -149,6 +149,7 @@ def process_blogpost(post, folder, entry, categories_df, links_df):
 
   print("post category: {} of type {}".format(post_category, type(post_category)))
   print("post tags: {} of type {}".format(post_tags, type(post_tags)))
+  print("Force pretify: {}".format(force_pretify))
 
   if (pretified is not True and title is not None) or force_pretify:
 
