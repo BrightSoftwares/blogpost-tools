@@ -114,7 +114,11 @@ on:
         required: true
       cloudinary_url:
         required: true
-      
+
+env:
+  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+  
+
       
 
 jobs:
