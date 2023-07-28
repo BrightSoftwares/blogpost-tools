@@ -165,7 +165,7 @@ jobs:
           max_results: ${{ inputs.featuredimagefinder_max_results }} # 30
           cloudinary_destfolder: ${{ inputs.featuredimagefinder_cloudinarydestfolder }} # eagles-techs.com.blog/
           cloudinary_transformation: ${{ inputs.featuredimagefinder_cloudinarytransformation }} # ETBlogImage
-          cloudinary_url: ${{ secrets.ClOUDINARY_URL }}
+          cloudinary_url: ${{ secrets.cloudinary_url }}
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max
