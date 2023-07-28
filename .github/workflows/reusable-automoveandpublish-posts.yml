@@ -130,7 +130,7 @@ jobs:
 
       ## (2) Convert ideas to blog post proposals
       # transcript-downloader: from download transcript -> generated raw content
-      - name: Move from download transcript -> generated raw content
+      - name: (1) Move from download transcript -> generated raw content
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.transcriptdownloader_srcpath }}
@@ -142,7 +142,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       # bloginspritation-converter: from rss inpired post -> generated raw content
-      - name: Move from rss inpired post -> generated raw content
+      - name: (3) Move from rss inpired post -> generated raw content
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.rssconverter_srcpath }} # /github/workspace/_drafts/200_rss_inspired_posts/
@@ -155,7 +155,7 @@ jobs:
 
       ## (4) Add seo and visual resources
       # unsplash-to-cloudinary: from refined content -> featured image generated
-      - name: Unsplash to Cloudinary - Beautify folder
+      - name: (4) Unsplash to Cloudinary - Beautify folder
         uses: BrightSoftwares/blogpost-tools/unsplash-to-cloudinary@main
         with:
           src_folder: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/400_refined_content/
@@ -170,7 +170,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           
-      - name: Move from refined content -> featured image generated
+      - name: (4.1) Move from refined content -> featured image generated
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/400_refined_content/
@@ -179,7 +179,7 @@ jobs:
           function_to_run: move_unsplashtocloudinary_to_destination
 
       # jekyll-filename-pretifier: from featured image generated -> pretified
-      - name: Cleanup the file names
+      - name: (5) Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
         with:
           drafts_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/500_featured_image_generated/
@@ -195,7 +195,7 @@ jobs:
           generate_silotermtocategoriesfile_if_missing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }} # true
           file_generation_src_path: ${{ inputs.pretifier_filegenerationsrcpath }} # /github/workspace/_posts/
 
-      - name: Move from featured image generated -> pretified
+      - name: (5.1) Move from featured image generated -> pretified
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/500_featured_image_generated/
@@ -204,7 +204,7 @@ jobs:
           function_to_run: move_jekyllfilenamepretifier_to_destination
 
       # auto-schedule-posts: pretified -> auto-scheduled (ready to publish)
-      - name: Reschedule posts - beautified posts
+      - name: (6) Reschedule posts - beautified posts
         uses: BrightSoftwares/blogpost-tools/auto-schedule-posts@main
         with:
           src_folder: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
@@ -216,7 +216,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Cleanup the file names
+      - name: (7) Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
         with:
           drafts_path: ${{ inputs.pretifier_srcpath }} # /github/workspace/_drafts/501_beautified_content/
@@ -235,7 +235,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Move pretified -> auto-scheduled (ready to publish)
+      - name: (7.1) Move pretified -> auto-scheduled (ready to publish)
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
@@ -245,7 +245,7 @@ jobs:
       
       ## (5) Manual publication ? from auto-scheduled -> _posts/<lang>
       # Check that all the post's attributes are there, like the layout, author, etc.
-      - name: Manual publication ? from auto-scheduled -> _posts/<lang>
+      - name: (8) Manual publication ? from auto-scheduled -> _posts/<lang>
         uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
         with:
           src_path: ${{ inputs.manualpublication_srcpath }} # /github/workspace/_drafts/600_auto_scheduled/
@@ -253,7 +253,8 @@ jobs:
           dry_run: ${{ inputs.manualpublication_dryrun }} # false
           function_to_run: move_readyforpublication_to_destination
           
-      - run: |
+      - name: (9) Commit changes if there is any
+        run: |
           # date > generated.txt
           CHANGES_EXIST="$(git status --porcelain | wc -l)"
           echo "There are $CHANGES_EXIST changes to commit"
