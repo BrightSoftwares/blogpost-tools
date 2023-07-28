@@ -12,6 +12,9 @@ inputs:
   dry_run:
     description: Whether to save generated files
     default: false
+  force_pretify:
+    description: Whether to pretify file even if it is already pretified
+    default: false
   siloterm_to_links_file:
     description: The csv file where we have the mapping between the silot term and the links
   siloterm_to_categories_file:
