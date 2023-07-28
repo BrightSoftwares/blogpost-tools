@@ -235,6 +235,7 @@ jobs:
           generate_silotermtolinksfile_if_missing: ${{ inputs.pretifier_generatesilotermtolinksfileifmissing }} # true
           generate_silotermtocategoriesfile_if_missing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }} # true
           file_generation_src_path: ${{ inputs.pretifier_filegenerationsrcpath }} # /github/workspace/_posts/
+          force_pretify: true
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max
