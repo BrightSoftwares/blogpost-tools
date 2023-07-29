@@ -212,13 +212,22 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/auto-schedule-posts@main
         with:
           src_folder: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
-          dest_folder: ${{ inputs.autoschedule_dstpath }} # /github/workspace/_drafts/501_beautified_content/
+          dest_folder: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
           dry_run: ${{ inputs.autoschedule_dryrun }} # false
           days_mask: ${{ inputs.autoschedule_days_mask }} # Mon Wed Fri Sun
           nb_days_ahead: ${{ inputs.autoschedule_nbdaysahead }} # 2
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: (6.1) Move scheduled -> auto-scheduled (ready to publish)
+        uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
+        with:
+          src_path: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
+          dst_path: ${{ inputs.autoschedule_dstpath }} # /github/workspace/_drafts/600_auto_scheduled/
+          dry_run: ${{ inputs.autoschedule_dryrun }} # false
+          function_to_run: move_autoscheduleposts_to_destination
+      
 
       - name: (7) Cleanup the file names
         uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
@@ -240,14 +249,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      #- name: (7.1) Move pretified -> auto-scheduled (ready to publish)
-      #  uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
-      #  with:
-      #    src_path: ${{ inputs.autoschedule_srcpath }} # /github/workspace/_drafts/501_beautified_content/
-      #   dst_path: ${{ inputs.autoschedule_dstpath }} # /github/workspace/_drafts/600_auto_scheduled/
-      #    dry_run: ${{ inputs.autoschedule_dryrun }} # false
-      #    function_to_run: move_autoscheduleposts_to_destination
-      
       ## (5) Manual publication ? from auto-scheduled -> _posts/<lang>
       # Check that all the post's attributes are there, like the layout, author, etc.
       - name: (8) Manual publication ? from auto-scheduled -> _posts/<lang>
