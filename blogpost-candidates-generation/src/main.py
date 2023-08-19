@@ -159,7 +159,8 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
     # Merging suggested_kw_df with stats df
     merged_df = suggested_kw_df.merge(
         final_keywords_df, how='left', left_on='Suggestion', right_on='Keyword')
-    print("Merged dataframe =", merged_df['Competition'])
+    print("Merged dataframe size =", merged_df.shape)
+    print("Merged dataframe, Competition column =", merged_df['Competition'])
     
     merged_df = merged_df.sort_values(by=['Competition', 'Avg. monthly searches', 'Competition (indexed value)'], ascending=[True, False, True])
     
@@ -171,6 +172,7 @@ def add_volumes_data(folder, keyword_suggestions_generation_folder, keyword_sugg
     merged_df_perbidcost.to_csv(keyword_suggestions_generation_folder + "/keyword_suggestions_merged_per_bid_cost_low.csv", index=False)
     
     blogpost_candidates_df = extract_by_search_volume(merged_df, keyword_min_volume_eligible, keyword_max_volume_eligible, keyword_suggestions_blogpost_file)
+    print("blogpost_candidates_df extracted by search volume size =", blogpost_candidates_df.shape)
 
     print("0.3 Saving the blogpost_candidates_df to disk  on {}".format(keyword_suggestions_blogpost_file))
     blogpost_candidates_df.to_csv(keyword_suggestions_blogpost_file, index=False)
