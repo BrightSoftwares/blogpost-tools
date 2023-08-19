@@ -165,6 +165,7 @@ def autocomplete(csv_fileName):
     keywords_df.drop_duplicates(inplace=True)
     
     # Saving the whole result into a csv file
+    print("autocomplete > keywords_df size before saving to csv =", keywords_df.shape)
     keywords_df.to_csv(keyword_suggestions_generation_file, index=False)
 
     
