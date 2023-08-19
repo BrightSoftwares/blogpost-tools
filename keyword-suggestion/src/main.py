@@ -195,6 +195,7 @@ def compute_clusters():
   df['cluster'] = model.labels_
 
   #df.head()
+  print("compute_clusters > features df size before saving to csv =", features.shape)
   df.to_csv(keyword_suggestions_generation_file, index=False)
 
 def add_volumes_data(folder):
