@@ -86,10 +86,10 @@ def patch_dataframe_with_customdata(blogpost_candidates_df, keyword_suggestions_
     print("After cleanup: blogpost_candidates_merged_df columns = ", blogpost_candidates_merged_df.columns)
     
     print(" 2. Remove duplicates")
-    blogpost_candidates_merged_df.drop_duplicates(subset=['Suggestion', 'category', 'blogpost_title', 'silot_terms'], keep='last', inplace=False)
+    blogpost_candidates_merged_df = blogpost_candidates_merged_df.drop_duplicates(subset=['Suggestion', 'category', 'blogpost_title', 'silot_terms'], keep='last', inplace=False)
     print("blogpost_candidates_merged_df Size =", blogpost_candidates_merged_df.shape)
 
-    blogpost_candidates_merged_df['blogpost_created'].fillna(value={'blogpost_created':False})
+    blogpost_candidates_merged_df['blogpost_created'].fillna(value={'blogpost_created':False}, inplace=True)
     return blogpost_candidates_merged_df
 
 
