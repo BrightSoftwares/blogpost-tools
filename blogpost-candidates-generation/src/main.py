@@ -40,8 +40,11 @@ def patch_dataframe_with_customdata(blogpost_candidates_df, keyword_suggestions_
       exiting_blogpost_candidates_df = pd.DataFrame([], columns=['first_seen', 'last_seen', 'Keyword', 'Suggestion', 'is_new', 'blogpost_created', 'category', 'blogpost_title', 'silot_terms', 'cornerstone', 'semantic_cluster'])
 
     # Patching the data
+    print("Merging dataframe blogpost_candidates_df size =", blogpost_candidates_df.shape)
+    print("With dataframe exiting_blogpost_candidates_df size =", exiting_blogpost_candidates_df.shape)
     blogpost_candidates_merged_df = blogpost_candidates_df.merge(exiting_blogpost_candidates_df, how='left', left_on='Suggestion', right_on='Suggestion')
     #print("blogpost_candidates_merged_df = ", blogpost_candidates_merged_df)
+    print("blogpost_candidates_merged_df right after merge size = ", blogpost_candidates_merged_df.columns)
     print("blogpost_candidates_merged_df columns = ", blogpost_candidates_merged_df.columns)
 
     # Merge the two columns
