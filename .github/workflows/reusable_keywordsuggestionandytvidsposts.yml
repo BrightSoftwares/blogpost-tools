@@ -1,0 +1,242 @@
+name: Generate keyword suggestions on a weekly basis
+
+on:
+  #push:
+  #  branches:
+  #      - master
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      transcriptdownloader_srcpath:
+        required: true
+        type: string
+      transcriptdownloader_dstpath:
+        required: true
+        type: string
+      transcriptdownloader_dryrun:
+        required: true
+        type: boolean
+      rssconverter_srcpath:
+        required: true
+        type: string
+      rssconverter_dstpath:
+        required: true
+        type: string
+      rssconverter_dryrun:
+        required: true
+        type: boolean
+      featuredimagefinder_srcpath:
+        required: true
+        type: string
+      featuredimagefinder_dstpath:
+        required: true
+        type: string
+      featuredimagefinder_dryrun:
+        required: true
+        type: boolean
+      featuredimagefinder_alreadyuseditems:
+        required: true
+        type: string
+      featuredimagefinder_searchresultsfile:
+        required: true
+        type: string
+      featuredimagefinder_max_results:
+        required: true
+        type: string
+      featuredimagefinder_cloudinarydestfolder:
+        required: true
+        type: string
+      featuredimagefinder_cloudinarytransformation:
+        required: true
+        type: string
+      pretifier_srcpath:
+        required: true
+        type: string
+      pretifier_dstpath:
+        required: true
+        type: string
+      pretifier_dryrun:
+        required: true
+        type: boolean
+      pretifier_wordpressfrontmatter:
+        required: true
+        type: boolean
+      pretifier_postauthor:
+        required: true
+        type: string
+      pretifier_silotermtolinksfile:
+        required: true
+        type: string
+      pretifier_silotermtocategoriesfile:
+        required: true
+        type: string
+      pretifier_defaultauthor:
+        required: true
+        type: string
+      pretifier_defaultlayout:
+        required: true
+        type: string
+      pretifier_generatesilotermtolinksfileifmissing:
+        required: true
+        type: boolean
+      pretifier_generatesilotermtocategoriesfileifmissing:
+        required: true
+        type: boolean
+      pretifier_categorytype:
+        required: true
+        type: string
+      pretifier_filegenerationsrcpath:
+        required: true
+        type: string
+      autoschedule_srcpath:
+        required: true
+        type: string
+      autoschedule_dstpath:
+        required: true
+        type: string
+      autoschedule_dryrun:
+        required: true
+        type: boolean
+      autoschedule_days_mask:
+        required: true
+        type: string
+      autoschedule_nbdaysahead:
+        required: true
+        type: number
+      manualpublication_srcpath:
+        required: true
+        type: string
+      manualpublication_dstpath:
+        required: true
+        type: string
+      manualpublication_dryrun:
+        required: true
+        type: boolean
+    secrets:
+      unsplash_access_key:
+        required: true
+      cloudinary_url:
+        required: true
+
+jobs:
+  jekyll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Generate new keyword suggestions
+        uses: BrightSoftwares/blogpost-tools/keyword-suggestion@main
+        with:
+          keyword_seed: /github/workspace/_drafts/keywords.csv
+          keyword_suggestions_generation_folder: /github/workspace/_drafts
+          drafts_path: /github/workspace/_drafts/
+          keyword_suggestions_blogpost_file: keyword_suggestions_merged_blogpost_candidates.csv
+          keyword_min_volume_eligible: 1
+          keyword_max_volume_eligible: 500000
+
+      - name: Intermediary commit to save generated keywords
+        run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi
+          
+      - name: Generate blog post candidates data 10-100
+        uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
+        with:
+        
+          src_folder: /github/workspace/_drafts/
+          keyword_suggestion_generation_folder: /github/workspace/_drafts/
+          keyword_suggestion_generation_file: /github/workspace/_drafts/keyword_suggestions.csv
+          keyword_suggestions_blogpost_file: /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
+          keyword_min_volume_eligible: 10
+          keyword_max_volume_eligible: 100
+          
+      
+      - name: Generate blog post candidates data 100-500
+        uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
+        with:
+        
+          src_folder: /github/workspace/_drafts/
+          keyword_suggestion_generation_folder: /github/workspace/_drafts/
+          keyword_suggestion_generation_file: /github/workspace/_drafts/keyword_suggestions.csv
+          keyword_suggestions_blogpost_file: /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
+          keyword_min_volume_eligible: 100
+          keyword_max_volume_eligible: 500
+          
+      - name: Suggestions to blogpost 10-100
+        uses: BrightSoftwares/blogpost-tools/suggestions-to-blogpost@main
+        with:
+          keyword_suggestions_generation_folder: /github/workspace/_drafts
+          keyword_suggestion: kw_blogpost_candidates_10_100.csv
+          drafts_path: /github/workspace/_drafts/
+          keyword_seed: /github/workspace/_drafts/keywords.csv
+          batch_size: 5
+          language: fr
+          
+      - name: Suggestions to blogpost 100-500
+        uses: BrightSoftwares/blogpost-tools/suggestions-to-blogpost@main
+        with:
+          keyword_suggestions_generation_folder: /github/workspace/_drafts
+          keyword_suggestion: kw_blogpost_candidates_100_500.csv
+          drafts_path: /github/workspace/_drafts/
+          keyword_seed: /github/workspace/_drafts/keywords.csv
+          batch_size: 5
+          language: fr
+          
+      - name: Generate new youtube vids
+        uses: BrightSoftwares/blogpost-tools/youtube-vid-finder@main
+        with:
+          src_folder: /github/workspace/_drafts/
+          youtube_api_key: ${{ secrets.YOUTUBE_API_KEY }}
+          yt_search_results_file: /github/workspace/_drafts/youtube_search_results.csv
+          yt_already_used_vids: /github/workspace/_drafts/youtube_videos_used.csv
+          language: fr
+          country: fr
+      
+      - name: transcribe-yt-videos
+        uses: BrightSoftwares/blogpost-tools/transcript-downloader@main
+        with:
+          drafts_path: /github/workspace/_drafts/
+
+      - name: Compress too big files and remove them
+        run: |
+          echo "Compressing the 2 big files"
+          tar -zcvf _drafts/kw_blogpost_candidates_10_100.csv.tar.gz _drafts/kw_blogpost_candidates_10_100.csv
+          tar -zcvf _drafts/kw_blogpost_candidates_100_500.csv.tar.gz _drafts/kw_blogpost_candidates_100_500.csv
+          echo "Compression done"
+          ls -lah _drafts/
+
+      - name: Ignore files that are bigger than 50Mb
+        run: |
+          #echo "Ignore files that are bigger than 50Mb"
+          #find . -size +50M | cat >> .gitignore
+          #cat .gitignore
+          echo "Delete the files that are bigger than +50Mb"
+          find -type f \( -name "kw_blogpost_candidates_*" \) -size +50M -delete
+          
+      - run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi
