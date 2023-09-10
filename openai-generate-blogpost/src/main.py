@@ -7,7 +7,8 @@ import requests
 import json
 import frontmatter
 
-posts_channel = os.getenv('INPUT_CHANNEL') # "keyword_suggestions_merged.csv"
+posts_channel = os.getenv('INPUT_CHANNEL')
+manually_generated_posts_channel = os.getenv('INPUT_MANUALLY_GENERATED_POSTS_CHANNEL')
 posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
 dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS') # "internallinking_per_silot_terms.csv"
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', 5))
@@ -113,43 +114,43 @@ def save_post(title, silot_terms, content, dst_folder):
 
 def generate_post_prompt(post_subject, brands, internal_links, references, keywords):
     brands_prompt = """
-    Include some carefully picked brands from this list: 
+    Include some carefully picked brands from this list:
     {}
     """.format(brands) if brands is not None and brands != "" else ""
 
     internal_linking_prompt = """
-    and some carefully picked links from this list for external SEO: 
+    and some carefully picked links from this list for external SEO:
     {}
     """.format(internal_links) if internal_links is not None and internal_links != "" else ""
 
     references_prompts = """
       Pick from references from this list and include them into the post: {}.
     """.format(references) if references is not None and references != "" else ""
-    
+
     keywords_prompts = """
       Also include some carefully picked keywords from this list: {}.
     """.format(keywords) if keywords is not None and keywords != "" else ""
 
-    return """I Want You To Act As A Content Writer Very Proficient SEO Writer Writes Fluently English. 
-      First Create Two Tables. First Table Should be the Outline of the Article and the Second Should be the Article. 
-      Bold the Heading of the Second Table using Markdown language. 
-      Write an outline of the article separately before writing it, at least 15 headings and subheadings (including H1, H2, H3, and H4 headings). 
-      Then, start writing based on that outline step by step. Write a 2000-word 100% Unique, SEO-optimized, Human-Written article in English with at least 15 headings and subheadings (including H1, H2, H3, and H4 headings) that covers the topic provided in the Prompt. 
-      Write The article In Your Own Words Rather Than Copying And Pasting From Other Sources. 
-      Consider perplexity and burstiness when creating content, ensuring high levels of both without losing specificity or context. 
-      Use fully detailed paragraphs that engage the reader. 
+    return """I Want You To Act As A Content Writer Very Proficient SEO Writer Writes Fluently English.
+      First Create Two Tables. First Table Should be the Outline of the Article and the Second Should be the Article.
+      Bold the Heading of the Second Table using Markdown language.
+      Write an outline of the article separately before writing it, at least 15 headings and subheadings (including H1, H2, H3, and H4 headings).
+      Then, start writing based on that outline step by step. Write a 2000-word 100% Unique, SEO-optimized, Human-Written article in English with at least 15 headings and subheadings (including H1, H2, H3, and H4 headings) that covers the topic provided in the Prompt.
+      Write The article In Your Own Words Rather Than Copying And Pasting From Other Sources.
+      Consider perplexity and burstiness when creating content, ensuring high levels of both without losing specificity or context.
+      Use fully detailed paragraphs that engage the reader.
       Generate programming code block and command line commands where necessary.
-      Write In A Conversational Style As Written By A Human (Use An Informal Tone, Utilize Personal Pronouns, Keep It Simple, Engage The Reader, Use The Active Voice, Keep It Brief, Use Rhetorical Questions, and Incorporate Analogies And Metaphors).  
-      End with a conclusion paragraph and 5 unique FAQs After The Conclusion. 
+      Write In A Conversational Style As Written By A Human (Use An Informal Tone, Utilize Personal Pronouns, Keep It Simple, Engage The Reader, Use The Active Voice, Keep It Brief, Use Rhetorical Questions, and Incorporate Analogies And Metaphors).
+      End with a conclusion paragraph and 5 unique FAQs After The Conclusion.
       this is important to Bold the Title and all headings of the article, and use appropriate headings for H tags.
 
-      Now Write An Article On This Topic: "{}". 
-      
-      {}
+      Now Write An Article On This Topic: "{}".
 
       {}
 
-      {}      
+      {}
+
+      {}
       """.format(post_subject, brands_prompt, internal_linking_prompt, references_prompts, keywords_prompts)
 
 def mark_post_as_completed(channel, post_id):
@@ -175,16 +176,7 @@ def collect_posts_to_generate(channel):
   print("Got the json url")
   if json_results:
     for post in json_results[:BATCH_SIZE]:
-      # [
-      # 1,
-      # "drone pilot license",
-      # "\n\nDJI, \nAlta, \nParrot, \nYuneec, \nBrink, \nDedrone, \ndrone sense, \nairobotics, \naerovironment, \nair hogs, \nfreefly, \nsensefly, \nuvifly, \nhubsan, \naerialtronics, \nehang, \ndelair, \ninsitu, \nskydio, \nautel robotics, \nkespry\n\n",
-      # "\n\nhttps://www.dji.com/fr\nhttps://www.parrot.com/fr\nhttps://freeflysystems.com/alta-x\nhttps://us.yuneec.com/",
-      # "\n\nhttps://eagles-techs.com/why-pix4d-react-is-the-best-and-most-affordable-drone-mapping-software-for-public-safety-operations/\nhttps://eagles-techs.com/best-drone-app-and-website-for-checking-wind-speed-and-direction/\nhttps://eagles-techs.com/little-known-facts-about-drone-insurance-that-you-may-not-be-aware-of/\nhttps://eagles-techs.com/how-can-i-view-pix4d-maps-in-vr/\n\n",
-      # "",
-      # "\"drone pilot, drone pilot speed, drone pilot license, drone range, affordable drone, safety\"\n\n",
-      # "todo"
-      # ]
+
       post_id = post[0]
       post_title = post[1]
       post_brands = post[2]
@@ -211,11 +203,51 @@ def collect_posts_to_generate(channel):
       else:
         print("The prompt is empty ({}). Not requesting openai".format(prompt))
 
+def write_manually_generated_posts(channel):
+  print("Collecting posts from channel {}, with batch size {} and useexternal_prompt = ({})".format(channel, BATCH_SIZE, useexternal_prompt))
+
+  if channel is None:
+    print("No channel ({}) specified for the manually generated posts. Skipping".format(channel))
+    print("You may want to add the INPUT_MANUALLY_GENERATED_POSTS_CHANNEL parameter to your call.")
+  else:
+    # Collecting the posts to write down
+    json_api_url = posts_requests_base_url + "?channel=" + channel + "&savemanuallygenerated=1"
+    r = requests.get(json_api_url)
+    print("write_manually_generated_posts > API call, response text = " + r.text)
+    r_json = json.loads(r.text)
+
+    print(r_json)
+    json_results = r_json['results']
+
+    print("Got the json url")
+    if json_results:
+      for post in json_results[:BATCH_SIZE]:
+        post_id = post[0]
+        post_title = post[1]
+        post_brands = post[2]
+        post_external_urls = post[3]
+        post_internal_urls = post[4]
+        post_silot_terms = post[5]
+        post_keywords = post[6]
+        remote_prompt = post[8]
+        post_content = post[9]
+        post_references = None
+
+        prompt = remote_prompt if useexternal_prompt == "true" else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
+
+        print("Save the post only if the result os not none")
+        if post_content is not None:
+          save_post(post_title, post_silot_terms, post_content, dst_generated_posts)
+          mark_post_as_completed(channel, post_id)
+        else:
+          print("The post content is None ({}). Not saving the content of the post. ({})".format(post_content, post_title))
+
+
 # post_title = "Run docker on homelab"
 # post_content = generate_post(post_title, "Home Assistant, Google Home", None, None, "docker, homelab, do it yourself")
 # save_post(post_title, "my silot term", "This is a totally fake content", dst_generated_posts)
 # save_post(title, silot_terms, content, dst_folder)
 
-
+write_manually_generated_posts(manually_generated_posts_channel)
 collect_posts_to_generate(posts_channel)
 # mark_post_as_completed(posts_channel, 3)
