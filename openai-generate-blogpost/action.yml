@@ -24,6 +24,8 @@ inputs:
   useexternal_prompt:
     description: Whether to use the prompt from the API or generate it locally
     default: false
+  manually_generated_posts_channel:
+    description: The channel of the posts that are generated manually
 
 outputs:
   updated_posts:
