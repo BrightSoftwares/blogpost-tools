@@ -46,8 +46,10 @@ def generate_post(post_subject, brands, internal_links, references, keywords, pr
         )
       except RETRIABLE_EXCEPTIONS as e:
         error = "A retriable error occurred: %s" % e
+        print(str(e))
       except Exception as e:
         error = "An unexpected error occured. Breaking the loop. Error = : %s" % e
+        print(str(e))
         return None
 
       if error is not None:
