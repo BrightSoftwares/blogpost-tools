@@ -239,7 +239,7 @@ def upload_title_as_postidea(channel):
               transcribed = post["transcribed"] if "transcribed" in post else False
 
               if uploaded_for_rephrasing == "yes":
-                  print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
+                  print("File already processed ({}) or post content is empty ({}), skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
               elif post.content == "" and (transcribed == False or transcribed != "true"):
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} as post idea ".format(channel))
@@ -270,7 +270,7 @@ def upload_title_as_postidea(channel):
                   else:
                       print("Upload failed.")
               else:
-                  print("Post content is not empty. Leaving this post for rephrase content...")
+                  print("Post content is not empty ({}) but not transcribed ({}). Leaving this post for rephrase content...".format(transcribed, post.content[:100]))
           except Exception as e:
               print("Error, something unexpected occured", str(e))
           finally:
@@ -299,7 +299,7 @@ def upload_text_to_rephrase(channel):
               uploaded_for_rephrasing = post["uploaded_for_rephrasing"] if "uploaded_for_rephrasing" in post else "no"
 
               if uploaded_for_rephrasing == "yes" or post.content == "":
-                  print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
+                  print("File already processed ({}) or post content is empty ({}), skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
               else:
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} to be rephrased".format(channel))
