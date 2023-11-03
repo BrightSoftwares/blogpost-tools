@@ -237,9 +237,9 @@ def upload_title_as_postidea(channel):
               ## Do not process file if it is already uploaded
               uploaded_for_rephrasing = post["uploaded_for_rephrasing"] if "uploaded_for_rephrasing" in post else "no"
 
-              if uploaded_for_rephrasing == "yes" or post.content == "":
+              if uploaded_for_rephrasing == "yes":
                   print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
-              else:
+              elif post.content == "":
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} to be rephrased".format(channel))
                   post_title = post["title"] if "title" in post else ""
@@ -268,6 +268,8 @@ def upload_title_as_postidea(channel):
                           f.write(filecontent)
                   else:
                       print("Upload failed.")
+              else:
+                  print("Post content is not empty. Leaving this post for rephrase content...")
           except Exception as e:
               print("Error, something unexpected occured", str(e))
           finally:
