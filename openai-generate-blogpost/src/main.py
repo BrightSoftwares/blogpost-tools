@@ -254,6 +254,7 @@ def upload_text_to_rephrase(channel):
                   ## Mark file as upload for rephrasing
                   if "OK" in r.text:
                       print("The upload succeeded. Marking post as uploaded")
+                      processed_count = processed_count + 1
                       post['uploaded_for_rephrasing'] = "yes"
                       print("Saving the content of the file")
                       filecontent = frontmatter.dumps(post)
@@ -267,7 +268,6 @@ def upload_text_to_rephrase(channel):
           except Exception as e:
               print("Error, something unexpected occured", str(e))
           finally:
-              processed_count = processed_count + 1
               if processed_count > BATCH_SIZE:
                   print("{} reached the Batch size {}. Breaking...".format(processed_count, BATCH_SIZE))
                   break
