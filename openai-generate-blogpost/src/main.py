@@ -236,12 +236,13 @@ def upload_title_as_postidea(channel):
 
               ## Do not process file if it is already uploaded
               uploaded_for_rephrasing = post["uploaded_for_rephrasing"] if "uploaded_for_rephrasing" in post else "no"
+              transcribed = post["transcribed"] if "transcribed" in post else False
 
               if uploaded_for_rephrasing == "yes":
                   print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
-              elif post.content == "":
+              elif post.content == "" and (transcribed == False or transcribed != "true"):
                   ## Upload the post content to the spreadsheet
-                  print("Uploading post in channel {} to be rephrased".format(channel))
+                  print("Uploading post in channel {} as post idea ".format(channel))
                   post_title = post["title"] if "title" in post else ""
                   post_ref = post["ref"] if "ref" in post else ""
                   json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post_title + "&post_ref=" + post_ref
