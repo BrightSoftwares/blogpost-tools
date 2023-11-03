@@ -247,7 +247,8 @@ def upload_text_to_rephrase(channel):
                   if spreadsheet_id is not None:
                      json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
 
-                  payload = { "text_to_rephrase" : post.content }
+                  encoded_post_content = base64.b64encode(bytes(post.content, 'utf-8'))
+                  payload = { "text_to_rephrase" : encoded_post_content }
                   r = requests.post(json_api_url, data=payload)
                   print("exec result =" + r.text)
     
