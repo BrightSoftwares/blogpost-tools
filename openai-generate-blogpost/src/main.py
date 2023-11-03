@@ -6,6 +6,8 @@ import time
 import requests
 import json
 import frontmatter
+import base64
+
 
 posts_channel = os.getenv('INPUT_CHANNEL')
 manually_generated_posts_channel = os.getenv('INPUT_MANUALLY_GENERATED_POSTS_CHANNEL')
