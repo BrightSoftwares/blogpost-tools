@@ -302,8 +302,8 @@ def write_manually_generated_posts(channel):
         post_internal_urls = post[4]
         post_silot_terms = post[5]
         post_keywords = post[6]
-        remote_prompt = post[9]
-        post_content = post[15]
+        remote_prompt = post[8]
+        post_content = post[9]
         post_references = None
 
         prompt = remote_prompt if useexternal_prompt == "true" else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
