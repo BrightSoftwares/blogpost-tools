@@ -396,7 +396,7 @@ elif function_to_run_str == "upload_text_to_rephrase":
     upload_text_to_rephrase(manually_generated_posts_channel)
 elif function_to_run_str == "upload_title_as_postidea":
     print("Running the function upload_title_as_postidea")
-    upload_text_to_rephrase(manually_generated_posts_channel)
+    upload_title_as_postidea(manually_generated_posts_channel)
 elif function_to_run_str == "collect_posts_to_generate":
     print("Running the function collect_posts_to_generate")
     collect_posts_to_generate(posts_channel)
