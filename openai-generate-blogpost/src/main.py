@@ -235,8 +235,8 @@ def upload_text_to_rephrase(channel):
               ## Do not process file if it is already uploaded
               uploaded_for_rephrasing = post["uploaded_for_rephrasing"] if "uploaded_for_rephrasing" in post else "no"
 
-              if uploaded_for_rephrasing == "yes":
-                  print("File already processed, skipping ...")
+              if uploaded_for_rephrasing == "yes" or post.content == "":
+                  print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
               else:
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} to be rephrased".format(channel))
