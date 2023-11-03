@@ -223,8 +223,9 @@ def upload_text_to_rephrase(channel):
     print("You may want to add the INPUT_MANUALLY_GENERATED_POSTS_CHANNEL parameter to your call.")
   else:
       entries = [f for f in os.listdir(src_posts_to_rephrase) if os.path.isfile(os.path.join(src_posts_to_rephrase, f))]
-      
-      for entry in entries[:BATCH_SIZE]:
+
+      processed_count = 0
+      for entry in entries:
           try:
               print("Processing entry", entry)
               src_entry = os.path.join(src_posts_to_rephrase, entry)
@@ -239,7 +240,9 @@ def upload_text_to_rephrase(channel):
               else:
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} to be rephrased".format(channel))
-                  json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post["title"] + "&post_ref=" + post["ref"]
+                  post_title = post["title"] if "title" in post else ""
+                  post_ref = post["ref"] if "ref" in post else ""
+                  json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post_title + "&post_ref=" + post_ref
 
                   if spreadsheet_id is not None:
                      json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
@@ -249,16 +252,25 @@ def upload_text_to_rephrase(channel):
                   print("exec result =" + r.text)
     
                   ## Mark file as upload for rephrasing
-                  post['uploaded_for_rephrasing'] = "yes"
-                  print("Saving the content of the file")
-                  filecontent = frontmatter.dumps(post)
+                  if "OK" in r.text:
+                      print("The upload succeeded. Marking post as uploaded")
+                      post['uploaded_for_rephrasing'] = "yes"
+                      print("Saving the content of the file")
+                      filecontent = frontmatter.dumps(post)
+            
+                      print(filecontent)
         
-                  print(filecontent)
-    
-                  with open(src_entry, 'w') as f:
-                      f.write(filecontent)
+                      with open(src_entry, 'w') as f:
+                          f.write(filecontent)
+                  else:
+                      print("Upload failed.")
           except Exception as e:
               print("Error, something unexpected occured", str(e))
+          finally:
+              processed_count = processed_count + 1
+              if processed_count > BATCH_SIZE:
+                  print("{} reached the Batch size {}. Breaking...".format(processed_count, BATCH_SIZE))
+                  break
 
 def write_manually_generated_posts(channel):
   print("Collecting posts from channel {}, with batch size {} and useexternal_prompt = ({})".format(channel, BATCH_SIZE, useexternal_prompt))
