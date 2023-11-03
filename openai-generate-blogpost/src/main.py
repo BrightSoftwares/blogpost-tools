@@ -17,6 +17,7 @@ max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
 temperature = int(os.getenv('INPUT_TEMPERATURE'))
 BATCH_SIZE = int(os.getenv('INPUT_BATCH_SIZE', 5))
 useexternal_prompt = os.getenv('INPUT_USEEXTERNAL_PROMPT', "false")
+spreadsheet_id = os.getenv('INPUT_SPREADSHEET_ID')
 
 openai.api_key = os.getenv('INPUT_OPENAI_API_KEY') # "aliases.csv"
 
@@ -159,6 +160,10 @@ def generate_post_prompt(post_subject, brands, internal_links, references, keywo
 def mark_post_as_completed(channel, post_id):
   print("Marking post {} in channel {} as completed".format(post_id, channel))
   json_api_url = posts_requests_base_url + "?channel=" + channel + "&row=" + str(post_id)
+
+  if spreadsheet_id is not None:
+     json_api_url +=  "&spreadsheetid=" + spreadsheet_id
+  
   r = requests.post(json_api_url)
   print("exec result =" + r.text)
   # r_json = json.loads(r.text)
@@ -169,6 +174,10 @@ def mark_post_as_completed(channel, post_id):
 def collect_posts_to_generate(channel):
   print("Collecting posts from channel {}, with batch size {} and useexternal_prompt = ({})".format(channel, BATCH_SIZE, useexternal_prompt))
   json_api_url = posts_requests_base_url + "?channel=" + channel
+  
+  if spreadsheet_id is not None:
+     json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
+
   r = requests.get(json_api_url)
   print("collect_posts_to_generate > API call, response text = " + r.text)
   r_json = json.loads(r.text)
@@ -231,6 +240,10 @@ def upload_text_to_rephrase(channel):
                   ## Upload the post content to the spreadsheet
                   print("Uploading post in channel {} to be rephrased".format(channel))
                   json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post["title"] + "&post_ref=" + post["ref"]
+
+                  if spreadsheet_id is not None:
+                     json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
+
                   payload = { "text_to_rephrase" : post.content }
                   r = requests.post(json_api_url, data=payload)
                   print("exec result =" + r.text)
@@ -256,6 +269,10 @@ def write_manually_generated_posts(channel):
   else:
     # Collecting the posts to write down
     json_api_url = posts_requests_base_url + "?channel=" + channel + "&savemanuallygenerated=1"
+
+    if spreadsheet_id is not None:
+     json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
+      
     r = requests.get(json_api_url)
     print("write_manually_generated_posts > API call, response text = " + r.text)
     r_json = json.loads(r.text)
