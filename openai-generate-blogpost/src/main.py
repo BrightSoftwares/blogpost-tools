@@ -217,6 +217,64 @@ def collect_posts_to_generate(channel):
       else:
         print("The prompt is empty ({}). Not requesting openai".format(prompt))
 
+def upload_title_as_postidea(channel):
+  print("Uploading title to channel {}, with batch size {}".format(channel, BATCH_SIZE))
+
+  if channel is None:
+    print("No channel ({}) specified for the manually generated posts. Skipping".format(channel))
+    print("You may want to add the INPUT_MANUALLY_GENERATED_POSTS_CHANNEL parameter to your call.")
+  else:
+      entries = [f for f in os.listdir(src_posts_to_rephrase) if os.path.isfile(os.path.join(src_posts_to_rephrase, f))]
+
+      processed_count = 0
+      for entry in entries:
+          try:
+              print("Processing entry", entry)
+              src_entry = os.path.join(src_posts_to_rephrase, entry)
+              
+              post = frontmatter.load(src_entry)
+
+              ## Do not process file if it is already uploaded
+              uploaded_for_rephrasing = post["uploaded_for_rephrasing"] if "uploaded_for_rephrasing" in post else "no"
+
+              if uploaded_for_rephrasing == "yes" or post.content == "":
+                  print("File already processed {} for post content is empty {}, skipping ...".format(uploaded_for_rephrasing, post.content[:100]))
+              else:
+                  ## Upload the post content to the spreadsheet
+                  print("Uploading post in channel {} to be rephrased".format(channel))
+                  post_title = post["title"] if "title" in post else ""
+                  post_ref = post["ref"] if "ref" in post else ""
+                  json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post_title + "&post_ref=" + post_ref
+
+                  if spreadsheet_id is not None:
+                     json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
+
+                  encoded_post_content = "" # base64.b64encode(bytes(post.content, 'utf-8'))
+                  payload = { "text_to_rephrase" : encoded_post_content }
+                  r = requests.post(json_api_url, data=payload)
+                  print("exec result =" + r.text)
+    
+                  ## Mark file as upload for rephrasing
+                  if "OK" in r.text:
+                      print("The upload succeeded. Marking post as uploaded")
+                      processed_count = processed_count + 1
+                      post['uploaded_for_rephrasing'] = "yes"
+                      print("Saving the content of the file")
+                      filecontent = frontmatter.dumps(post)
+            
+                      print(filecontent)
+        
+                      with open(src_entry, 'w') as f:
+                          f.write(filecontent)
+                  else:
+                      print("Upload failed.")
+          except Exception as e:
+              print("Error, something unexpected occured", str(e))
+          finally:
+              if processed_count > BATCH_SIZE:
+                  print("{} reached the Batch size {}. Breaking...".format(processed_count, BATCH_SIZE))
+                  break
+
 def upload_text_to_rephrase(channel):
   print("Uploading text to channel {}, with batch size {}".format(channel, BATCH_SIZE))
 
@@ -332,6 +390,9 @@ if function_to_run_str == "write_manually_generated_posts":
     write_manually_generated_posts(manually_generated_posts_channel)
 elif function_to_run_str == "upload_text_to_rephrase":
     print("Running the function upload_text_to_rephrase")
+    upload_text_to_rephrase(manually_generated_posts_channel)
+elif function_to_run_str == "upload_title_as_postidea":
+    print("Running the function upload_title_as_postidea")
     upload_text_to_rephrase(manually_generated_posts_channel)
 elif function_to_run_str == "collect_posts_to_generate":
     print("Running the function collect_posts_to_generate")
