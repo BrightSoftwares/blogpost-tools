@@ -10,7 +10,8 @@ import frontmatter
 posts_channel = os.getenv('INPUT_CHANNEL')
 manually_generated_posts_channel = os.getenv('INPUT_MANUALLY_GENERATED_POSTS_CHANNEL')
 posts_requests_base_url = os.getenv('INPUT_POSTS_REQUESTS_BASE_URL')
-dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS') # "internallinking_per_silot_terms.csv"
+dst_generated_posts = os.getenv('INPUT_DST_GENERATED_POSTS')
+src_posts_to_rephrase = os.getenv('INPUT_SRC_POSTS_TO_REPHRASE')
 MAX_RETRIES = int(os.getenv('INPUT_MAX_RETRIES', 5))
 max_tokens = int(os.getenv('INPUT_MAX_TOKENS'))
 temperature = int(os.getenv('INPUT_TEMPERATURE'))
@@ -205,6 +206,47 @@ def collect_posts_to_generate(channel):
       else:
         print("The prompt is empty ({}). Not requesting openai".format(prompt))
 
+def upload_text_to_rephrase(channel):
+  print("Uploading text to channel {}, with batch size {}".format(channel, BATCH_SIZE))
+
+  if channel is None:
+    print("No channel ({}) specified for the manually generated posts. Skipping".format(channel))
+    print("You may want to add the INPUT_MANUALLY_GENERATED_POSTS_CHANNEL parameter to your call.")
+  else:
+      entries = [f for f in os.listdir(src_posts_to_rephrase) if os.path.isfile(os.path.join(src_posts_to_rephrase, f))]
+      
+      for entry in entries[:BATCH_SIZE]:
+          try:
+              print("Processing entry", entry)
+              src_entry = os.path.join(src_posts_to_rephrase, entry)
+              
+              post = frontmatter.load(src_entry)
+
+              ## Do not process file if it is already uploaded
+              uploaded_for_rephrasing = post["uploaded_for_rephrasing"]
+
+              if uploaded_for_rephrasing == "yes":
+                  print("File already processed, skipping ...")
+              else:
+                  ## Upload the post content to the spreadsheet
+                  print("Uploading post in channel {} to be rephrased".format(channel))
+                  json_api_url = posts_requests_base_url + "?channel=" + channel + "&title=" + post["title"] + "&post_ref=" + post["ref"]
+                  payload = { "text_to_rephrase" : post.content }
+                  r = requests.post(json_api_url, data=payload)
+                  print("exec result =" + r.text)
+    
+                  ## Mark file as upload for rephrasing
+                  post['uploaded_for_rephrasing'] = "yes"
+                  print("Saving the content of the file")
+                  filecontent = frontmatter.dumps(post)
+        
+                  print(filecontent)
+    
+                  with open(src_entry, 'w') as f:
+                      f.write(filecontent)
+          except Exception as e:
+              print("Error, something unexpected occured", str(e))
+
 def write_manually_generated_posts(channel):
   print("Collecting posts from channel {}, with batch size {} and useexternal_prompt = ({})".format(channel, BATCH_SIZE, useexternal_prompt))
 
@@ -250,6 +292,20 @@ def write_manually_generated_posts(channel):
 # save_post(post_title, "my silot term", "This is a totally fake content", dst_generated_posts)
 # save_post(title, silot_terms, content, dst_folder)
 
-write_manually_generated_posts(manually_generated_posts_channel)
-collect_posts_to_generate(posts_channel)
-# mark_post_as_completed(posts_channel, 3)
+function_to_run_str = os.getenv('INPUT_FUNCTION_TO_RUN', 'collect_posts_to_generate')
+print("Function to run = ", function_to_run_str)
+
+if function_to_run_str == "write_manually_generated_posts":
+    print("Running the write_manually_generated_posts function ")
+    write_manually_generated_posts(manually_generated_posts_channel)
+elif function_to_run_str == "upload_text_to_rephrase":
+    print("Running the function upload_text_to_rephrase")
+    upload_text_to_rephrase(manually_generated_posts_channel)
+elif function_to_run_str == "collect_posts_to_generate":
+    print("Running the function collect_posts_to_generate")
+    collect_posts_to_generate(posts_channel)
+else:
+    print("Default case: Running the function collect_posts_to_generate")
+    collect_posts_to_generate(posts_channel)
+
+
