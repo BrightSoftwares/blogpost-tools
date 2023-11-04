@@ -34,7 +34,7 @@ on:
         type: string
       upload2spreadsheet4postidea_useexternalprompt:
         required: true
-        type: boolean
+        type: string
       upload2spreadsheet4postidea_batchsize:
         required: true
         type: number
@@ -57,7 +57,7 @@ on:
         type: string
       rephrased2markdown_useexternalprompt:
         required: true
-        type: boolean
+        type: string
       rephrased2markdown_batchsize:
         required: true
         type: number
@@ -80,7 +80,7 @@ on:
         type: string
       postideas2markdown_useexternalprompt:
         required: true
-        type: boolean
+        type: string
       postideas2markdown_batchsize:
         required: true
         type: number
@@ -103,7 +103,7 @@ on:
         type: string
       upload2spreadsheet4rephrasing_useexternalprompt:
         required: true
-        type: boolean
+        type: string
       upload2spreadsheet4rephrasing_batchsize:
         required: true
         type: number
