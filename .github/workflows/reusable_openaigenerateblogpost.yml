@@ -1,0 +1,224 @@
+name: OpenAi posts generator
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      # Global input variables
+      requests_base_url:
+        required: true
+        type: string
+      spreadsheet_id:
+        required: true
+        type: string
+      openai_maxretries:
+        required: true
+        type: string
+      openai_maxtokens:
+        required: true
+        type: string
+      openai_temparature:
+        required: true
+        type: string
+
+
+      # Input variables for rephrased AI posts into markdown upload2spreadsheet4postidea
+      upload2spreadsheet4postidea_channel:
+        required: true
+        type: string
+      upload2spreadsheet4postidea_dstgeneratedposts:
+        required: true
+        type: string
+      upload2spreadsheet4postidea_srcpoststorephrase:
+        required: true
+        type: string
+      upload2spreadsheet4postidea_useexternalprompt:
+        required: true
+        type: boolean
+      upload2spreadsheet4postidea_batchsize:
+        required: true
+        type: number
+      upload2spreadsheet4postidea_manuallygeneratedpostschannel:
+        required: true
+        type: string
+      upload2spreadsheet4postidea_functiontorun:
+        required: true
+        type: string
+
+      # Input variables for posts ideas AI posts into markdown rephrased2markdown
+      rephrased2markdown_channel:
+        required: true
+        type: string
+      rephrased2markdown_dstgeneratedposts:
+        required: true
+        type: string
+      rephrased2markdown_srcpoststorephrase:
+        required: true
+        type: string
+      rephrased2markdown_useexternalprompt:
+        required: true
+        type: boolean
+      rephrased2markdown_batchsize:
+        required: true
+        type: number
+      rephrased2markdown_manuallygeneratedpostschannel:
+        required: true
+        type: string
+      rephrased2markdown_functiontorun:
+        required: true
+        type: string
+
+      # Input variables for Upload text to spreadsheet for rephrasing postideas2markdown
+      postideas2markdown_channel:
+        required: true
+        type: string
+      postideas2markdown_dstgeneratedposts:
+        required: true
+        type: string
+      postideas2markdown_srcpoststorephrase:
+        required: true
+        type: string
+      postideas2markdown_useexternalprompt:
+        required: true
+        type: boolean
+      postideas2markdown_batchsize:
+        required: true
+        type: number
+      postideas2markdown_manuallygeneratedpostschannel:
+        required: true
+        type: string
+      postideas2markdown_functiontorun:
+        required: true
+        type: string
+
+      # Input variables for Upload post to spreadsheet like post idea upload2spreadsheet4rephrasing
+      upload2spreadsheet4rephrasing_channel:
+        required: true
+        type: string
+      upload2spreadsheet4rephrasing_dstgeneratedposts:
+        required: true
+        type: string
+      upload2spreadsheet4rephrasing_srcpoststorephrase:
+        required: true
+        type: string
+      upload2spreadsheet4rephrasing_useexternalprompt:
+        required: true
+        type: boolean
+      upload2spreadsheet4rephrasing_batchsize:
+        required: true
+        type: number
+      upload2spreadsheet4rephrasing_manuallygeneratedpostschannel:
+        required: true
+        type: string
+      upload2spreadsheet4rephrasing_functiontorun:
+        required: true
+        type: string
+      
+    secrets:
+      openai_api_key:
+        required: true
+
+#env:
+#  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+
+
+jobs:
+  generate_ai_posts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Upload post title as post ideas
+        uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          channel: ${{ inputs.upload2spreadsheet4postidea_channel }}
+          posts_requests_base_url: ${{ inputs.requests_base_url }}
+          spreadsheet_id: ${{ inputs.spreadsheet_id }}
+          dst_generated_posts: ${{ inputs.upload2spreadsheet4postidea_dstgeneratedposts }}
+          src_posts_to_rephrase: ${{ inputs.upload2spreadsheet4postidea_srcpoststorephrase }}
+          max_retries: ${{ inputs.openai_maxretries }}
+          max_tokens: ${{ inputs.openai_maxtokens }}
+          temperature: ${{ inputs.openai_temparature }}
+          useexternal_prompt: ${{ inputs.upload2spreadsheet4postidea_useexternalprompt }}
+          batch_size: ${{ inputs.upload2spreadsheet4postidea_batchsize }}
+          manually_generated_posts_channel: ${{ inputs.upload2spreadsheet4postidea_manuallygeneratedpostschannel }}
+          function_to_run: ${{ inputs.upload2spreadsheet4postidea_functiontorun }}
+          
+      - name: Get rephrased AI posts into markdown files iemh-rephrase
+        uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          channel: ${{ inputs.rephrased2markdown_channel }}
+          posts_requests_base_url: ${{ inputs.requests_base_url }}
+          spreadsheet_id: ${{ inputs.spreadsheet_id }}
+          dst_generated_posts: ${{ inputs.rephrased2markdown_dstgeneratedposts }}
+          src_posts_to_rephrase: ${{ inputs.rephrased2markdown_srcpoststorephrase }}
+          max_retries: ${{ inputs.openai_maxretries }}
+          max_tokens: ${{ inputs.openai_maxtokens }}
+          temperature: ${{ inputs.openai_temparature }}
+          useexternal_prompt: ${{ inputs.rephrased2markdown_useexternalprompt }}
+          batch_size: ${{ inputs.rephrased2markdown_batchsize }}
+          manually_generated_posts_channel: ${{ inputs.rephrased2markdown_manuallygeneratedpostschannel }}
+          function_to_run: ${{ inputs.rephrased2markdown_functiontorun }}
+          
+      - name: Get rephrased AI posts into markdown files for iemh-postideas
+        uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          channel: ${{ inputs.postideas2markdown_channel }}
+          posts_requests_base_url: ${{ inputs.requests_base_url }}
+          spreadsheet_id: ${{ inputs.spreadsheet_id }}
+          dst_generated_posts: ${{ inputs.postideas2markdown_dstgeneratedposts }}
+          src_posts_to_rephrase: ${{ inputs.postideas2markdown_srcpoststorephrase }}
+          max_retries: ${{ inputs.openai_maxretries }}
+          max_tokens: ${{ inputs.openai_maxtokens }}
+          temperature: ${{ inputs.openai_temparature }}
+          useexternal_prompt: ${{ inputs.postideas2markdown_useexternalprompt }}
+          batch_size: ${{ inputs.postideas2markdown_batchsize }}
+          manually_generated_posts_channel: ${{ inputs.postideas2markdown_manuallygeneratedpostschannel }}
+          function_to_run: ${{ inputs.postideas2markdown_functiontorun }}
+
+      - name: Upload text to spreadsheet for rephrasing
+        uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          channel: ${{ inputs.upload2spreadsheet4rephrasing_channel }}
+          posts_requests_base_url: ${{ inputs.requests_base_url }}
+          spreadsheet_id: ${{ inputs.spreadsheet_id }}
+          dst_generated_posts: ${{ inputs.upload2spreadsheet4rephrasing_dstgeneratedposts }}
+          src_posts_to_rephrase: ${{ inputs.upload2spreadsheet4rephrasing_srcpoststorephrase }}
+          max_retries: ${{ inputs.openai_maxretries }}
+          max_tokens: ${{ inputs.openai_maxtokens }}
+          temperature: ${{ inputs.openai_temparature }}
+          useexternal_prompt: ${{ inputs.upload2spreadsheet4rephrasing_useexternalprompt }}
+          batch_size: ${{ inputs.upload2spreadsheet4rephrasing_batchsize }}
+          manually_generated_posts_channel: ${{ inputs.upload2spreadsheet4rephrasing_manuallygeneratedpostschannel }}
+          function_to_run: ${{ inputs.upload2spreadsheet4rephrasing_functiontorun }}
+
+
+      - name: Commit changes if any
+        run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed openai posts files"
+            git pull --rebase
+            git push
+          fi
