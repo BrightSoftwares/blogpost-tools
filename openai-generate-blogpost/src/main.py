@@ -43,7 +43,8 @@ def generate_post(post_subject, brands, internal_links, references, keywords, pr
       try:
         print("Generating post for the prompt: ", history)
         response = openai.Completion.create(
-            model="text-davinci-003",
+            # model="text-davinci-003",
+            model="gpt-4",
             prompt=history,
             temperature=temperature,
             max_tokens=max_tokens,
