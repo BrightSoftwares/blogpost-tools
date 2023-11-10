@@ -139,7 +139,7 @@ def move_readyforpublication_to_destination():
 
 # Printing debug information
 print("The current directory is = ", os.getcwd())
-prin("Here is the content of the current directory")
+print("Here is the content of the current directory")
 for subdir, dirs, files in os.walk('./'):
     for file in files:
       print(file)
