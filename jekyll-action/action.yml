@@ -1,0 +1,7 @@
+name: "Build jekyll website and upload algolia search data"
+
+description: "Build jekyll website and upload algolia search data"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
