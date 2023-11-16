@@ -1,6 +1,4 @@
-FROM busybox
-
-RUN apk update && apk upgrade && apk add bash
+FROM ubuntu
 
 COPY . .
 
