@@ -1,19 +1,18 @@
-name: "Generate aliases.csv file"
+name: "Runs on github or self-hosted"
 
-description: "Generate aliases.csv file that will be used in internal linking."
+description: "Returns the infrastructure the workflow should run on"
 
-inputs:    
-  keyword_suggestion_merged:
-    description: The full path to the keyword suggestions merged csv file. This file should contain silot_terms and Suggestion columns. This file tells which keyword suggestion belongs to which silot_terms.
-  src_interlinking_csv:
-    description: The full path to the interlinking csv file. This file must contain the silot_terms and dst_file columns. This file tells which post file belongs to which silot terms.
-  dst_aliases_file:
-    description: The full path to the aliases.csv file where the result will be stored.
+env:
+  CHECK_RUNNER_TOKEN: 
+    description: The Github token to use to check whether there are runners available. Eg. ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+  GITHUB_REPO_OWNER:
+    description: The Github repository owner. Example is ${{ github.repository_owner }}
+  GITHUB_REPOSITORY: The Github repo name. Example is ${{ github.repository }}
   
 
 outputs:
   updated_posts:
-    description: A list of updated posts
+    description: Label of the runner
 
 runs:
   using: "docker"
