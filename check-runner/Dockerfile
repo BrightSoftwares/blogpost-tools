@@ -2,4 +2,4 @@ FROM busybox
 
 COPY . .
 
-CMD [ "bash", "/src/check_runner.sh" ]
+CMD [ "sh", "/src/check_runner.sh" ]
