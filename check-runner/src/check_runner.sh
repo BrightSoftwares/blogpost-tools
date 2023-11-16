@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "The repo name is ${{ github.repository }}"
 echo "The repo org is ${{ github.repository_owner }}"
