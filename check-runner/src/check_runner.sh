@@ -1,5 +1,12 @@
 #!/bin/bash
 
+echo "My current shell is $SHELL ($0)"
+echo $SHELL
+echo "Old fashioned way to know your shell name "
+ps -p $$
+echo "With the echo $0 technique"
+echo $0
+
 echo "The repo name is ${{ github.repository }}"
 echo "The repo org is ${{ github.repository_owner }}"
 echo "Query runners at repo level"
