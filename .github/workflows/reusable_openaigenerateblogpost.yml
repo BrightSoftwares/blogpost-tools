@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Upload post title as post ideas
+      - name: Upload post title as post ideas - channel ${{ inputs.upload2spreadsheet4postidea_channel }}
         uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
         timeout-minutes: 10
         continue-on-error: true
@@ -149,7 +149,7 @@ jobs:
           manually_generated_posts_channel: ${{ inputs.upload2spreadsheet4postidea_manuallygeneratedpostschannel }}
           function_to_run: ${{ inputs.upload2spreadsheet4postidea_functiontorun }}
           
-      - name: Get rephrased AI posts into markdown files iemh-rephrase
+      - name: Get rephrased AI posts into markdown files - ${{ inputs.rephrased2markdown_channel }}
         uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
         timeout-minutes: 10
         continue-on-error: true
@@ -168,7 +168,7 @@ jobs:
           manually_generated_posts_channel: ${{ inputs.rephrased2markdown_manuallygeneratedpostschannel }}
           function_to_run: ${{ inputs.rephrased2markdown_functiontorun }}
           
-      - name: Get rephrased AI posts into markdown files for iemh-postideas
+      - name: Get rephrased AI posts into markdown files for ${{ inputs.postideas2markdown_channel }}
         uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
         timeout-minutes: 10
         continue-on-error: true
@@ -187,7 +187,7 @@ jobs:
           manually_generated_posts_channel: ${{ inputs.postideas2markdown_manuallygeneratedpostschannel }}
           function_to_run: ${{ inputs.postideas2markdown_functiontorun }}
 
-      - name: Upload text to spreadsheet for rephrasing
+      - name: Upload text to spreadsheet for rephrasing - ${{ inputs.upload2spreadsheet4rephrasing_channel }}
         uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
         timeout-minutes: 10
         continue-on-error: true
