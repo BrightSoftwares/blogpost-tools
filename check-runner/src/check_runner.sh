@@ -11,7 +11,7 @@ echo "User provided repo name is $GITHUB_REPOSITORY"
 echo "User provided repo org is $GITHUB_REPO_OWNER"
 
 echo "Get the repo org name env variable if the user did not provide it"
-if [ -n "$GITHUB_REPO_OWNER" ]; then
+if [ -n "$GITHUB_REPO_OWNER" || -z "$GITHUB_REPO_OWNER" ]; then
 GITHUB_REPO_OWNER=$GITHUB_REPOSITORY_OWNER
 fi
 
@@ -27,7 +27,7 @@ curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token $CHECK
 # runners=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ CHECK_RUNNER_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runners")
 runners=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token $CHECK_RUNNER_TOKEN" "https://api.github.com/orgs/$GITHUB_REPO_OWNER/actions/runners")
 
-if [ -z "$runners" ]; then 
+if [ -z "$runners" || -n "$runners" ]; then 
   echo "NULL";
   echo "We couldn't retrieve the runners data. Got $runners"; 
   echo "Defaulting to ubuntu-latest as runner";
