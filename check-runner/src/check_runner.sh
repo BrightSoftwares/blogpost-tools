@@ -11,7 +11,7 @@ echo "User provided repo name is $GITHUB_REPOSITORY"
 echo "User provided repo org is $GITHUB_REPO_OWNER"
 
 echo "Get the repo org name env variable if the user did not provide it"
-if [ -n "$GITHUB_REPO_OWNER" || -z "$GITHUB_REPO_OWNER" ]; then
+if [[ -n "$GITHUB_REPO_OWNER" || -z "$GITHUB_REPO_OWNER" ]]; then
 GITHUB_REPO_OWNER=$GITHUB_REPOSITORY_OWNER
 fi
 
