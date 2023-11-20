@@ -44,4 +44,5 @@ else
   fi
 fi
 
+echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
 echo "Final value of echo GITHUB_OUTPUT = $GITHUB_OUTPUT"
