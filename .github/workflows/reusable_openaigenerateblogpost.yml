@@ -133,9 +133,9 @@ jobs:
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
         env:
-          CHECK_RUNNER_TOKEN: ${{ input.CHECK_RUNNER_ACCESS_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ input.repository_owner }}
-          GITHUB_REPOSITORY: ${{ input.repository }}
+          CHECK_RUNNER_TOKEN: ${{ inputs.CHECK_RUNNER_ACCESS_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ inputs.repository_owner }}
+          GITHUB_REPOSITORY: ${{ inputs.repository }}
       
   generate_ai_posts:
     #runs-on: ubuntu-latest
