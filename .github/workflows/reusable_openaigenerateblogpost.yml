@@ -138,6 +138,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ inputs.repository }}
       
   generate_ai_posts:
+    needs: check-runner
     #runs-on: ubuntu-latest
     # runs-on: self-hosted
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
