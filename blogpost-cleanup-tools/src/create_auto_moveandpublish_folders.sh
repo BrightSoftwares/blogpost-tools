@@ -1,4 +1,6 @@
 
+mkdir -p _drafts
+mkdir -p _posts
 mkdir -p _drafts/en/200_youtube_download_transcript/
 mkdir -p _drafts/en/300_generated_raw_content/
 mkdir -p _drafts/en/200_rss_inspired_posts/
