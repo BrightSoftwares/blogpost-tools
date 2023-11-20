@@ -123,24 +123,24 @@ on:
 
 
 jobs:
-  check-runner:
-    runs-on: ubuntu-latest
-    outputs:
-      runner-label: ${{ steps.set-runner.outputs.runner-label }}
+  # check-runner:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     runner-label: ${{ steps.set-runner.outputs.runner-label }}
 
-    steps:
-      - name: Set runner
-        id: set-runner
-        uses: BrightSoftwares/blogpost-tools/check-runner@main
-        env:
-          CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+  #   steps:
+  #     - name: Set runner
+  #       id: set-runner
+  #       uses: BrightSoftwares/blogpost-tools/check-runner@main
+  #       env:
+  #         CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+  #         GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+  #         GITHUB_REPOSITORY: ${{ github.repository }}
       
   generate_ai_posts:
-    # runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     # runs-on: self-hosted
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    #runs-on: ${{ needs.check-runner.outputs.runner-label }}
 
     steps:
       - uses: actions/checkout@v2
