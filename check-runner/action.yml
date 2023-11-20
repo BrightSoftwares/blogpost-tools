@@ -4,10 +4,10 @@ description: "Returns the infrastructure the workflow should run on"
 
 env:
   CHECK_RUNNER_TOKEN: 
-    description: The Github token to use to check whether there are runners available. Eg. ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+    description: The Github token to use to check whether there are runners available. Eg. `${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}`
   GITHUB_REPO_OWNER:
-    description: The Github repository owner. Example is ${{ github.repository_owner }}
-  GITHUB_REPOSITORY: The Github repo name. Example is ${{ github.repository }}
+    description: The Github repository owner. Example is `${{ github.repository_owner }}`
+  GITHUB_REPOSITORY: The Github repo name. Example is `${{ github.repository }}`
   
 
 outputs:
