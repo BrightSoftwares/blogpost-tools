@@ -31,3 +31,10 @@ touch _drafts/fr/400_refined_content/.gitkeep
 touch _drafts/fr/500_featured_image_generated/.gitkeep
 touch _drafts/fr/501_beautified_content/.gitkeep
 touch _drafts/fr/600_auto_scheduled/.gitkeep
+touch _posts/en/.gitkeep
+touch _posts/fr/.gitkeep
+touch _drafts/.gitkeep
+touch _drafts/fr/.gitkeep
+touch _drafts/en/.gitkeep
+
+
