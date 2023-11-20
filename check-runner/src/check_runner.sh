@@ -27,7 +27,7 @@ curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token $CHECK
 # runners=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ CHECK_RUNNER_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runners")
 runners=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token $CHECK_RUNNER_TOKEN" "https://api.github.com/orgs/$GITHUB_REPO_OWNER/actions/runners")
 
-if [ -z "$runners" || -n "$runners" ]; then 
+if [[ -z "$runners" || -n "$runners" ]]; then 
   echo "NULL";
   echo "We couldn't retrieve the runners data. Got $runners"; 
   echo "Defaulting to ubuntu-latest as runner";
