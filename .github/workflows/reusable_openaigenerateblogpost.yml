@@ -138,8 +138,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
       
   generate_ai_posts:
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
     # runs-on: self-hosted
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
 
     steps:
       - uses: actions/checkout@v2
