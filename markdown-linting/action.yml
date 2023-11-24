@@ -1,0 +1,15 @@
+name: "Perfom a markdown linting on posts"
+
+description: "Run a markdown linting tool to ensure that the post is well written and that internn linking is well done."
+
+inputs:
+  folder_to_lint:
+    description: the path to the folder to lint
+
+outputs:
+  linting_result:
+    description: a return code about the linting cli execution 
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
