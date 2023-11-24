@@ -1,7 +1,11 @@
 import pandas as pd
 import spacy
+import os
 
-kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
+folder_to_scan = "_posts/en/"
+aliases_file = "_seo/internal-linking/en/aliases.csv"
+aliases_new_file = "_seo/internal-linking/en/aliases_new.csv"
+kw_to_ignore = ["sur", "par", "ses", "set", "100000", "des", "les", "how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
 lang = "en"
 
 # nlp = spacy.load(lang, parser=False, entity=False)  
@@ -25,14 +29,16 @@ def is_stopword(text):
     return False
 
 def generate_short_keywords():
-    df = pd.read_csv("./aliases.csv")
+    df = pd.read_csv(aliases_file)
 
     df = df.sort_values(by=['dst_file'])
 
-    dstfile_uniq = df['dst_file'].unique()
+    # dstfile_uniq = df['dst_file'].unique()
+    entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f)) and os.path.join(folder_to_scan, f).endswith(".md") ] # os.listdir(folder_to_scan)
+
 
     print("Generate the keywords from the file name")
-    for dstfile in dstfile_uniq:
+    for dstfile in entries: # dstfile_uniq:
         dstfile_nodate = dstfile[11:-3] # Remove the date and the first - and the .md at the end
         print(dstfile_nodate)
         kw_array = dstfile_nodate.split("-")
@@ -55,7 +61,7 @@ def generate_short_keywords():
 
 
     print("Saving the result")
-    df.to_csv("./aliases_new.csv", index=False)
+    df.to_csv(aliases_new_file, index=False)
 
 if __name__ == "__main__":
     generate_short_keywords()
