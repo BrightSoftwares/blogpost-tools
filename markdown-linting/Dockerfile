@@ -6,4 +6,4 @@ COPY . .
 
 RUN ls -laR
 
-CMD ["/bin/bash", "./lint_my_posts.sh"]
+CMD ["/bin/bash", "/lint_my_posts.sh"]
