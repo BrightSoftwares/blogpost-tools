@@ -1,4 +1,4 @@
-FROM npm:18
+FROM node:18
 
 RUN npm install -g markdownlint-cli
 
