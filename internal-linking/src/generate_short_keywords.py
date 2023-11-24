@@ -2,8 +2,9 @@ import pandas as pd
 import spacy
 import os
 from pathlib import Path
+import re
 
-lang = "es"
+lang = "en"
 folder_to_scan = "_posts/" + lang + "/"
 internal_linking_root_folder = "_seo/internal-linking"
 kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
@@ -64,6 +65,28 @@ customize_stop_words = [
 for w in customize_stop_words:
     nlp.vocab[w].is_stop = True
 
+
+def generate_ngrams(s, n):
+    # Convert to lowercases
+    s = s.lower()
+    
+    # Replace all non-alphanumeric characters with spaces
+    s = re.sub(r'[^a-zA-Z0-9\s]', ' ', s)
+    
+    # Break sentence in the token, remove empty tokens
+    tokens = [token for token in s.split(" ") if token != ""]
+    
+    # Use the zip function to help us generate n-grams
+    # Concatentate the tokens into ngrams and return
+    ngrams = zip(*[tokens[i:] for i in range(n)])
+    return [" ".join(ngram) for ngram in ngrams]
+
+def generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, ngram_length):
+    for kw in generate_ngrams(dstfile_nodate_ngrams, ngram_length):
+        if len(kw) > 2 and not is_stopword(kw): #kw not in kw_to_ignore:
+            # print(kw)
+            df.loc[len(df)] = [dstfile, kw]
+
 def is_stopword(text):
     print("{} is stop word?".format(text))
     for token in nlp(text):
@@ -84,8 +107,23 @@ def generate_short_keywords():
     for dstfile in entries: # dstfile_uniq:
         dstfile_nodate = dstfile[11:-3] # Remove the date and the first - and the .md at the end
         print(dstfile_nodate)
-        kw_array = dstfile_nodate.split("-")
 
+        print("Generate the n-grams")
+        dstfile_nodate_ngrams = dstfile_nodate.replace("-", " ")
+        # the_3grams = generate_ngrams(dstfile_nodate_ngrams, 3) # nltk.bigrams(dstfile_nodate_ngrams)
+        # print(the_ngrams)
+
+        # for kw in generate_ngrams(dstfile_nodate_ngrams, 5):
+        #     if len(kw) > 2 and not is_stopword(kw): #kw not in kw_to_ignore:
+        #         print(kw)
+        #         df.loc[len(df)] = [dstfile, kw]
+
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 5)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 4)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 3)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 2)
+
+        kw_array = dstfile_nodate.split("-")
         for kw in kw_array:
             if len(kw) > 2 and not is_stopword(kw): #kw not in kw_to_ignore:
                 print(kw)
@@ -94,8 +132,17 @@ def generate_short_keywords():
     print("Dropping duplicates")
     df = df.drop_duplicates()
 
-    #print("Remove stop words")
+    print("Creating a new table with the nb of words in the link text")
+    df['nbwords'] = df.apply(lambda row: len(row.link_text.split(" ")), axis=1)
+    
+    print(df)
 
+    print("Sort by length of link_text")
+    df.sort_values("nbwords", ascending=False, inplace=True)
+
+    print("Delete the nbwords column after the sorting")
+    df.drop(columns=["nbwords"], inplace=True)
+    print(df)
 
     # Convert each row into spacy document and return the lemma of the tokens in 
     # the document if it is not a sotp word. Finally join the lemmas into as a string
