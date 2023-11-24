@@ -5,7 +5,7 @@ import os
 folder_to_scan = "_posts/en/"
 aliases_file = "_seo/internal-linking/en/aliases.csv"
 aliases_new_file = "_seo/internal-linking/en/aliases_new.csv"
-kw_to_ignore = ["sur", "par", "ses", "set", "100000", "des", "les", "how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
+kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
 lang = "en"
 
 # nlp = spacy.load(lang, parser=False, entity=False)  
@@ -14,7 +14,7 @@ nlp = spacy.load("en_core_web_sm")
 # nlp = spacy.load("fr_core_news_sm")
 
 customize_stop_words = [
-'1604', "2004", "create", "install"
+'1604', "2004", "create", "install", "sur", "par", "ses", "set", "100000", "des", "les", "stay", "like"
 ]
 
 # Mark them as stop words
