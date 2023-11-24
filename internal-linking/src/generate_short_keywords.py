@@ -1,16 +1,59 @@
 import pandas as pd
 import spacy
 import os
+from pathlib import Path
 
-folder_to_scan = "_posts/en/"
-aliases_file = "_seo/internal-linking/en/aliases.csv"
-aliases_new_file = "_seo/internal-linking/en/aliases_new.csv"
+lang = "es"
+folder_to_scan = "_posts/" + lang + "/"
+internal_linking_root_folder = "_seo/internal-linking"
 kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
-lang = "en"
+# lang = "en"
+
+
+
+print("Create language folder if not present")
+
+aliases_file = os.path.join(internal_linking_root_folder, lang, "aliases.csv")
+aliases_new_file = os.path.join(internal_linking_root_folder, lang, "aliases_new.csv")
+
+print(aliases_file)
+print(aliases_new_file)
+
+seo_lang_path = os.path.join(internal_linking_root_folder, lang)
+if not os.path.exists(seo_lang_path):
+    print("Path {} does not exist, creating ...".format(seo_lang_path))
+    os.makedirs(seo_lang_path)
+
+    print("Generate the .gitkeep file")
+    gitkeepfile = os.path.join(seo_lang_path, ".gitkeep")
+    print(gitkeepfile)
+    Path(gitkeepfile).touch()
+
+    print("Generate the aliases file")
+    with open(aliases_file, 'w') as f:
+        f.write("dst_file,link_text\n")
+else:
+    print("Path {} exists, skipping ...".format(seo_lang_path))
+
 
 # nlp = spacy.load(lang, parser=False, entity=False)  
-# nlp = spacy.load(lang)  
-nlp = spacy.load("en_core_web_sm")
+# nlp = spacy.load(lang)
+if lang == "en":
+    model_name = "en_core_web_sm"
+elif lang == "fr":
+    model_name = "fr_core_news_sm"
+elif lang == "de":
+    model_name = "de_core_news_sm"
+elif lang == "es":
+    model_name = "es_core_news_sm"
+elif lang == "it":
+    model_name = "it_core_news_sm"
+elif lang == "pt":
+    model_name = "pt_core_news_sm"
+else:
+    model_name = "en_core_web_sm"
+    
+nlp = spacy.load(model_name)
 # nlp = spacy.load("fr_core_news_sm")
 
 customize_stop_words = [
