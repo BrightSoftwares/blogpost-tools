@@ -4,4 +4,6 @@ RUN npm install -g markdownlint-cli
 
 COPY . .
 
-CMD ["bash", "./lint_my_posts.sh"]
+RUN ls -laR
+
+CMD ["/bin/bash", "./lint_my_posts.sh"]
