@@ -187,17 +187,21 @@ def generate_short_keywords(aliases_file_name, aliases_new_file_name, folder_to_
     print("Dropping duplicates")
     df = df.drop_duplicates()
 
-    print("Creating a new table with the nb of words in the link text")
-    df['nbwords'] = df.apply(lambda row: len(row.link_text.split(" ")), axis=1)
+    if df.size > 0:
+        print("Creating a new table with the nb of words in the link text")
+        df['nbwords'] = df.apply(lambda row: len(row.link_text.split(" ")), axis=1)
+        
+        print(df)
     
-    print(df)
-
-    print("Sort by length of link_text")
-    df.sort_values("nbwords", ascending=False, inplace=True)
-
-    print("Delete the nbwords column after the sorting")
-    df.drop(columns=["nbwords"], inplace=True)
-    print(df)
+        print("Sort by length of link_text")
+        df.sort_values("nbwords", ascending=False, inplace=True)
+    
+        print("Delete the nbwords column after the sorting")
+        df.drop(columns=["nbwords"], inplace=True)
+    else:
+        print("The size of the df <= 0. Not sorting...")
+        
+    print("df = ", df)
 
     # Convert each row into spacy document and return the lemma of the tokens in 
     # the document if it is not a sotp word. Finally join the lemmas into as a string
