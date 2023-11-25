@@ -40,9 +40,9 @@ on:
       github_repository:
         required: true
         type: string
-    #secrets:
-    #  check_runner_token:
-    #    required: true
+    secrets:
+      check_runner_token:
+        required: true
 
 #env:
 #  CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
@@ -63,9 +63,9 @@ jobs:
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
         env:
-          CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          CHECK_RUNNER_TOKEN: ${{ secrets.check_runner_token }}
+          GITHUB_REPO_OWNER: ${{ inputs.github_repo_owner }}
+          GITHUB_REPOSITORY: ${{ inputs.github_repository }}
   internal_linking:
     # runs-on: ubuntu-latest
     #runs-on: self-hosted
