@@ -15,7 +15,7 @@ def generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_fo
     print(aliases_new_file)
 
     seo_lang_path = os.path.join(internal_linking_root_folder, lang)
-    if not os.path.exists(seo_lang_path) or not os.path.exists(aliases_file) or not os.path.exists(aliases_new_file):
+    if not os.path.exists(seo_lang_path):
         print("Path {} does not exist, creating ...".format(seo_lang_path))
         os.makedirs(seo_lang_path)
 
@@ -23,12 +23,60 @@ def generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_fo
         gitkeepfile = os.path.join(seo_lang_path, ".gitkeep")
         print(gitkeepfile)
         Path(gitkeepfile).touch()
+    else:
+        print("Path {} exists, skipping ...".format(seo_lang_path))
 
+    if not os.path.exists(aliases_file):
         print("Generate the aliases file")
         with open(aliases_file, 'w') as f:
             f.write("dst_file,link_text\n")
     else:
-        print("Path {} exists, skipping ...".format(seo_lang_path))
+        print("Path {} exists, skipping ...".format(aliases_file))
+
+    if not os.path.exists(aliases_new_file):
+        print("Generate the aliases new file")
+        with open(aliases_new_file, 'w') as f:
+            f.write("dst_file,link_text\n")
+    else:
+        print("Path {} exists, skipping ...".format(aliases_new_file))
+        
+def generate_silot_terms_file(silot_terms_file):
+    print("Create silot_terms file if not present")
+
+    print(silot_terms_file)
+
+    if not os.path.exists(silot_terms_file):
+        print("Generate the silot_terms_file file")
+        with open(silot_terms_file, 'w') as f:
+            f.write("silot_terms,title,path,cornerstone,categories\n")
+    else:
+        print("Path {} exists, skipping ...".format(silot_terms_file))
+        
+def generate_internallinking_per_silot_terms_file(internallinking_per_silot_terms_file):
+    print("Create internallinking_per_silot_terms file if not present")
+
+    print(internallinking_per_silot_terms_file)
+
+    if not os.path.exists(internallinking_per_silot_terms_file):
+        print("Generate the internallinking_per_silot_terms_file file")
+        with open(internallinking_per_silot_terms_file, 'w') as f:
+            f.write("silot_terms,src_file,dst_file,src_is_cornerstone,link_exist,link_text,full_link,full_link_and_text\n")
+    else:
+        print("Path {} exists, skipping ...".format(internallinking_per_silot_terms_file))
+
+        
+def generate_anchor_text_to_post_file(anchor_text_to_post_file):
+    print("Create anchor_text_to_post_file file if not present")
+
+    print(anchor_text_to_post_file)
+
+    if not os.path.exists(anchor_text_to_post_file):
+        print("Generate the anchor_text_to_post_file file")
+        with open(anchor_text_to_post_file, 'w') as f:
+            f.write("link_text,path,lang\n")
+    else:
+        print("Path {} exists, skipping ...".format(anchor_text_to_post_file))
+
 
 def configure_nlp(lang):
     # nlp = spacy.load(lang, parser=False, entity=False)  
