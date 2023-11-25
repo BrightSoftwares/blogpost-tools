@@ -30,7 +30,7 @@ def generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_fo
     else:
         print("Path {} exists, skipping ...".format(seo_lang_path))
 
-def configure_nlp():
+def configure_nlp(lang):
     # nlp = spacy.load(lang, parser=False, entity=False)  
     # nlp = spacy.load(lang)
     if lang == "en":
@@ -100,7 +100,7 @@ def generate_short_keywords(aliases_file_name, aliases_new_file_name, folder_to_
 
     generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_folder, lang)
 
-    nlp = configure_nlp()
+    nlp = configure_nlp(lang)
 
     df = pd.read_csv(aliases_file)
 
