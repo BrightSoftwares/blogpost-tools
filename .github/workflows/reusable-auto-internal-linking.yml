@@ -34,11 +34,13 @@ on:
       markdownlinting_folder_to_lint:
         required: true
         type: string
-    #secrets:
-    #  unsplash_access_key:
-    #    required: true
-    #  cloudinary_url:
-    #    required: true
+    secrets:
+      check_runner_token:
+        required: true
+      github_repo_owner:
+        required: true
+      github_repository:
+        required: true
 
 #env:
 #  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
