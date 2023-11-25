@@ -36,7 +36,7 @@ if [[ -z "$runners" ]]; then
 else 
   echo "Not NULL"; 
   echo "Success! Got the runners data = $runners";
-  available=$(echo "$runners" | jq '.runners[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
+  available=$(echo "$runners" | jq 'select(.runners != null) | .runners[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
   
   if [ -n "$available" ]; then
     echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
