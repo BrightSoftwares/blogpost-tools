@@ -4,67 +4,62 @@ import os
 from pathlib import Path
 import re
 
-lang = "en"
-folder_to_scan = "_posts/" + lang + "/"
-internal_linking_root_folder = "_seo/internal-linking"
-kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
-# lang = "en"
+def generate_alias_file(aliases_file, aliases_new_file, lang):
+    print("Create language folder if not present")
 
+    # aliases_file = os.path.join(internal_linking_root_folder, lang, aliases_file_name)
+    # # aliases_new_file = os.path.join(internal_linking_root_folder, lang, "aliases_new.csv")
+    # aliases_new_file = os.path.join(internal_linking_root_folder, lang, aliases_new_file_name)
 
+    print(aliases_file)
+    print(aliases_new_file)
 
-print("Create language folder if not present")
+    seo_lang_path = os.path.join(internal_linking_root_folder, lang)
+    if not os.path.exists(seo_lang_path):
+        print("Path {} does not exist, creating ...".format(seo_lang_path))
+        os.makedirs(seo_lang_path)
 
-aliases_file = os.path.join(internal_linking_root_folder, lang, "aliases.csv")
-aliases_new_file = os.path.join(internal_linking_root_folder, lang, "aliases_new.csv")
+        print("Generate the .gitkeep file")
+        gitkeepfile = os.path.join(seo_lang_path, ".gitkeep")
+        print(gitkeepfile)
+        Path(gitkeepfile).touch()
 
-print(aliases_file)
-print(aliases_new_file)
+        print("Generate the aliases file")
+        with open(aliases_file, 'w') as f:
+            f.write("dst_file,link_text\n")
+    else:
+        print("Path {} exists, skipping ...".format(seo_lang_path))
 
-seo_lang_path = os.path.join(internal_linking_root_folder, lang)
-if not os.path.exists(seo_lang_path):
-    print("Path {} does not exist, creating ...".format(seo_lang_path))
-    os.makedirs(seo_lang_path)
+def configure_nlp():
+    # nlp = spacy.load(lang, parser=False, entity=False)  
+    # nlp = spacy.load(lang)
+    if lang == "en":
+        model_name = "en_core_web_sm"
+    elif lang == "fr":
+        model_name = "fr_core_news_sm"
+    elif lang == "de":
+        model_name = "de_core_news_sm"
+    elif lang == "es":
+        model_name = "es_core_news_sm"
+    elif lang == "it":
+        model_name = "it_core_news_sm"
+    elif lang == "pt":
+        model_name = "pt_core_news_sm"
+    else:
+        model_name = "en_core_web_sm"
+        
+    nlp = spacy.load(model_name)
+    # nlp = spacy.load("fr_core_news_sm")
 
-    print("Generate the .gitkeep file")
-    gitkeepfile = os.path.join(seo_lang_path, ".gitkeep")
-    print(gitkeepfile)
-    Path(gitkeepfile).touch()
+    customize_stop_words = [
+    '1604', "2004", "create", "install", "sur", "par", "ses", "set", "100000", "des", "les", "stay", "like"
+    ]
 
-    print("Generate the aliases file")
-    with open(aliases_file, 'w') as f:
-        f.write("dst_file,link_text\n")
-else:
-    print("Path {} exists, skipping ...".format(seo_lang_path))
+    # Mark them as stop words
+    for w in customize_stop_words:
+        nlp.vocab[w].is_stop = True
 
-
-# nlp = spacy.load(lang, parser=False, entity=False)  
-# nlp = spacy.load(lang)
-if lang == "en":
-    model_name = "en_core_web_sm"
-elif lang == "fr":
-    model_name = "fr_core_news_sm"
-elif lang == "de":
-    model_name = "de_core_news_sm"
-elif lang == "es":
-    model_name = "es_core_news_sm"
-elif lang == "it":
-    model_name = "it_core_news_sm"
-elif lang == "pt":
-    model_name = "pt_core_news_sm"
-else:
-    model_name = "en_core_web_sm"
-    
-nlp = spacy.load(model_name)
-# nlp = spacy.load("fr_core_news_sm")
-
-customize_stop_words = [
-'1604', "2004", "create", "install", "sur", "par", "ses", "set", "100000", "des", "les", "stay", "like"
-]
-
-# Mark them as stop words
-for w in customize_stop_words:
-    nlp.vocab[w].is_stop = True
-
+    return nlp
 
 def generate_ngrams(s, n):
     # Convert to lowercases
@@ -81,20 +76,25 @@ def generate_ngrams(s, n):
     ngrams = zip(*[tokens[i:] for i in range(n)])
     return [" ".join(ngram) for ngram in ngrams]
 
-def generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, ngram_length):
+def generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, ngram_length, nlp):
     for kw in generate_ngrams(dstfile_nodate_ngrams, ngram_length):
-        if len(kw) > 2 and not is_stopword(kw): #kw not in kw_to_ignore:
+        if len(kw) > 2 and not is_stopword(kw, nlp): #kw not in kw_to_ignore:
             # print(kw)
             df.loc[len(df)] = [dstfile, kw]
 
-def is_stopword(text):
+def is_stopword(text, nlp):
     print("{} is stop word?".format(text))
     for token in nlp(text):
         if token.is_stop:
             return True
     return False
 
-def generate_short_keywords():
+def generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang):
+
+    generate_alias_file(aliases_file, aliases_new_file, lang)
+
+    nlp = configure_nlp()
+
     df = pd.read_csv(aliases_file)
 
     df = df.sort_values(by=['dst_file'])
@@ -118,14 +118,14 @@ def generate_short_keywords():
         #         print(kw)
         #         df.loc[len(df)] = [dstfile, kw]
 
-        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 5)
-        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 4)
-        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 3)
-        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 2)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 5, nlp)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 4, nlp)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 3, nlp)
+        generate_and_append_ngrams(dstfile, dstfile_nodate_ngrams, df, 2, nlp)
 
         kw_array = dstfile_nodate.split("-")
         for kw in kw_array:
-            if len(kw) > 2 and not is_stopword(kw): #kw not in kw_to_ignore:
+            if len(kw) > 2 and not is_stopword(kw, nlp): #kw not in kw_to_ignore:
                 print(kw)
                 df.loc[len(df)] = [dstfile, kw]
 
@@ -154,4 +154,17 @@ def generate_short_keywords():
     df.to_csv(aliases_new_file, index=False)
 
 if __name__ == "__main__":
-    generate_short_keywords()
+
+    aliases_file_name = "aliases.csv"
+    aliases_new_file_name = "aliases_new.csv"
+
+    lang = "fr"
+    folder_to_scan = "_posts/" + lang + "/"
+    internal_linking_root_folder = "_seo/internal-linking"
+
+    kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
+
+    aliases_file = os.path.join(internal_linking_root_folder, lang, aliases_file_name)
+    aliases_new_file = os.path.join(internal_linking_root_folder, lang, aliases_new_file_name)
+
+    generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang)
