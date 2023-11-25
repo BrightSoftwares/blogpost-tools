@@ -44,8 +44,10 @@ on:
       check_runner_token:
         required: true
 
-#env:
-#  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+env:
+  CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+  GITHUB_REPOSITORY: ${{ github.repository }}
   
 
       
@@ -60,10 +62,10 @@ jobs:
       - name: Set runner
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
-        env:
-          CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+        #env:
+        #  CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+        #  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+        #  GITHUB_REPOSITORY: ${{ github.repository }}
   internal_linking:
     # runs-on: ubuntu-latest
     #runs-on: self-hosted
