@@ -3,6 +3,8 @@ import numpy as np
 import os, re, sys
 import frontmatter
 import yaml
+from generate_short_keywords import generate_short_keywords
+generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang)
 
 # charList = " " + string.ascii_lowercase + string.digits
 
@@ -12,6 +14,8 @@ internal_link_text_file = os.getenv('INPUT_INTERNAL_LINK_TEXT_FILE')
 anchor_text_to_post = os.getenv('INPUT_ANCHOR_TEXT_TO_POST')
 aliases_yml = os.getenv('INPUT_ALIASES_YML_FILE')
 aliases_csv_file = os.getenv('INPUT_ALIASES_CSV_FILE')
+lang = os.getenv('INPUT_LANG')
+aliases_new_csv_file = os.getenv('INPUT_ALIASES_NEW_CSV_FILE')
 aliases_yml_filtered = os.getenv('INPUT_ALIASESFILTERED_YML_FILE')
 dry_run = os.getenv('INPUT_DRY_RUN', False)
 
@@ -977,5 +981,7 @@ def perform_internal_linking():
 # tokens_array_images, content_images = replace_image_with_tokens(content_titles)
 # tokens_array_links, content_links = replace_link_with_tokens(content_images)
 # link_title4("(kubernetes|start)", content_links, "mydstfile")
+
+generate_short_keywords("aliases.csv", "aliases.csv", src_folder_toscan, lang)
 
 perform_internal_linking()
