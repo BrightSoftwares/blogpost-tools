@@ -22,9 +22,15 @@ on:
       internallinking_aliases_csv_file:
         required: true
         type: string
+      internallinking_aliases_new_csv_file:
+        required: true
+        type: string
       internallinking_dry_run:
         required: true
         type: boolean
+      internallinking_lang:
+        required: true
+        type: string
       markdownlinting_folder_to_lint:
         required: true
         type: string
@@ -81,7 +87,9 @@ jobs:
           anchor_text_to_post: ${{ inputs.internallinking_anchor_text_to_post }}
           aliases_yml_file: ${{ inputs.internallinking_aliases_yml_file }}
           aliases_csv_file: ${{ inputs.internallinking_aliases_csv_file }}
+          aliases_new_csv_file: ${{ inputs.internallinking_aliases_new_csv_file }}
           dry_run: ${{ inputs.internallinking_dry_run }}
+          lang: ${{ inputs.internallinking_lang }}
 
       - name: Markdown linting on EN posts
         uses: BrightSoftwares/blogpost-tools/markdown-linting@main
