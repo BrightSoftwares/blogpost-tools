@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import re
 
-def generate_alias_file(aliases_file, aliases_new_file, lang):
+def generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_folder, lang):
     print("Create language folder if not present")
 
     # aliases_file = os.path.join(internal_linking_root_folder, lang, aliases_file_name)
@@ -89,9 +89,16 @@ def is_stopword(text, nlp):
             return True
     return False
 
-def generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang):
+def generate_short_keywords(aliases_file_name, aliases_new_file_name, folder_to_scan, lang):
 
-    generate_alias_file(aliases_file, aliases_new_file, lang)
+    internal_linking_root_folder = "_seo/internal-linking"
+
+    kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
+
+    aliases_file = os.path.join(internal_linking_root_folder, lang, aliases_file_name)
+    aliases_new_file = os.path.join(internal_linking_root_folder, lang, aliases_new_file_name)
+
+    generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_folder, lang)
 
     nlp = configure_nlp()
 
@@ -157,14 +164,7 @@ if __name__ == "__main__":
 
     aliases_file_name = "aliases.csv"
     aliases_new_file_name = "aliases_new.csv"
-
     lang = "fr"
     folder_to_scan = "_posts/" + lang + "/"
-    internal_linking_root_folder = "_seo/internal-linking"
 
-    kw_to_ignore = ["how", "to", "set", "up", "on", "with", "1604", "create", "a", "new", "for", "8", "manage", "in", "i", "the", "2004", "from", "not", "can", "but", "abb", "2023"]
-
-    aliases_file = os.path.join(internal_linking_root_folder, lang, aliases_file_name)
-    aliases_new_file = os.path.join(internal_linking_root_folder, lang, aliases_new_file_name)
-
-    generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang)
+    generate_short_keywords(aliases_file_name, aliases_new_file_name, folder_to_scan, lang)
