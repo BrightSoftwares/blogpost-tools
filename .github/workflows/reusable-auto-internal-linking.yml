@@ -1,0 +1,107 @@
+name: Reusable Auto Move and Publish Posts
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      internallinking_src_folder_toscan:
+        required: true
+        type: string
+      internallinking_dst_folder_tosaveresults: 
+        required: true
+        type: string
+      internallinking_internal_link_text_file:
+        required: true
+        type: string
+      internallinking_anchor_text_to_post:
+        required: true
+        type: string
+      internallinking_aliases_yml_file:
+        required: true
+        type: string
+      internallinking_aliases_csv_file:
+        required: true
+        type: string
+      internallinking_dry_run:
+        required: true
+        type: boolean
+      markdownlinting_folder_to_lint:
+        required: true
+        type: string
+    #secrets:
+    #  unsplash_access_key:
+    #    required: true
+    #  cloudinary_url:
+    #    required: true
+
+#env:
+#  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+  
+
+      
+
+jobs:
+  check-runner:
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.set-runner.outputs.runner-label }}
+
+    steps:
+      - name: Set runner
+        id: set-runner
+        run: |
+          echo "The repo name is ${{ github.repository }}"
+          echo "The repo org is ${{ github.repository_owner }}"
+          echo "Query runners at repo level"
+          curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runners"
+          
+          echo "Query runners at org level"
+          curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" "https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners"
+          
+          runners=$(curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/actions/runners")
+          available=$(echo "$runners" | jq '.runners[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
+          if [ -n "$available" ]; then
+            echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
+          else
+            echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
+          fi
+  internal_linking:
+    # runs-on: ubuntu-latest
+    #runs-on: self-hosted
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate EN the internal linking opportunities
+        uses: BrightSoftwares/blogpost-tools/internal-linking@main
+        with:
+          src_folder_toscan: ${{ inputs.internallinking_src_folder_toscan }}
+          dst_folder_tosaveresults: ${{ inputs.internallinking_dst_folder_tosaveresults }}
+          internal_link_text_file: ${{ inputs.internallinking_internal_link_text_file }}
+          anchor_text_to_post: ${{ inputs.internallinking_anchor_text_to_post }}
+          aliases_yml_file: ${{ inputs.internallinking_aliases_yml_file }}
+          aliases_csv_file: ${{ inputs.internallinking_aliases_csv_file }}
+          dry_run: ${{ inputs.internallinking_dry_run }}
+
+      - name: Markdown linting on EN posts
+        uses: BrightSoftwares/blogpost-tools/markdown-linting@main
+        continue-on-error: true
+        with:
+          folder_to_lint: ${{ inputs.markdownlinting_folder_to_lint }}
+          
+      - name: (9) Commit changes if there is any
+        run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi
