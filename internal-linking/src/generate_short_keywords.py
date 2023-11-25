@@ -15,7 +15,7 @@ def generate_alias_file(aliases_file, aliases_new_file, internal_linking_root_fo
     print(aliases_new_file)
 
     seo_lang_path = os.path.join(internal_linking_root_folder, lang)
-    if not os.path.exists(seo_lang_path):
+    if not os.path.exists(seo_lang_path) or not os.path.exists(aliases_file) or not os.path.exists(aliases_new_file):
         print("Path {} does not exist, creating ...".format(seo_lang_path))
         os.makedirs(seo_lang_path)
 
