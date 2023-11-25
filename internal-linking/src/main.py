@@ -3,7 +3,7 @@ import numpy as np
 import os, re, sys
 import frontmatter
 import yaml
-from generate_short_keywords import generate_short_keywords
+from generate_short_keywords import generate_short_keywords, generate_anchor_text_to_post_file, generate_internallinking_per_silot_terms_file, generate_silot_terms_file
 
 # charList = " " + string.ascii_lowercase + string.digits
 
@@ -982,5 +982,8 @@ def perform_internal_linking():
 # link_title4("(kubernetes|start)", content_links, "mydstfile")
 
 generate_short_keywords("aliases.csv", "aliases.csv", src_folder_toscan, lang)
+# generate_silot_terms_file(silot_terms_file)
+generate_internallinking_per_silot_terms_file(internal_link_text_file)
+generate_anchor_text_to_post_file(anchor_text_to_post)
 
 perform_internal_linking()
