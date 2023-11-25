@@ -34,20 +34,20 @@ on:
       markdownlinting_folder_to_lint:
         required: true
         type: string
-      github_repo_owner:
-        required: true
-        type: string
-      github_repository:
-        required: true
-        type: string
-    secrets:
-      check_runner_token:
-        required: true
+      #github_repo_owner:
+      #  required: true
+      #  type: string
+      #github_repository:
+      #  required: true
+      #  type: string
+    #secrets:
+    #  check_runner_token:
+    #    required: true
 
-env:
-  CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-  GITHUB_REPOSITORY: ${{ github.repository }}
+#env:
+#  CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
+#  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+# GITHUB_REPOSITORY: ${{ github.repository }}
   
 
       
