@@ -15,8 +15,14 @@ inputs:
     description: The full path to the aliases.yml file. This is not used for the moment.
   aliases_csv_file:
     description: The full path to the aliases.csv file that contains the mapping between the anchor text and the dst file
+  aliases_new_csv_file:
+    description: The filename to store the generated aliases into
+    default: aliases_new.csv
   aliasesfiltered_yml_file:
     description: Optional. Not used at the moment.
+  lang:
+    description: the language to process
+    default: en
   dry_run:
     description: If true, the auto linked files won't be saved.
     default: false
