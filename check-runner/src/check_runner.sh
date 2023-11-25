@@ -17,6 +17,7 @@ fi
 
 echo "The repo name is $GITHUB_REPOSITORY"
 echo "The repo org is $GITHUB_REPO_OWNER"
+echo "The token is $CHECK_RUNNER_TOKEN"
 
 echo "Query runners at repo level"
 curl -s -H "Accept: application/vnd.github+json" -H "Authorization: token $CHECK_RUNNER_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runners"
