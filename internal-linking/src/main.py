@@ -4,7 +4,6 @@ import os, re, sys
 import frontmatter
 import yaml
 from generate_short_keywords import generate_short_keywords
-generate_short_keywords(aliases_file, aliases_new_file, folder_to_scan, lang)
 
 # charList = " " + string.ascii_lowercase + string.digits
 
