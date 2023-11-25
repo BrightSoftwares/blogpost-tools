@@ -39,8 +39,12 @@ else
   available=$(echo "$runners" | jq 'select(.runners != null) | .runners[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
   
   if [ -n "$available" ]; then
+    echo "Found $available runners. Available value = $available"
+    echo "Choosing self hosted"
     echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
   else
+    echo "No runners found. available value = $available"
+    echo "Choosing ubuntu latest"
     echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
   fi
 fi
