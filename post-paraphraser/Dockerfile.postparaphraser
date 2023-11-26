@@ -53,5 +53,7 @@ COPY . .
 
 #RUN echo "Trigger the download of the models"
 #RUN python src/trigger_aimodel_download.py
+#RUN python -c "from parrot import Parrot;parrot = Parrot(model_tag='prithivida/parrot_paraphraser_on_T5', use_gpu=False);parrot.rephrase(input_phrase='paris is a great city but the parisians are not kind', do_diverse = False, adequacy_threshold = 0.79, fluency_threshold = 0.70, use_gpu=False)"
+#RUN python -c "from rpunct import RestorePuncts; rpunct = RestorePuncts(use_cuda=False); nltk.download('punkt'); rpunct.punctuate('the limits are low their videos must get higher', lang='en')"
 
 CMD [ "python", "/src/main.py" ]

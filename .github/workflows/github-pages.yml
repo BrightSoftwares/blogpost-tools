@@ -1,0 +1,62 @@
+name: Build and deploy Jekyll site to GitHub Pages
+
+on:
+  push:
+    branches:
+        - master
+  schedule:
+    - cron: "0 7 * * *"
+
+jobs:
+  jekyll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: en-transcribe-yt-videos
+        uses: ./.github/actions/transcript-downloader
+        with:
+          drafts_path: /github/workspace/en/_drafts/
+          
+      - name: fr-transcribe-yt-videos
+        uses: ./.github/actions/transcript-downloader
+        with:
+          drafts_path: /github/workspace/fr/_drafts/
+      
+
+      #- uses: actions/checkout@v3
+      #- name: Commit the changes
+      - run: |
+          date > generated.txt
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "generated and changed files"
+          git push
+
+
+
+
+        # Use GitHub Actions cache to shorten build times and decrease load on servers
+      - uses: actions/cache@v2
+        with:
+            path: vendor/bundle
+            key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile') }}
+            restore-keys: |
+              ${{ runner.os }}-gems
+          
+      - uses: helaili/jekyll-action@v2
+        with:
+            token: ${{ secrets.GITHB_TOKEN }}
+            pre_build_commands: apk --update add ruby-dev imagemagick imagemagick-dev
+            #build_only: true
+            #jekyll_build_options: -d _site
+            
+      - name: Check HTML
+        uses: athackst/htmlproofer-action@main
+        #uses: chabad360/htmlproofer@master
+        #with:
+        #  directory: "/github/jekyll_build"
+        #  arguments: --assume-extension .html
+            
+        continue-on-error: true
