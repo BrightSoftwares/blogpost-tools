@@ -2,11 +2,6 @@ name: Reusable Auto Move and Publish Posts
 
 on:
   workflow_dispatch:
-    inputs:
-      force_run_on_github:
-        type: boolean
-        default: false
-        description: Force workflow to run on GitHub Infra?
   workflow_call:
     inputs:
       transcriptdownloader_srcpath:
