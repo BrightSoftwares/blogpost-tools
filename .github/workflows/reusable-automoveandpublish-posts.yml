@@ -109,6 +109,11 @@ on:
       manualpublication_dryrun:
         required: true
         type: boolean
+      forced_to_run_on_github:
+        required: false
+        type: boolean
+        default: false
+        
     secrets:
       unsplash_access_key:
         required: true
@@ -133,12 +138,12 @@ jobs:
       - name: Set runner
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
-        if: ${{ github.event.inputs.force_run_on_github == 'false' }}
+        # if: ${{ github.event.inputs.force_run_on_github == 'false' }}
         env:
           CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
           GITHUB_REPO_OWNER: ${{ github.repository_owner }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          FORCE_RUNS_ON_UBUNTU: ${{ github.event.inputs.force_run_on_github }}
+          FORCE_RUNS_ON_UBUNTU: ${{ inputs.forced_to_run_on_github }}
           
   #check-runner:
   #  runs-on: ubuntu-latest
