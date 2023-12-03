@@ -166,7 +166,8 @@ jobs:
     # runs-on: ubuntu-latest
     #runs-on: self-hosted
     needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    #runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       ## (1) Find blog post ideas
