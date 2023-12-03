@@ -374,7 +374,7 @@ def write_manually_generated_posts(channel):
         prompt = remote_prompt if useexternal_prompt == "true" else generate_post_prompt(post_title, post_brands, post_internal_urls, post_references, post_keywords)
 
         print("Save the post only if the result os not none")
-        if post_content is not None:
+        if post_content is not None and post_content != "":
           save_post(post_title, post_silot_terms, post_content, dst_generated_posts)
           mark_post_as_completed(channel, post_id)
         else:
