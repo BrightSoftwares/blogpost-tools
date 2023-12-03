@@ -8,7 +8,7 @@ echo "With the echo $0 technique"
 echo $0
 
 echo "If user forced to run on github infra, return ubuntu and exit"
-if [[ $FORCE_RUNS_ON_UBUNTU -eq 'true' ]]; then
+if [[ $FORCE_RUNS_ON_UBUNTU == 'true' ]]; then
   echo "User forced to run on github infra. Returning ubuntu latest. FORCE_RUNS_ON_UBUNTU = $FORCE_RUNS_ON_UBUNTU"
   echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
   echo "Exiting..."
