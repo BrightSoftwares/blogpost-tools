@@ -111,7 +111,7 @@ on:
         type: boolean
       forced_to_run_on_github:
         required: false
-        type: boolean
+        type: string
         default: false
         
     secrets:
