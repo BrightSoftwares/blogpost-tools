@@ -13,6 +13,8 @@ if [[ $FORCE_RUNS_ON_UBUNTU -eq 'true' ]]; then
   echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
   echo "Exiting..."
   exit
+else
+  echo "Not forced to run on github infra. We continue. FORCE_RUNS_ON_UBUNTU = $FORCE_RUNS_ON_UBUNTU"
 fi
 
 echo "User provided repo name is $GITHUB_REPOSITORY"
