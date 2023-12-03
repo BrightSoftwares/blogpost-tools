@@ -138,6 +138,7 @@ jobs:
       - name: Set runner
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
+        if: ${{ github.event.inputs.force_run_on_github == 'false' }}
         env:
           CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
           GITHUB_REPO_OWNER: ${{ github.repository_owner }}
@@ -172,7 +173,8 @@ jobs:
     #runs-on: self-hosted
     needs: check-runner
     #runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    runs-on: ubuntu-latest
+    #runs-on: ubuntu-latest
+    runs-on: ${{ (github.event.inputs.force_run_on_github == 'true' && 'ubuntu-latest') || needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v2
       ## (1) Find blog post ideas
