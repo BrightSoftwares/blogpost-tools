@@ -1,0 +1,21 @@
+name: Build and publish the rss to blogpost image
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "news-to-blogpost/**"
+
+      
+jobs:
+  build-and-publish-keyword-suggestion:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: rss-to-blogpost
+      tag: latest
+      subfolder_name: news-to-blogpost
+      dockerfile_name: Dockerfile.rsstoblogpost
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
