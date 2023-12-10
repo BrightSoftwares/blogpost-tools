@@ -312,8 +312,9 @@ def upload_text_to_rephrase(channel):
                      json_api_url +=  "&spreadsheetid=" + spreadsheet_id 
 
                   encoded_post_content = base64.b64encode(bytes(post.content, 'utf-8'))
+                  headers = { 'Content-Type': 'text/plain' }
                   payload = { "text_to_rephrase" : encoded_post_content }
-                  r = requests.post(json_api_url, data=payload)
+                  r = requests.post(json_api_url, headers=headers, data=payload)
                   print("exec result =" + r.text)
     
                   ## Mark file as upload for rephrasing
