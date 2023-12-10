@@ -313,8 +313,8 @@ def upload_text_to_rephrase(channel):
 
                   encoded_post_content = base64.b64encode(bytes(post.content, 'utf-8'))
                   headers = { 'Content-Type': 'text/plain' }
-                  payload = { "text_to_rephrase" : encoded_post_content }
-                  payload_str = json.dumps(payload)
+                  #payload = { "text_to_rephrase" : encoded_post_content }
+                  payload_str = "{\"text_to_rephrase\" : %s}" % (encoded_post_content) # json.dumps(payload)
 
                   print("Requesting url = ", json_api_url)
                   print("with headers = ", headers)
