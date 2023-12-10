@@ -318,7 +318,7 @@ def upload_text_to_rephrase(channel):
 
                   print("Requesting url = ", json_api_url)
                   print("with headers = ", headers)
-                  print("with data (payload) = ", payload)
+                  #print("with data (payload) = ", payload_str)
                   
                   #r = requests.post(json_api_url, headers=headers, data=payload)
                   r = requests.request("POST", json_api_url, headers=headers, data=payload_str)
