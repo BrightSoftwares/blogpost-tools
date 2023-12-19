@@ -1,0 +1,46 @@
+{
+    "default": true,
+    "MD040": false,
+    "MD013": false,
+    "MD014": false,
+    "MD034": false,
+    "MD047": false,
+    "MD003": { "style": "atx" },
+    "MD007": { "indent": 4 },
+    "no-hard-tabs": false,
+    "whitespace": false,
+    "customRules": [
+      "markdownlint-rule-github-internal-links",
+      "markdownlint-rule-search-replace"
+    ],
+    "search-replace": {
+      "rules": [
+        {
+          "name": "ellipsis",
+          "message": "Do not use three dots '...' for ellipsis.",
+          "information": "https://example.com/rules/ellipsis",
+          "search": "...",
+          "replace": "…",
+          "searchScope": "text"
+        },
+        {
+          "name": "curly-double-quotes",
+          "message": "Do not use curly double quotes.",
+          "searchPattern": "/“|”/g",
+          "replace": "\""
+        },
+        {
+          "name": "test",
+          "message": "bla bla bla",
+          "searchPattern": "^/\\.\\.\\.(.*)\\.\\.\\.$/mg",
+          "replace": "-- $1 --"
+        },
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "/\\#\\#@@[0-9]+@@\\#\\#/mg"
+          //"replace": "-- $1 --"
+        }
+      ]
+    }
+  }
