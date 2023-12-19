@@ -889,10 +889,13 @@ def autolink(folder_to_scan, audited_df, aliases_df):
   #print("Page aliases = ", list_page_aliases)
   
   # Process only the src -> dst that are not linked yet
+  print("Here is the list of audited links")
+  print(audited_df)
+  print(audited_df.to_string())
   audited_notlinked_df = audited_df.loc[ audited_df['link_exist'] == False ]
 
   print("Here is the dataframe with the not linked pages in the same silot term")
-  audited_notlinked_df.set_option('display.max_colwidth', None)
+  #audited_notlinked_df.set_option('display.max_colwidth', None)
   print(audited_notlinked_df)
   print(audited_notlinked_df.to_string())
 
