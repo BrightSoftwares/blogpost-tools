@@ -1,9 +1,12 @@
 FROM node:18
 
-RUN npm install -g markdownlint-cli markdownlint-rule-search-replace markdownlint-rule-helpers
-
 RUN mkdir /app/
 WORKDIR /app/
+
+RUN npm install -g markdownlint-cli 
+RUN npm install markdownlint-rule-search-replace
+RUN npm install markdownlint-rule-helpers
+
 
 COPY . .
 
