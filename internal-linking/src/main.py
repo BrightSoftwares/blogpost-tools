@@ -76,7 +76,8 @@ def extract_inline_codeblocks(data_str):
 
 def extract_wikilinks(data_str):
   print("Extract wikilinks")
-  return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
+  #return extract_data_with_regex(data_str, "\[\[(.+?)(\|.+)?\]\]")
+  return extract_data_with_regex(data_str, "\[\[(.*?)(\|(.*?))?\]\]")
 
 def replace_codeblock_with_tokens(content):
   print(">>> Replacing codeblocks")
