@@ -7,4 +7,4 @@ WORKDIR /app/
 
 COPY . .
 
-CMD ["/bin/bash", "/lint_my_posts.sh"]
+CMD ["/bin/bash", "/app/lint_my_posts.sh"]
