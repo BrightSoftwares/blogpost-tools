@@ -181,7 +181,7 @@ def generate_short_keywords(aliases_file_name, aliases_new_file_name, folder_to_
         kw_array = dstfile_nodate.split("-")
         for kw in kw_array:
             if len(kw) > 2 and not is_stopword(kw, nlp): #kw not in kw_to_ignore:
-                print(kw)
+                # print(kw)
                 df.loc[len(df)] = [dstfile, kw]
 
     print("Dropping duplicates")
