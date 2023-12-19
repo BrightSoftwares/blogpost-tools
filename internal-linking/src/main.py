@@ -891,6 +891,10 @@ def autolink(folder_to_scan, audited_df, aliases_df):
   # Process only the src -> dst that are not linked yet
   audited_notlinked_df = audited_df.loc[ audited_df['link_exist'] == False ]
 
+  print("Here is the dataframe with the not linked pages in the same silot term")
+  display(audited_notlinked_df)
+  display(audited_notlinked_df.to_string())
+
   for current_item_index, current_item in audited_notlinked_df.iterrows():
   # for current_item_index, current_item in audited_notlinked_df.head(2).iterrows():
     has_linked = False
