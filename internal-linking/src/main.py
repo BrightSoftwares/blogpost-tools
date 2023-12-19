@@ -328,7 +328,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
             print("       No link between the two files and no previously detected that we need to create one")
             _, post_link, full_link_and_text = generate_full_link_and_text(other_post.title, other_post.path, anchor_df, link_text_df)
           else:
-            print("       Either a link has been found ({}) for we detected previously that we need to create that link ({})".format(has_link_to_dst_post, current_il_requirements.empty))
+            print("       Either a link has been found ({}) or we already planed to create it ({})".format(has_link_to_dst_post, not current_il_requirements.empty))
 
           il_requirements.loc[len(il_requirements)] = [silot_terms, current_post.path, other_post.path, cornerstone, has_link_to_dst_post, link_text, full_link, full_link_and_text]
 
