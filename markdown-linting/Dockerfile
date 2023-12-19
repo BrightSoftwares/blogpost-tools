@@ -7,4 +7,6 @@ WORKDIR /app/
 
 COPY . .
 
+RUN ls -lRa /app/
+
 CMD ["/bin/bash", "/app/lint_my_posts.sh"]
