@@ -265,6 +265,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
   for term in st_df.silot_terms.unique():
     print("Generate requirements for term '{}'".format(term))
     related_posts_df = st_df[st_df.silot_terms == term]
+    print("Related destination files ", related_posts_df["dst_file"])
 
     print("Checking the linking for term '{}' with df '{}'".format(term, related_posts_df))
     for current_post_index, current_post in related_posts_df.iterrows():
