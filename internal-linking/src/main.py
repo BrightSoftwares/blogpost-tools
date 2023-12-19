@@ -301,9 +301,9 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
           for post_wklinks_key in post_wklinks.keys():
             post_wklinks_value = post_wklinks[post_wklinks_key]
 
-            print("Is this post {} already linked to {} in this wikilink {} ? ".format(current_post.path, other_post.path, post_wklinks_value))
+            print("Is this post {} already linked to {} in this wikilink {} ? Test = {} in {} ?".format(current_post.path, other_post.path, post_wklinks_value, post_wklinks_value, other_post.path))
 
-            if other_post.path in post_wklinks_value:
+            if post_wklinks_value in other_post.path:
               print("     We found a link from {} to {}. Post key = {} and value is {}".format(current_post.path, other_post.path, post_wklinks_key, post_wklinks_value))
               has_link_to_dst_post = True
               link_text = post_wklinks["{}_2".format(post_wklinks_key.split("_")[0])] # 1_2
