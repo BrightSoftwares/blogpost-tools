@@ -9,5 +9,5 @@ echo "Linting folder $INPUT_FOLDER_TO_LINT"
 echo "Output file for the linting results $OUTPUT_FILE"
 
 # markdownlint en/_posts/*.md -c .markdownlint.jsonc -r no_rendered_comments.js -r markdownlint-rule-search-replace
-markdownlint $INPUT_FOLDER_TO_LINT -c /app/.markdownlint.jsonc -r /app/no_rendered_comments.js -o $OUTPUT_FILE
+markdownlint $INPUT_FOLDER_TO_LINT -c /app/.markdownlint.jsonc -r /app/no_rendered_comments.js -r /app/too_few_images_per_heading.js -o $OUTPUT_FILE
 # markdownlint $INPUT_FOLDER_TO_LINT
