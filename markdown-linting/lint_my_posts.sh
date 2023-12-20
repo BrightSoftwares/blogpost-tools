@@ -4,7 +4,7 @@ DST_FOLDER=/github/workspace/_seo/markdown-linting
 OUTPUT_FILE=$DST_FOLDER/linting_results.txt
 
 echo "Create destimation folder $DST_FOLDER if not exist"
-
+mkdir -p $DST_FOLDER
 echo "Linting folder $INPUT_FOLDER_TO_LINT"
 echo "Output file for the linting results $OUTPUT_FILE"
 
