@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DST_FOLDER=/github/workspace/_seo/markdown-linting/
+DST_FOLDER=/github/workspace/_seo/markdown-linting
 OUTPUT_FILE=$DST_FOLDER/linting_results.txt
 
 echo "Create destimation folder $DST_FOLDER if not exist"
