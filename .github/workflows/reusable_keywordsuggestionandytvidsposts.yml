@@ -136,7 +136,8 @@ jobs:
       
   jekyll:
     # runs-on: ubuntu-latest
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: ${{ steps.set-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v2
       
