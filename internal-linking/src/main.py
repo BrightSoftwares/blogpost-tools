@@ -342,11 +342,11 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
             except ValueError as e3:
               print("An error 3 occured for this other post", other_post.path)
               print("Error 3 = ", e3)
-        except Exception as e2:
+        except ValueError as e2:
           print("An error occured while processing the file", current_post.path)
           print("Error 2 = ", e2)
           
-    except Exception as e1:
+    except ValueError as e1:
       print("Error while processing the term ", term)
       print("Error = ", e1)
     
