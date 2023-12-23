@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "markdownlint-cli": "^0.38.0",
+    "markdownlint-rule-helpers": "^0.23.0",
+    "markdownlint-rule-search-replace": "^1.2.0"
+  }
+}
