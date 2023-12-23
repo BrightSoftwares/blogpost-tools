@@ -339,7 +339,7 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
                   print("       Either a link has been found ({}) or we already planed to create it ({})".format(has_link_to_dst_post, not current_il_requirements.empty))
       
                 il_requirements.loc[len(il_requirements)] = [silot_terms, current_post.path, other_post.path, cornerstone, has_link_to_dst_post, link_text, full_link, full_link_and_text]
-            except Exception as e3:
+            except ValueError as e3:
               print("An error 3 occured for this other post", other_post.path)
               print("Error 3 = ", e3)
         except Exception as e2:
