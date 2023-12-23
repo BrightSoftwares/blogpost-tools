@@ -71,6 +71,11 @@ After receiving the code server certificate from the CA, you need to install it 
 
 ![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
 
+
+![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)
+
+![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
+
 Continue writing please
 
 ## Best Practices for Code Server Certificates
