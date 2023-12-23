@@ -1,2 +1,2 @@
 **/.venv/
-test_md_files/**/*.md
+node_modules/
