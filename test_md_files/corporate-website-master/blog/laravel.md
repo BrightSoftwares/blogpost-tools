@@ -69,12 +69,12 @@ Once you have generated a CSR, you need to submit it to the CA. The CA will then
 
 After receiving the code server certificate from the CA, you need to install it on your server. The installation process may vary depending on your server and hosting provider
 
-![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
+{% include affiliation/dynamic_350x300.html alttext="" %}{% include affiliation/dynamic_350x300.html alttext="Full Bright" %}
 
 
-![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)
+{% include affiliation/dynamic_350x300.html alttext="" %}
 
-![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
+{% include affiliation/dynamic_350x300.html alttext="Full Bright" %}
 
 Continue writing please
 
