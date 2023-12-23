@@ -265,76 +265,91 @@ def generate_internal_linking_requirements(silot_terms_df, folder_to_scan, dst_f
 
   for term in st_df.silot_terms.unique():
     print("Generate requirements for term '{}'".format(term))
-    related_posts_df = st_df[st_df.silot_terms == term]
-    print("Related destination files ", related_posts_df["path"].to_string())
+    try:
+      related_posts_df = st_df[st_df.silot_terms == term]
+      print("Related destination files ", related_posts_df["path"].to_string())
+  
+      print("Checking the linking for term '{}' with df '{}'".format(term, related_posts_df))
+      for current_post_index, current_post in related_posts_df.iterrows():
+        print("  Load the post {} ({}) and check if there is a link to the others".format(current_post.title, current_post.path))
 
-    print("Checking the linking for term '{}' with df '{}'".format(term, related_posts_df))
-    for current_post_index, current_post in related_posts_df.iterrows():
-      print("  Load the post {} ({}) and check if there is a link to the others".format(current_post.title, current_post.path))
-      post = frontmatter.load(folder_to_scan + "/" + current_post.path)
-      silot_terms = post['silot_terms'] if 'silot_terms' in post else "unknown"
-      cornerstone = post['cornerstone'] if 'cornerstone' in post else "no"
+        try:
+          post = frontmatter.load(folder_to_scan + "/" + current_post.path)
+          silot_terms = post['silot_terms'] if 'silot_terms' in post else "unknown"
+          cornerstone = post['cornerstone'] if 'cornerstone' in post else "no"
+    
+          print("  Extract the wikilinks in this post")
+          post_wklinks = extract_wikilinks(post.content)
+          print("  Found links: ", post_wklinks)
+    
+          # If the post is cornerstone, we only need to check that 
+          # there is 1 link to the rest of the post in the same silot term
+          # Else, we need to check that every post has a link to the others
+          # in the same silot term
+          # TODO - Compute the number of links from cornerstone links to the other posts
+          # to make sure that the cornerstone post has only one link
+    
+          print("  Checking whether this post has link to all the other posts")
+          # Now we check if the current value matches the path of other posts in the same silot term
+          for other_post_index, other_post in related_posts_df.iterrows():
 
-      print("  Extract the wikilinks in this post")
-      post_wklinks = extract_wikilinks(post.content)
-      print("  Found links: ", post_wklinks)
-
-      # If the post is cornerstone, we only need to check that 
-      # there is 1 link to the rest of the post in the same silot term
-      # Else, we need to check that every post has a link to the others
-      # in the same silot term
-      # TODO - Compute the number of links from cornerstone links to the other posts
-      # to make sure that the cornerstone post has only one link
-
-      print("  Checking whether this post has link to all the other posts")
-      # Now we check if the current value matches the path of other posts in the same silot term
-      for other_post_index, other_post in related_posts_df.iterrows():
-
-        # We avoid comparing the src post with itself
-        if current_post.path == other_post.path:
-          print("Not comparing a post with itself = {} <--> {}".format(current_post.path, other_post.path))
-        else:
-          has_link_to_dst_post = False
-          link_text = ""
-          full_link_and_text = ""
-          full_link = "[[{}|{}]]".format(other_post.path, other_post.title)
-
-          # print("    Check if the src post {} has links to {} in the wikilink list {}".format(current_post.path, other_post.path, post_wklinks))
-          for post_wklinks_key in post_wklinks.keys():
-            post_wklinks_value = post_wklinks[post_wklinks_key]
-
-            current_other_post_path = other_post.path[:-3] if other_post.path.endswith(".md") else other_post.path
-
-            print("Is this post {} already linked to {} in this wikilink {} ? Test = {} in {} ?".format(current_post.path, other_post.path, post_wklinks_value, current_other_post_path, post_wklinks_value))
-
-            if current_other_post_path in post_wklinks_value:
-              print("     We found a link from {} to {}. Post key = {} and value is {}".format(current_post.path, other_post.path, post_wklinks_key, post_wklinks_value))
-              has_link_to_dst_post = True
-              link_text = post_wklinks["{}_2".format(post_wklinks_key.split("_")[0])] # 1_2
-              link_text = link_text[1:] if link_text.startswith('|') else link_text
-              # full_link = "[[{}|{}]]".format(post_wklinks_value ,link_text)
-            else:
-              print("     No correspondance found in the link.")
-              
-          print("Checking if we need to generate another full link and text")
+            try:
+    
+              # We avoid comparing the src post with itself
+              if current_post.path == other_post.path:
+                print("Not comparing a post with itself = {} <--> {}".format(current_post.path, other_post.path))
+              else:
+                has_link_to_dst_post = False
+                link_text = ""
+                full_link_and_text = ""
+                full_link = "[[{}|{}]]".format(other_post.path, other_post.title)
+      
+                # print("    Check if the src post {} has links to {} in the wikilink list {}".format(current_post.path, other_post.path, post_wklinks))
+                for post_wklinks_key in post_wklinks.keys():
+                  post_wklinks_value = post_wklinks[post_wklinks_key]
+      
+                  current_other_post_path = other_post.path[:-3] if other_post.path.endswith(".md") else other_post.path
+      
+                  print("Is this post {} already linked to {} in this wikilink {} ? Test = {} in {} ?".format(current_post.path, other_post.path, post_wklinks_value, current_other_post_path, post_wklinks_value))
+      
+                  if current_other_post_path in post_wklinks_value:
+                    print("     We found a link from {} to {}. Post key = {} and value is {}".format(current_post.path, other_post.path, post_wklinks_key, post_wklinks_value))
+                    has_link_to_dst_post = True
+                    link_text = post_wklinks["{}_2".format(post_wklinks_key.split("_")[0])] # 1_2
+                    link_text = link_text[1:] if link_text.startswith('|') else link_text
+                    # full_link = "[[{}|{}]]".format(post_wklinks_value ,link_text)
+                  else:
+                    print("     No correspondance found in the link.")
+                    
+                print("Checking if we need to generate another full link and text")
+                
+                # il_requirements = internal linking requirements : used to gather the links that are missing and must be created.
+                # current_il_requirements = the links from the src file to the dest file in the silot term
+                # Used to check if previously we have detected that there must be a link between the src and dest file.
+                
+                current_il_requirements = il_requirements.loc[(il_requirements['src_file'] == current_post.path) & (il_requirements['dst_file'] == other_post.path) & (il_requirements['silot_terms'] == silot_terms)]
+                print("Current internal linking requirements for dst_file (did we detected previously that a link must be created?) ", current_il_requirements)
+                
+                # If there is no existing link between src file and dest file AND we did not record that we need to create a link between these two.
+                # The current_il_requirements.empty makes sure that we don't create this requirements twice.
+                if not has_link_to_dst_post and current_il_requirements.empty:
+                  print("       No link between the two files and no previously detected that we need to create one")
+                  _, post_link, full_link_and_text = generate_full_link_and_text(other_post.title, other_post.path, anchor_df, link_text_df)
+                else:
+                  print("       Either a link has been found ({}) or we already planed to create it ({})".format(has_link_to_dst_post, not current_il_requirements.empty))
+      
+                il_requirements.loc[len(il_requirements)] = [silot_terms, current_post.path, other_post.path, cornerstone, has_link_to_dst_post, link_text, full_link, full_link_and_text]
+            except Exception as e3:
+              print("An error 3 occured for this other post", other_post.path)
+              print("Error 3 = ", e3)
+        except Exception as e2:
+          print("An error occured while processing the file", current_post.path)
+          print("Error 2 = ", e2)
           
-          # il_requirements = internal linking requirements : used to gather the links that are missing and must be created.
-          # current_il_requirements = the links from the src file to the dest file in the silot term
-          # Used to check if previously we have detected that there must be a link between the src and dest file.
-          
-          current_il_requirements = il_requirements.loc[(il_requirements['src_file'] == current_post.path) & (il_requirements['dst_file'] == other_post.path) & (il_requirements['silot_terms'] == silot_terms)]
-          print("Current internal linking requirements for dst_file (did we detected previously that a link must be created?) ", current_il_requirements)
-          
-          # If there is no existing link between src file and dest file AND we did not record that we need to create a link between these two.
-          # The current_il_requirements.empty makes sure that we don't create this requirements twice.
-          if not has_link_to_dst_post and current_il_requirements.empty:
-            print("       No link between the two files and no previously detected that we need to create one")
-            _, post_link, full_link_and_text = generate_full_link_and_text(other_post.title, other_post.path, anchor_df, link_text_df)
-          else:
-            print("       Either a link has been found ({}) or we already planed to create it ({})".format(has_link_to_dst_post, not current_il_requirements.empty))
-
-          il_requirements.loc[len(il_requirements)] = [silot_terms, current_post.path, other_post.path, cornerstone, has_link_to_dst_post, link_text, full_link, full_link_and_text]
-
+    except Exception as e1:
+      print("Error while processing the term ", term)
+      print("Error = ", e1)
+    
   # print("Sort the df before saving it")
   # il_requirements = il_requirements.sort_values(['silot_terms', 'link_exist'], ascending = [False, True])
   # print("Saving the analysis result")
