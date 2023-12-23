@@ -39,22 +39,21 @@
           "name": "replacement-tokens",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
           "searchPattern": "/\\#\\#@@[0-9]+@@\\#\\#/mg"
-          //"replace": "-- $1 --"
         },
         {
-          "name": "Placeholder 1",
+          "name": "image-placeholder-replacement-1",
           "message": "placeholder 1",
           "searchPattern": "![(Argo CD Rollback Process)](https://via.placeholder.com/600x400.png?text=Argo+CD+Rollback+Process+Image)",
           "replace": "{%-- $1 --%}"
         },
         {
-          "name": "placeholder2",
+          "name": "image-placeholder-replacement-2",
           "message": "Placeholder 2",
           "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
           "replace": "-- $1 --"
         },
         {
-          "name": "test",
+          "name": "image-placeholder-replacement-3",
           "message": "bla bla bla",
           "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
           "replace": "-- $1 --"
@@ -66,26 +65,71 @@
           "replace": "-- $1 --"
         },
         {
+          "name": "image-placeholder-replacement-4",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "<!-- Placeholder for Image: Insert relevant image showcasing the features of the Amazon Titan Image Generator -->",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
           "name": "replacement-tokens",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
-          "searchPattern": "<!-- Placeholder for Image: Insert relevant image showcasing the features of the Amazon Titan Image Generator -->"
-          //"replace": "-- $1 --"
+          "searchPattern": "[best pens for Microsoft Surface devices](placeholder-link)",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "image-placeholder-replacement-5",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Image placeholders here*",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Call-to-action placeholders here*",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "image-placeholder-replacement-6",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Image placeholders here*",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Call-to-action placeholders here*",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*through **call-to-action placeholders** and **image placeholders**.",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "through **call-to-action placeholders** and **image placeholders**.",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "image-placeholder-replacement-7",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "![Placeholder Image for Developer Portals](image-url)",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "image-placeholder-replacement-8",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*(Image placeholders and Call-to-action placeholders",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
+        },
+        {
+          "name": "image-placeholder-replacement-9",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*(Image placeholders and Call-to-action placeholders ",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=$1 %}"
         }
-        [best pens for Microsoft Surface devices](placeholder-link)
-        *Image placeholders here*
-
-*Call-to-action placeholders here*
-*Image placeholders here*
-
-*Call-to-action placeholders here*
-through **call-to-action placeholders** and **image placeholders**.
-through **call-to-action placeholders** and **image placeholders**.
-
-![Placeholder Image for Developer Portals](image-url)
-
-*(Image placeholders and Call-to-action placeholders
-
-*(Image placeholders and Call-to-action placeholders 
       ]
     }
   }
