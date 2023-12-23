@@ -78,6 +78,11 @@ After receiving the code server certificate from the CA, you need to install it 
 
 Continue writing please
 
+*Call-to-action placeholders here*
+
+
+*Call-to-action placeholders here*
+
 ## Best Practices for Code Server Certificates
 
 To ensure that your code server certificate is effective, you should follow these best practices:
@@ -117,3 +122,7 @@ Code server certificates are an essential component of web security. They provid
 4.  What is the difference between HTTP and HTTPS? HTTP (Hypertext Transfer Protocol) is a protocol used to transfer data between a client and a server. HTTPS (Hypertext Transfer Protocol Secure) is a secure version of HTTP that uses SSL/TLS to encrypt all communication between a client and a server.
     
 5.  What is a Certificate Authority (CA)? A Certificate Authority (CA) is a trusted third-party organization that issues code server certificates. CAs verify the identity of the website owner and ensure that the certificate is valid and trusted.
+
+
+*Call-to-action placeholders here*
+
