@@ -31,7 +31,7 @@
     ],
     "search-replace": {
       "rules": [
-        {
+        /*{
           "name": "ellipsis",
           "message": "Do not use three dots '...' for ellipsis.",
           "information": "https://example.com/rules/ellipsis",
@@ -44,7 +44,7 @@
           "message": "Do not use curly double quotes.",
           "searchPattern": "/“|”/g",
           "replace": "\""
-        },
+        },*/
         {
           "name": "test",
           "message": "bla bla bla",
@@ -57,24 +57,24 @@
           "searchPattern": "/\\#\\#@@[0-9]+@@\\#\\#/mg"
         },
         {
+          "name": "image-placeholder-replacement-1",
+          "message": "Do not leave the continue please copy paste in the post",
+          "searchPattern": "/!\\[\\](.|\n)*\\(data:image(.|\n)*Continue(.*)$/mgi",
+          "replace": ""
+        },
+        /*{
           "name": "do-not-leave-chagpt-instructions-in-final-post",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
           "searchPattern": "/Continue writing .*$/mg"
-        },
+        },*/
         {
-          "name": "image-placeholder-replacement-1-2-3",
+          "name": "image-placeholder-replacement-2-3",
           "message": "placeholder 1",
           //"searchPattern": "/![(Argo CD Rollback Process)](https://via.placeholder.com/600x400.png?text=Argo+CD+Rollback+Process+Image)/mg",
           "searchPattern": "/!\\[(.*?)\\]\\((.*?)\\)/mg",
           "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
         },
         /*{
-          "name": "image-placeholder-replacement-2-and-3",
-          "message": "Placeholder 2",
-          "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
-          "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
-        },
-        {
           "name": "image-placeholder-replacement-3",
           "message": "bla bla bla",
           "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
@@ -120,26 +120,20 @@
           "name": "calltoaction-placeholder-replacement-1-2",
           "message": "bla bla bla",
           //"searchPattern": "[here](placeholder-call-to-action)",
-          "searchPattern": "[^!]\\[(.*?)\\]\\((.*?)\\)",
+          "searchPattern": "/[^!]\\[(.*?)\\]\\((.*?)\\)/mg",
           "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
         },
-        /*{
-          "name": "calltoaction-placeholder-replacement-2",
-          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
-          "searchPattern": "[best pens for Microsoft Surface devices](placeholder-link)",
-          "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
-        },*/
         {
           "name": "calltoaction-placeholder-replacement-3",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
           //"searchPattern": "*Call-to-action placeholders here*",
-          "searchPattern": "\\*Call-to-action placeholders here\\*",
-          "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
+          "searchPattern": "/\\*[\\*]?([Cc]all-to-action|image) placeholders( here)?\\*[\\*]?/mg",
+          "replace": "{% include affiliation/dynamic_350x300.html alttext=\"\" %}"
         },
         {
           "name": "calltoaction-placeholder-replacement-4",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
-          "searchPattern": "*Call-to-action placeholders here*",
+          "searchPattern": "/\\*\\*image placeholders\\*\\*/mg",
           "replace": "{% include affiliation/dynamic_350x300.html alttext=\"$1\" %}"
         },
         {
