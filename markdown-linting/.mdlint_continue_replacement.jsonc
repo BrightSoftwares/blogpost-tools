@@ -20,6 +20,7 @@
     "MD042": false,
     "MD045": false,
     "MD003": false,
+    "MD020": false,
     //"MD003": { "style": "atx" },
     "MD007": false,
     //"MD007": { "indent": 4 },
@@ -34,8 +35,16 @@
         {
           "name": "image-placeholder-replacement-1",
           "message": "Do not leave the continue please copy paste in the post",
-          "searchPattern": "/!\\[\\](.|\n)*\\(data:image(.|\n)*Continue(.*)$/mgi",
-          "replace": ""
+          //"searchPattern": "/!\\[\\].*?\\(data:image.*?Continue(.*)$/gm",
+          "searchPattern": "/Continue([\\\\s\\\\S]*)$/gm",
+          "replace": "",
+          "searchScope": "text"
+        },
+        {
+            "name": "image-placeholder-replacement-2",
+            "message": "Do not leave the continue please copy paste in the post",
+            "searchPattern": "/Continue(.*)$/mgi"
+            //"replace": ""
         }
       ]
     }
