@@ -7,111 +7,127 @@ on:
   workflow_dispatch:
   workflow_call:
     inputs:
-      transcriptdownloader_srcpath:
+        
+      generatenewkeywordsuggestions_keywordseed: # /github/workspace/_drafts/keywords.csv
         required: true
         type: string
-      transcriptdownloader_dstpath:
+      generatenewkeywordsuggestions_keywordsuggestionsgenerationfolder: # /github/workspace/_drafts
         required: true
         type: string
-      transcriptdownloader_dryrun:
-        required: true
-        type: boolean
-      rssconverter_srcpath:
+      generatenewkeywordsuggestions_draftspath: # /github/workspace/_drafts/
         required: true
         type: string
-      rssconverter_dstpath:
+      generatenewkeywordsuggestions_keywordsuggestionsblogpostfile: # keyword_suggestions_merged_blogpost_candidates.csv
         required: true
         type: string
-      rssconverter_dryrun:
-        required: true
-        type: boolean
-      featuredimagefinder_srcpath:
-        required: true
-        type: string
-      featuredimagefinder_dstpath:
-        required: true
-        type: string
-      featuredimagefinder_dryrun:
-        required: true
-        type: boolean
-      featuredimagefinder_alreadyuseditems:
-        required: true
-        type: string
-      featuredimagefinder_searchresultsfile:
-        required: true
-        type: string
-      featuredimagefinder_max_results:
-        required: true
-        type: string
-      featuredimagefinder_cloudinarydestfolder:
-        required: true
-        type: string
-      featuredimagefinder_cloudinarytransformation:
-        required: true
-        type: string
-      pretifier_srcpath:
-        required: true
-        type: string
-      pretifier_dstpath:
-        required: true
-        type: string
-      pretifier_dryrun:
-        required: true
-        type: boolean
-      pretifier_wordpressfrontmatter:
-        required: true
-        type: boolean
-      pretifier_postauthor:
-        required: true
-        type: string
-      pretifier_silotermtolinksfile:
-        required: true
-        type: string
-      pretifier_silotermtocategoriesfile:
-        required: true
-        type: string
-      pretifier_defaultauthor:
-        required: true
-        type: string
-      pretifier_defaultlayout:
-        required: true
-        type: string
-      pretifier_generatesilotermtolinksfileifmissing:
-        required: true
-        type: boolean
-      pretifier_generatesilotermtocategoriesfileifmissing:
-        required: true
-        type: boolean
-      pretifier_categorytype:
-        required: true
-        type: string
-      pretifier_filegenerationsrcpath:
-        required: true
-        type: string
-      autoschedule_srcpath:
-        required: true
-        type: string
-      autoschedule_dstpath:
-        required: true
-        type: string
-      autoschedule_dryrun:
-        required: true
-        type: boolean
-      autoschedule_days_mask:
-        required: true
-        type: string
-      autoschedule_nbdaysahead:
+      generatenewkeywordsuggestions_keywordminvolumeeligible: # 1
         required: true
         type: number
-      manualpublication_srcpath:
+      generatenewkeywordsuggestions_keywordmaxvolumeeligible: # 500000
+        required: true
+        type: number
+
+      generateblogpostcandidatesdata10_100_srcfolder: # /github/workspace/_drafts/
         required: true
         type: string
-      manualpublication_dstpath:
+      generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder: # /github/workspace/_drafts/
         required: true
         type: string
-      manualpublication_dryrun:
+      generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfile: # /github/workspace/_drafts/keyword_suggestions.csv
         required: true
-        type: boolean
+        type: string
+      generateblogpostcandidatesdata10_100_keywordsuggestionsblogpostfile: # /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
+        required: true
+        type: string
+      generateblogpostcandidatesdata10_100_keywordminvolumeeligible: # 10
+        required: true
+        type: number
+      generateblogpostcandidatesdata10_100_keywordmaxvolumeeligible: # 100
+        required: true
+        type: number
+
+      generateblogpostcandidatesdata100_500_srcfolder: # /github/workspace/_drafts/
+        required: true
+        type: string
+      generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder: # /github/workspace/_drafts/
+        required: true
+        type: string
+      generateblogpostcandidatesdata100_500_keyword_suggestion_generation_file: # /github/workspace/_drafts/keyword_suggestions.csv
+        required: true
+        type: string
+      generateblogpostcandidatesdata100_500_keyword_suggestions_blogpost_file: # /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
+        required: true
+        type: string
+      generateblogpostcandidatesdata100_500_keyword_min_volume_eligible: # 100
+        required: true
+        type: number
+      generateblogpostcandidatesdata100_500_keyword_max_volume_eligible: # 500
+        required: true
+        type: number
+
+      suggestionstoblogpost10_100_keyword_suggestions_generation_folder: # /github/workspace/_drafts
+        required: true
+        type: string
+      suggestionstoblogpost10_100_keyword_suggestion: # kw_blogpost_candidates_10_100.csv
+        required: true
+        type: string
+      suggestionstoblogpost10_100_drafts_path: # /github/workspace/_drafts/
+        required: true
+        type: string
+      suggestionstoblogpost10_100_keyword_seed: # /github/workspace/_drafts/keywords.csv
+        required: true
+        type: string
+      suggestionstoblogpost10_100_batch_size: # 5
+        required: true
+        type: number
+      suggestionstoblogpost10_100_language: # fr
+        required: true
+        type: string
+      
+
+      suggestionstoblogpost100_500_keywordsuggestionsgenerationfolder: # /github/workspace/_drafts
+        required: true
+        type: string
+      suggestionstoblogpost100_500_keywordsuggestion: # kw_blogpost_candidates_10_100.csv
+        required: true
+        type: string
+      suggestionstoblogpost100_500_draftspath: # /github/workspace/_drafts/
+        required: true
+        type: string
+      suggestionstoblogpost100_500_keywordseed: # /github/workspace/_drafts/keywords.csv
+        required: true
+        type: string
+      suggestionstoblogpost100_500_batchsize: # 5
+        required: true
+        type: number
+      suggestionstoblogpost100_500_language: # fr
+        required: true
+        type: string
+
+      generatenewyoutubevids_srcfolder: # /github/workspace/_drafts/
+        required: true
+        type: string
+      generatenewyoutubevids_youtubeapikey: # ${{ secrets.YOUTUBE_API_KEY }}
+        required: true
+        type: string
+      generatenewyoutubevids_ytsearchresultsfile: # /github/workspace/_drafts/youtube_search_results.csv
+        required: true
+        type: string
+      generatenewyoutubevids_ytalreadyusedvids: # /github/workspace/_drafts/youtube_videos_used.csv
+        required: true
+        type: string
+      generatenewyoutubevids_language: # fr
+        required: true
+        type: string
+      generatenewyoutubevids_country: # fr
+        required: true
+        type: string
+
+      transcribeytvideos_draftspath: # /github/workspace/_drafts/
+        required: true
+        type: string
+
+      
     secrets:
       unsplash_access_key:
         required: true
@@ -145,12 +161,12 @@ jobs:
       - name: Generate new keyword suggestions
         uses: BrightSoftwares/blogpost-tools/keyword-suggestion@main
         with:
-          keyword_seed: /github/workspace/_drafts/keywords.csv
-          keyword_suggestions_generation_folder: /github/workspace/_drafts
-          drafts_path: /github/workspace/_drafts/
-          keyword_suggestions_blogpost_file: keyword_suggestions_merged_blogpost_candidates.csv
-          keyword_min_volume_eligible: 1
-          keyword_max_volume_eligible: 500000
+          keyword_seed: ${{ inputs.repository }} # /github/workspace/_drafts/keywords.csv
+          keyword_suggestions_generation_folder: ${{ inputs.repository }} # /github/workspace/_drafts
+          drafts_path: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_suggestions_blogpost_file: ${{ inputs.repository }} # keyword_suggestions_merged_blogpost_candidates.csv
+          keyword_min_volume_eligible: ${{ inputs.repository }} # 1
+          keyword_max_volume_eligible: ${{ inputs.repository }} # 500000
 
       - name: Intermediary commit to save generated keywords
         run: |
@@ -173,59 +189,59 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
         with:
         
-          src_folder: /github/workspace/_drafts/
-          keyword_suggestion_generation_folder: /github/workspace/_drafts/
-          keyword_suggestion_generation_file: /github/workspace/_drafts/keyword_suggestions.csv
-          keyword_suggestions_blogpost_file: /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
-          keyword_min_volume_eligible: 10
-          keyword_max_volume_eligible: 100
+          src_folder: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_suggestion_generation_folder: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_suggestion_generation_file: ${{ inputs.repository }} # /github/workspace/_drafts/keyword_suggestions.csv
+          keyword_suggestions_blogpost_file: ${{ inputs.repository }} # /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
+          keyword_min_volume_eligible: ${{ inputs.repository }} # 10
+          keyword_max_volume_eligible: ${{ inputs.repository }} # 100
           
       
       - name: Generate blog post candidates data 100-500
         uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
         with:
         
-          src_folder: /github/workspace/_drafts/
-          keyword_suggestion_generation_folder: /github/workspace/_drafts/
-          keyword_suggestion_generation_file: /github/workspace/_drafts/keyword_suggestions.csv
-          keyword_suggestions_blogpost_file: /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
-          keyword_min_volume_eligible: 100
-          keyword_max_volume_eligible: 500
+          src_folder: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_suggestion_generation_folder: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_suggestion_generation_file: ${{ inputs.repository }} # /github/workspace/_drafts/keyword_suggestions.csv
+          keyword_suggestions_blogpost_file: ${{ inputs.repository }} # /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
+          keyword_min_volume_eligible: ${{ inputs.repository }} # 100
+          keyword_max_volume_eligible: ${{ inputs.repository }} # 500
           
       - name: Suggestions to blogpost 10-100
         uses: BrightSoftwares/blogpost-tools/suggestions-to-blogpost@main
         with:
-          keyword_suggestions_generation_folder: /github/workspace/_drafts
-          keyword_suggestion: kw_blogpost_candidates_10_100.csv
-          drafts_path: /github/workspace/_drafts/
-          keyword_seed: /github/workspace/_drafts/keywords.csv
-          batch_size: 5
-          language: fr
+          keyword_suggestions_generation_folder: ${{ inputs.repository }} # /github/workspace/_drafts
+          keyword_suggestion: ${{ inputs.repository }} # kw_blogpost_candidates_10_100.csv
+          drafts_path: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_seed: ${{ inputs.repository }} # /github/workspace/_drafts/keywords.csv
+          batch_size: ${{ inputs.repository }} # 5
+          language: ${{ inputs.repository }} # fr
           
       - name: Suggestions to blogpost 100-500
         uses: BrightSoftwares/blogpost-tools/suggestions-to-blogpost@main
         with:
-          keyword_suggestions_generation_folder: /github/workspace/_drafts
-          keyword_suggestion: kw_blogpost_candidates_100_500.csv
-          drafts_path: /github/workspace/_drafts/
-          keyword_seed: /github/workspace/_drafts/keywords.csv
-          batch_size: 5
-          language: fr
+          keyword_suggestions_generation_folder: ${{ inputs.repository }} # /github/workspace/_drafts
+          keyword_suggestion: ${{ inputs.repository }} # kw_blogpost_candidates_100_500.csv
+          drafts_path: ${{ inputs.repository }} # /github/workspace/_drafts/
+          keyword_seed: ${{ inputs.repository }} # /github/workspace/_drafts/keywords.csv
+          batch_size: ${{ inputs.repository }} # 5
+          language: ${{ inputs.repository }} # fr
           
       - name: Generate new youtube vids
         uses: BrightSoftwares/blogpost-tools/youtube-vid-finder@main
         with:
-          src_folder: /github/workspace/_drafts/
-          youtube_api_key: ${{ secrets.YOUTUBE_API_KEY }}
-          yt_search_results_file: /github/workspace/_drafts/youtube_search_results.csv
-          yt_already_used_vids: /github/workspace/_drafts/youtube_videos_used.csv
-          language: fr
-          country: fr
+          src_folder: ${{ inputs.repository }} # /github/workspace/_drafts/
+          youtube_api_key: ${{ inputs.repository }} # ${{ secrets.YOUTUBE_API_KEY }}
+          yt_search_results_file: ${{ inputs.repository }} # /github/workspace/_drafts/youtube_search_results.csv
+          yt_already_used_vids: ${{ inputs.repository }} # /github/workspace/_drafts/youtube_videos_used.csv
+          language: ${{ inputs.repository }} # fr
+          country: ${{ inputs.repository }} # fr
       
       - name: transcribe-yt-videos
         uses: BrightSoftwares/blogpost-tools/transcript-downloader@main
         with:
-          drafts_path: /github/workspace/_drafts/
+          drafts_path: ${{ inputs.repository }} # /github/workspace/_drafts/
 
       - name: Compress too big files and remove them
         run: |
