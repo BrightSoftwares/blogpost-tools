@@ -31,7 +31,11 @@ on:
         required: true
         type: string
         default: 500000
-      generateblogpostcandidatesdata10_100_srcfolder: 
+      #generateblogpostcandidatesdata10_100_srcfolder: 
+      #  required: true
+      #  type: string
+      #  default: /github/workspace/_drafts/
+      generateblogpostcandidatesdata_srcfolder: 
         required: true
         type: string
         default: /github/workspace/_drafts/
@@ -54,10 +58,10 @@ on:
       generateblogpostcandidatesdata10_100_keywordmaxvolumeeligible: # 100
         required: true
         type: string
-      generateblogpostcandidatesdata100_500_srcfolder: 
-        required: true
-        type: string
-        default: /github/workspace/_drafts/
+      #generateblogpostcandidatesdata100_500_srcfolder: 
+      #  required: true
+      #  type: string
+      #  default: /github/workspace/_drafts/
       generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder: 
         required: true
         type: string
@@ -217,7 +221,7 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
         with:
         
-          src_folder: ${{ inputs.generateblogpostcandidatesdata10_100_srcfolder }} # /github/workspace/_drafts/
+          src_folder: ${{ inputs.generateblogpostcandidatesdata_srcfolder }} # /github/workspace/_drafts/
           keyword_suggestion_generation_folder: ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }} # /github/workspace/_drafts/
           keyword_suggestion_generation_file: ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfile }} # /github/workspace/_drafts/keyword_suggestions.csv
           keyword_suggestions_blogpost_file: ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestionsblogpostfile }} # /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
@@ -229,7 +233,7 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/blogpost-candidates-generation@main
         with:
         
-          src_folder: ${{ inputs.generateblogpostcandidatesdata100_500_srcfolder }} # /github/workspace/_drafts/
+          src_folder: ${{ inputs.generateblogpostcandidatesdata_srcfolder }} # /github/workspace/_drafts/
           keyword_suggestion_generation_folder: ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }} # /github/workspace/_drafts/
           keyword_suggestion_generation_file: ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_file }} # /github/workspace/_drafts/keyword_suggestions.csv
           keyword_suggestions_blogpost_file: ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestions_blogpost_file }} # /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
@@ -274,8 +278,8 @@ jobs:
       - name: Compress too big files and remove them
         run: |
           echo "Compressing the 2 big files"
-          tar -zcvf _drafts/kw_blogpost_candidates_10_100.csv.tar.gz _drafts/kw_blogpost_candidates_10_100.csv
-          tar -zcvf _drafts/kw_blogpost_candidates_100_500.csv.tar.gz _drafts/kw_blogpost_candidates_100_500.csv
+          tar -zcvf ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}/kw_blogpost_candidates_10_100.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}/kw_blogpost_candidates_10_100.csv
+          tar -zcvf ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}/kw_blogpost_candidates_100_500.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}/kw_blogpost_candidates_100_500.csv
           echo "Compression done"
           ls -lah _drafts/
 
