@@ -178,7 +178,7 @@ jobs:
         id: set-runner
         uses: BrightSoftwares/blogpost-tools/check-runner@main
         env:
-          # CHECK_RUNNER_TOKEN: ${{ inputs.CHECK_RUNNER_ACCESS_TOKEN }}
+          CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
           CHECK_RUNNER_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           GITHUB_REPO_OWNER: ${{ inputs.repository_owner }}
           GITHUB_REPOSITORY: ${{ inputs.repository }}
@@ -187,7 +187,7 @@ jobs:
     # runs-on: ubuntu-latest
     # runs-on: self-hosted
     needs: check-runner
-    runs-on: ${{ steps.set-runner.outputs.runner-label }}
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v2
       
