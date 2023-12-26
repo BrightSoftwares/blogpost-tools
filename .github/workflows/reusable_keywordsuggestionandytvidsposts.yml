@@ -55,9 +55,10 @@ on:
         required: true
         type: string
         default: 10
-      generateblogpostcandidatesdata10_100_keywordmaxvolumeeligible: # 100
+      generateblogpostcandidatesdata10_100_keywordmaxvolumeeligible:
         required: true
         type: string
+        default: 100
       #generateblogpostcandidatesdata100_500_srcfolder: 
       #  required: true
       #  type: string
