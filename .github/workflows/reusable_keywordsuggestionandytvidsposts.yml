@@ -269,7 +269,7 @@ jobs:
           batch_size: ${{ inputs.suggestionstoblogpost100_500_batchsize }} # 5
           language: ${{ inputs.suggestionstoblogpost100_500_language }} # fr
           
-      - name: Generate new youtube vids
+      - name: Find new youtube vids
         uses: BrightSoftwares/blogpost-tools/youtube-vid-finder@main
         with:
           src_folder: ${{ inputs.generatenewyoutubevids_srcfolder }} # /github/workspace/_drafts/
@@ -279,8 +279,16 @@ jobs:
           language: ${{ inputs.generatenewyoutubevids_language }} # fr
           country: ${{ inputs.generatenewyoutubevids_country }} # fr
           youtube_video_duration: ${{ inputs.generatenewyoutubevids_youtubevideoduration }}
+
+      - name: Move found YT Videos -> Download Transcribe
+        uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
+        with:
+          src_path: ${{ inputs.generatenewyoutubevids_srcfolder }}
+          dst_path: ${{ inputs.transcribeytvideos_draftspath }}
+          dry_run: false
+          function_to_run: move_youtubevidfinder_to_destination
       
-      - name: transcribe-yt-videos
+      - name: Download Transcribe for Youtube videos
         uses: BrightSoftwares/blogpost-tools/transcript-downloader@main
         with:
           drafts_path: ${{ inputs.transcribeytvideos_draftspath }} # /github/workspace/_drafts/
