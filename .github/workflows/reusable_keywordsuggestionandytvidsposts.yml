@@ -151,6 +151,10 @@ on:
         required: true
         type: string
         default: fr
+      generatenewyoutubevids_youtubevideoduration: 
+        required: true
+        type: string
+        default: medium
       transcribeytvideos_draftspath: 
         required: true
         type: string
