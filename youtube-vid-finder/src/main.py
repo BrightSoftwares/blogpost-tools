@@ -109,7 +109,8 @@ def save_youtube_search(query, results_df, dest_file):
   #print("results_df = ", results_df)
 
   # Concat the dataframe
-  yt_results_df = yt_results_df.append(results_df)
+  #yt_results_df = yt_results_df.append(results_df)
+  yt_results_df = pd.concat([yt_results_df, results_df], ignore_index=True)
   yt_results_df.drop_duplicates(inplace=True)
   
   # Save the final data
