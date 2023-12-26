@@ -278,6 +278,7 @@ jobs:
           yt_already_used_vids: ${{ inputs.generatenewyoutubevids_ytalreadyusedvids }} # /github/workspace/_drafts/youtube_videos_used.csv
           language: ${{ inputs.generatenewyoutubevids_language }} # fr
           country: ${{ inputs.generatenewyoutubevids_country }} # fr
+          youtube_video_duration: ${{ inputs.generatenewyoutubevids_youtubevideoduration }}
       
       - name: transcribe-yt-videos
         uses: BrightSoftwares/blogpost-tools/transcript-downloader@main
