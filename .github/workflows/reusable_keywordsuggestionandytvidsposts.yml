@@ -285,10 +285,10 @@ jobs:
         with:
           drafts_path: ${{ inputs.transcribeytvideos_draftspath }} # /github/workspace/_drafts/
 
-      #- name: Compress too big files and remove them
-      #  run: |
-      #    echo "Compressing the 2 big files"
-      #    ls -la /github/
+      - name: list too big files
+        run: |
+          echo "Compressing the 2 big files"
+          ls -lah ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}
       #    tar -cvzf ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv
       #    tar -cvzf ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv
       #    echo "Compression done"
