@@ -59,15 +59,19 @@ def get_video_description(video_id):
 
 
 def parse_video_descrption(description):
-  print("Parsing video description", description[:50])
-  pattern = re.compile(r"(\(?[0-9:]{3,8}\)?) [-\s]?(.*)$", re.MULTILINE)
-  matches = pattern.findall(description)
-  print(matches)
-
-  if len(matches) > 0:
-    return matches
+  if description is not None:
+    print("Parsing video description", description[:50])
+    pattern = re.compile(r"(\(?[0-9:]{3,8}\)?) [-\s]?(.*)$", re.MULTILINE)
+    matches = pattern.findall(description)
+    print(matches)
+  
+    if len(matches) > 0:
+      return matches
+    else:
+      # If there is no chapters found in the description, return something to genetate all the text at once
+      return [('00:00:00', '')]
   else:
-    # If there is no chapters found in the description, return something to genetate all the text at once
+    print("Warning.This is unusual. The description is None. We return an empty result.")
     return [('00:00:00', '')]
 
 def parse_time_duration(time_duration):
