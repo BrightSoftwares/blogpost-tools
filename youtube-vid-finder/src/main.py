@@ -159,30 +159,33 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
                 
                 # Check that the video is suitable for use
                 video_found_df = find_youtube_video(search_results, used_vids_df)
-                video_found_title = video_found_df.iloc[0]['video_title']
-                video_found_id = video_found_df.iloc[0]['video_id']
-                video_found_description = video_found_df.iloc[0]['video_description']
-
-                print(">>>>> video_found_id = ", video_found_id)
-
-                print("Saving youtube_video and youtube_video_id tags")
-                post['youtube_video'] = "http://www.youtube.com/watch?v={}".format(
-                    video_found_id)
-                post['youtube_video_id'] = video_found_id
-                post['youtube_video_title'] = video_found_title
-                post['youtube_video_description'] = video_found_description
-
-                print("Saving the content of the file")
-                filecontent = frontmatter.dumps(post)
-                with open(folder + "/" + entry, 'w') as f:
-                    f.write(filecontent)
-
-                new_yt_video_df = pd.DataFrame(
-                    [video_found_id], columns=['yt_video_id'])
-
-                # Add the video to the used videos file
-                used_vids_df = pd.concat(
-                    [used_vids_df, new_yt_video_df], sort=False)
+                if video_found_df is not None:
+                  video_found_title = video_found_df.iloc[0]['video_title']
+                  video_found_id = video_found_df.iloc[0]['video_id']
+                  video_found_description = video_found_df.iloc[0]['video_description']
+  
+                  print(">>>>> video_found_id = ", video_found_id)
+  
+                  print("Saving youtube_video and youtube_video_id tags")
+                  post['youtube_video'] = "http://www.youtube.com/watch?v={}".format(
+                      video_found_id)
+                  post['youtube_video_id'] = video_found_id
+                  post['youtube_video_title'] = video_found_title
+                  post['youtube_video_description'] = video_found_description
+  
+                  print("Saving the content of the file")
+                  filecontent = frontmatter.dumps(post)
+                  with open(folder + "/" + entry, 'w') as f:
+                      f.write(filecontent)
+  
+                  new_yt_video_df = pd.DataFrame(
+                      [video_found_id], columns=['yt_video_id'])
+  
+                  # Add the video to the used videos file
+                  used_vids_df = pd.concat(
+                      [used_vids_df, new_yt_video_df], sort=False)
+                else:
+                  print("Error. No video found for the title : ", title)
             else:
                 print("Did not process this file because ytvideo_url is NOT None ({}) or title is None ({})".format(
                     ytvideo_url, title))
