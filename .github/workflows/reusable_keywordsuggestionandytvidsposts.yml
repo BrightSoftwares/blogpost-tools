@@ -288,17 +288,18 @@ jobs:
       - name: list too big files
         run: |
           echo "Compressing the 2 big files"
-          ls -lah ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}
-      #    tar -cvzf ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv
-      #    tar -cvzf ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv
-      #    echo "Compression done"
-      #    ls -lah _drafts/
+          SRC_FOLDER=_seo/keyword-generation/
+          ls -lah _seo/keyword-generation/
+          tar -cvzf $SRC_FOLDER/kw_blogpost_candidates_10_100.csv.tar.gz $SRC_FOLDER/kw_blogpost_candidates_10_100.csv
+          tar -cvzf $SRC_FOLDER/kw_blogpost_candidates_100_500.csv.tar.gz $SRC_FOLDER/kw_blogpost_candidates_100_500.csv
+          echo "Compression done"
+          ls -lah $SRC_FOLDER
       - name: Compress too big files and remove them 
         uses: a7ul/tar-action@v1.1.0
         id: compress-10-100
         with:
           command: c
-          cwd: ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}
+          cwd: _seo/keyword-generation/
           files: |
             kw_blogpost_candidates_10_100.csv
           outPath: kw_blogpost_candidates_10_100.csv.tar.gz
@@ -307,7 +308,7 @@ jobs:
         id: compress-100-500
         with:
           command: c
-          cwd: ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}
+          cwd: _seo/keyword-generation/
           files: |
             kw_blogpost_candidates_100_500.csv
           outPath: kw_blogpost_candidates_100_500.csv.tar.gz
