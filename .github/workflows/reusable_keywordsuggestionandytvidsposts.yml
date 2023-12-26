@@ -155,6 +155,10 @@ on:
         required: true
         type: string
         default: /github/workspace/_drafts/
+      forced_to_run_on_github:
+        required: false
+        type: string
+        default: false
 
       
     secrets:
@@ -179,9 +183,9 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/check-runner@main
         env:
           CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-          CHECK_RUNNER_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ inputs.repository_owner }}
-          GITHUB_REPOSITORY: ${{ inputs.repository }}
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          FORCE_RUNS_ON_UBUNTU: ${{ inputs.forced_to_run_on_github }}
       
   jekyll:
     # runs-on: ubuntu-latest
