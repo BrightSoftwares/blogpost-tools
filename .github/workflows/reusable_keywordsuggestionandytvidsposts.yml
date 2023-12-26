@@ -285,33 +285,15 @@ jobs:
         with:
           drafts_path: ${{ inputs.transcribeytvideos_draftspath }} # /github/workspace/_drafts/
 
-      - name: list too big files
+      - name: Compress too big files and remove them 
         run: |
           echo "Compressing the 2 big files"
           SRC_FOLDER=_seo/keyword-generation/
-          ls -lah _seo/keyword-generation/
+          ls -lah $SRC_FOLDER
           tar -cvzf $SRC_FOLDER/kw_blogpost_candidates_10_100.csv.tar.gz $SRC_FOLDER/kw_blogpost_candidates_10_100.csv
           tar -cvzf $SRC_FOLDER/kw_blogpost_candidates_100_500.csv.tar.gz $SRC_FOLDER/kw_blogpost_candidates_100_500.csv
           echo "Compression done"
           ls -lah $SRC_FOLDER
-      - name: Compress too big files and remove them 
-        uses: a7ul/tar-action@v1.1.0
-        id: compress-10-100
-        with:
-          command: c
-          cwd: _seo/keyword-generation/
-          files: |
-            kw_blogpost_candidates_10_100.csv
-          outPath: kw_blogpost_candidates_10_100.csv.tar.gz
-      - name: Compress too big files and remove them
-        uses: a7ul/tar-action@v1.1.0
-        id: compress-100-500
-        with:
-          command: c
-          cwd: _seo/keyword-generation/
-          files: |
-            kw_blogpost_candidates_100_500.csv
-          outPath: kw_blogpost_candidates_100_500.csv.tar.gz
 
       - name: Ignore files that are bigger than 50Mb
         run: |
