@@ -159,10 +159,10 @@ on:
         required: true
         type: string
         default: /github/workspace/_drafts/
-      generatedrawcontent_path:
-        required: true
-        type: string
-        default: /github/workspace/_drafts/300_generated_raw_content/
+      #generatedrawcontent_path:
+      #  required: true
+      #  type: string
+      #  default: /github/workspace/_drafts/300_generated_raw_content/
       forced_to_run_on_github:
         required: false
         type: string
@@ -297,13 +297,13 @@ jobs:
         with:
           drafts_path: ${{ inputs.transcribeytvideos_draftspath }} # /github/workspace/_drafts/
 
-      - name: Move Transcribed Videos -> Generated raw content
-        uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
-        with:
-          src_path: ${{ inputs.transcribeytvideos_draftspath }}
-          dst_path: ${{ inputs.generatedrawcontent_path }}
-          dry_run: false
-          function_to_run: move_iscontentenough_to_destination
+      #- name: Move Transcribed Videos -> Generated raw content
+      #  uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
+      #  with:
+      #    src_path: ${{ inputs.transcribeytvideos_draftspath }}
+      #    dst_path: ${{ inputs.generatedrawcontent_path }}
+      #    dry_run: false
+      #    function_to_run: move_iscontentenough_to_destination
 
       - name: Compress too big files and remove them 
         run: |
