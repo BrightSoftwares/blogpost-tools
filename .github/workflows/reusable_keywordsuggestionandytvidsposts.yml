@@ -283,8 +283,8 @@ jobs:
       - name: Compress too big files and remove them
         run: |
           echo "Compressing the 2 big files"
-          tar -zcvf ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}/kw_blogpost_candidates_10_100.csv
-          tar -zcvf ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}/kw_blogpost_candidates_100_500.csv
+          tar -zcvf ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder }}kw_blogpost_candidates_10_100.csv
+          tar -zcvf ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv.tar.gz ${{ inputs.generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder }}kw_blogpost_candidates_100_500.csv
           echo "Compression done"
           ls -lah _drafts/
 
