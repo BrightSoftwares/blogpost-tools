@@ -1,0 +1,18 @@
+{
+    "default": false,
+    "no-hard-tabs": false,
+    "whitespace": false,
+    // "customRules": [
+    //   "markdownlint-rule-github-internal-links",
+    //   "markdownlint-rule-search-replace"
+    // ],
+    "search-replace": {
+      "rules": [
+        {
+          "name": "replacement-tokens",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "/\\#\\#@@[0-9]+@@\\#\\#/mg"
+        }
+      ]
+    }
+  }
