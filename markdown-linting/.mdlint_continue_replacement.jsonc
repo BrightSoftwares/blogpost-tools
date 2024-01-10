@@ -27,6 +27,18 @@
           "message": "Do not leave the continue please copy paste in the post",
           "searchPattern": "/!\\[\\](.|\n)*\\(data:image(.|\n)*Continue(.*)$/mgi",
           "replace": ""
+        },
+        {
+          "name": "image-placeholder-replacement-4",
+          "message": "placeholder 1",
+          "searchPattern": "/!\\[(.*?)\\]\\((.*?)\\)/mg",
+          "replace": ""
+        },
+        {
+          "name": "image-placeholder-replacement-4",
+          "message": "placeholder 1",
+          "searchPattern": "/!\\[(.*?)\\]\\((https:\\/\\/chat.openai.com.*?)\\)/mg",
+          "replace": ""
         }
       ]
     }

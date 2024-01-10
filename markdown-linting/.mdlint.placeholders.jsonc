@@ -8,19 +8,7 @@
     ],
     "search-replace": {
       "rules": [
-        {
-          "name": "placeholder-image-1",
-          "message": "placeholder 1",
-          //"searchPattern": "/![(Argo CD Rollback Process)](https://via.placeholder.com/600x400.png?text=Argo+CD+Rollback+Process+Image)/mg",
-          "searchPattern": "/!\\[(.*?)\\]\\((.*?)\\)/mg",
-          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
-        },
-        /*{
-          "name": "placeholder-image-2",
-          "message": "bla bla bla",
-          "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
-          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
-        },*/
+        
         {
           "name": "placeholder-image-3",
           "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
