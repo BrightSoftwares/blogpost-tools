@@ -69,13 +69,13 @@ Once you have generated a CSR, you need to submit it to the CA. The CA will then
 
 After receiving the code server certificate from the CA, you need to install it on your server. The installation process may vary depending on your server and hosting provider
 
-![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
+{% include common/affiliation/in_post_dynamic_728x90.html %}{% include common/affiliation/in_post_dynamic_728x90.html %}
 
-![](data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%2730%27%20height=%2730%27/%3e)
+{% include common/affiliation/in_post_dynamic_728x90.html %}
 
-![Full Bright](https://chat.openai.com/_next/image?url=https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FAGNmyxZW1bm17GGxeKnZvNIeq9WloDUSy05B9sX8lC4X6Q%3Ds96-c&w=64&q=75)
+{% include common/affiliation/in_post_dynamic_728x90.html %}
 
-Continue writing please
+
 
 ## Best Practices for Code Server Certificates
 
@@ -109,7 +109,7 @@ Code server certificates are an essential component of web security. They provid
 
 1. How do I know if a website has a code server certificate? You can check if a website has a code server certificate by looking for the padlock icon in your web browser's address bar. If the padlock is present, the website is using HTTPS and has a code server certificate.
 
-2. How often should I renew my code server certificate? Code server certificates usually have a lifespan of 1 to 3 years. It is recommended to renew your certificate before it expires to ensure that your website remains secure. ##@@1202@@##
+2. How often should I renew my code server certificate? Code server certificates usually have a lifespan of 1 to 3 years. It is recommended to renew your certificate before it expires to ensure that your website remains secure. 
 
 3. Can I use a self-signed code server certificate? While it is possible to use a self-signed code server certificate, it is not recommended. Self-signed certificates do not provide the same level of trust and security as certificates issued by a trusted Certificate Authority (CA).
 
@@ -117,9 +117,9 @@ Code server certificates are an essential component of web security. They provid
 
 5. What is a Certificate Authority (CA)? A Certificate Authority (CA) is a trusted third-party organization that issues code server certificates. CAs verify the identity of the website owner and ensure that the certificate is valid and trusted.
 
-*Call-to-action placeholders here*
+{% include common/calltoaction/face_text_and_action_buttons.html %}
 
-*Call-to-action placeholders here*
+{% include common/calltoaction/face_text_and_action_buttons.html %}
 
 ## Best Practices for Code Server Certificates
 
@@ -129,7 +129,7 @@ To ensure that your code server certificate is effective, you should follow thes
 
 When choosing a CA, it is essential to select a trusted and reputable one. A trusted CA will ensure that your code server certificate is recognized and accepted by all major web browsers.
 
-### 2. Use a Strong Private Key ##@@1202@@##
+### 2. Use a Strong Private Key 
 
 To ensure that your code server certificate is secure, you should use a strong private key to encrypt data. The private key should be at least 2048 bits in length.
 
@@ -143,7 +143,7 @@ Once you have installed your code server certificate, you should use HTTPS to en
 
 ### 5. Monitor Your Certificate's Validity
 
-##@@1202@@##
+
 
 It is essential to monitor your code server certificate's validity to ensure that it is up-to-date and has not been revoked. You can use tools such as SSL Checker to check the status of your certificate.
 
@@ -158,12 +158,12 @@ Code server certificates are an essential component of web security. They provid
 2. How often should I renew my code server certificate? Code server certificates usually have a lifespan of 1 to 3 years. It is recommended to renew your certificate before it expires to ensure that your website remains secure.
 
 3. Can I use a self-signed code server certificate? While it is possible to use a self-signed code server certificate, it is not recommended. Self-signed certificates do not provide the same level of trust and security as certificates issued by a trusted Certificate Authority (CA).
-##@@1001@@##
+
 4. What is the difference between HTTP and HTTPS? HTTP (Hypertext Transfer Protocol) is a protocol used to transfer data between a client and a server. HTTPS (Hypertext Transfer Protocol Secure) is a secure version of HTTP that uses SSL/TLS to encrypt all communication between a client and a server.
 
 5. What is a Certificate Authority (CA)? A Certificate Authority (CA) is a trusted third-party organization that issues code server certificates. CAs verify the identity of the website owner and ensure that the certificate is valid and trusted.
 
-*Call-to-action placeholders here*
+{% include common/calltoaction/face_text_and_action_buttons.html %}
 
-This ##@@1001@@##
+This 
 
