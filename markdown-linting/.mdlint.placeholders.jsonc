@@ -1,0 +1,94 @@
+{
+    "default": false,
+    "no-hard-tabs": false,
+    "whitespace": false,
+    "customRules": [
+      "markdownlint-rule-github-internal-links",
+      "markdownlint-rule-search-replace"
+    ],
+    "search-replace": {
+      "rules": [
+        {
+          "name": "placeholder-image-1",
+          "message": "placeholder 1",
+          //"searchPattern": "/![(Argo CD Rollback Process)](https://via.placeholder.com/600x400.png?text=Argo+CD+Rollback+Process+Image)/mg",
+          "searchPattern": "/!\\[(.*?)\\]\\((.*?)\\)/mg",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        /*{
+          "name": "placeholder-image-2",
+          "message": "bla bla bla",
+          "searchPattern": "![Assessing Infrastructure](image-placeholder1)",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },*/
+        {
+          "name": "placeholder-image-3",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "<!-- Placeholder for Image: Insert relevant image showcasing the features of the Amazon Titan Image Generator -->",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        {
+          "name": "placeholder-image-4",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Image placeholders here*",
+          "replace": "\\n{% include common/affiliation/in_post_dynamic_728x90.html %}\\n"
+        },
+        {
+          "name": "placeholder-image-5",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*Image placeholders here*",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        {
+          "name": "placeholder-image-6",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "![Placeholder Image for Developer Portals](image-url)",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        {
+          "name": "placeholder-image-7",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*(Image placeholders and Call-to-action placeholders",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        {
+          "name": "placeholder-image-8",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "/\\*\\*image placeholders\\*\\*/mg",
+          "replace": "{% include common/affiliation/in_post_dynamic_728x90.html %}"
+        },
+        {
+          "name": "placeholder-calltoaction-1",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*(Image placeholders and Call-to-action placeholders ",
+          "replace": "{% include common/calltoaction/face_text_and_action_buttons.html %}"
+        },
+        {
+          "name": "placeholder-calltoaction-2",
+          "message": "bla bla bla",
+          //"searchPattern": "[here](placeholder-call-to-action)",
+          "searchPattern": "/[^!]\\[(.*?)\\]\\((.*?)\\)/mg",
+          "replace": "{% include common/calltoaction/face_text_and_action_buttons.html %}"
+        },
+        {
+          "name": "placeholder-calltoaction-3",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          //"searchPattern": "*Call-to-action placeholders here*",
+          "searchPattern": "/\\*[\\*]?([Cc]all-to-action|image) placeholders( here)?\\*[\\*]?/mg",
+          "replace": "{% include common/calltoaction/face_text_and_action_buttons.html %}"
+        },
+        {
+          "name": "placeholder-calltoaction-4",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "*through **call-to-action placeholders** and **image placeholders**.",
+          "replace": "{% include common/calltoaction/face_text_and_action_buttons.html %}"
+        },
+        {
+          "name": "placeholder-calltoaction-5",
+          "message": "Do not leave replacement tokens in the blog post. Revert them to the original text",
+          "searchPattern": "through **call-to-action placeholders** and **image placeholders**.",
+          "replace": "{% include common/calltoaction/face_text_and_action_buttons.html %}"
+        }
+      ]
+    }
+  }
