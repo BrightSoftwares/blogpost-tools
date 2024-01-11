@@ -3,6 +3,8 @@ lint_andmove_markdownfile(){
     MDLINT_TEST_FILE=$1
     NEXT_FOLDER_PATH=$2
 
+    echo "linting file $MDLINT_TEST_FILE and moving into folder $NEXT_FOLDER_PATH"
+
     echo ">>> Detect only the ##@@1234@@##, there is no fix for this one. We fix it manually"
     markdownlint -c .markdownlint.replacementtokens.jsonc -r markdownlint-rule-search-replace $MDLINT_TEST_FILE
     if [ $? -eq 0 ]; then 
@@ -56,7 +58,7 @@ lint_files_infolder(){
         echo "Processing $f file..."
         # take action on each file. $f store current file name
         #cat "$f"
-        lint_andmove_markdownfile $f 
+        lint_andmove_markdownfile $f $DEST_FOLDER
     done
 
 }
