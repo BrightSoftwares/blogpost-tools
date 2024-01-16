@@ -954,11 +954,12 @@ def autolink(folder_to_scan, audited_df, aliases_df):
       # Shortening the date if it contains the time also
       # dest_post_date_str = dest_post_date_str[:10]
       # dest_post_date = datetime.datetime.strptime(dest_post_date_str, '%Y-%m-%d')
-      print("Dest post date = {}  ".format(dest_post_date, dest_post_date))
+      print("Dest post date = {}  ".format(dest_post_date))
       today = datetime.datetime.today().date()
       yesterday = today + datetime.timedelta(days=-1)
 
       if dest_post_date <= yesterday:
+        print("Dest date is earlier than yesterday. Linking ...")
 
         tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
         tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
