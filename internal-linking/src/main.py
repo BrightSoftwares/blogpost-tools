@@ -3,6 +3,7 @@ import numpy as np
 import os, re, sys
 import frontmatter
 import yaml
+import datetime
 from generate_short_keywords import generate_short_keywords, generate_anchor_text_to_post_file, generate_internallinking_per_silot_terms_file, generate_silot_terms_file
 
 # charList = " " + string.ascii_lowercase + string.digits
@@ -946,40 +947,53 @@ def autolink(folder_to_scan, audited_df, aliases_df):
 
       # Load the file to process it's content
       post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
+      dest_post = frontmatter.load(folder_to_scan + "/" + current_item.dst_file)
 
-      tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
-      tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
-      tokens_array_images, content_images = replace_image_with_tokens(content_titles)
-      tokens_array_links, content_links = replace_link_with_tokens(content_images)
+      # Check that the dest_post has a date that is anterior to day's date
+      dest_post_date_str = dest_post['date'] if 'date' in dest_post else "1980-01-01"
+      # Shortening the date if it contains the time also
+      dest_post_date_str = dest_post_date_str[:10]
+      dest_post_date = datetime.datetime.strptime(dest_post_date_str, '%Y-%m-%d')
+      print("Dest post date str = {}, dest post date = {}  ".format(dest_post_date_str, dest_post_date))
+      today = datetime.datetime.today().date()
+      yesterday = today + datetime.timedelta(days=-1)
 
-      has_linked, text_linked, new_content = link_content4(folder_to_scan, content_links, current_item.dst_file, aliases_df)
+      if dest_post_date <= yesterday:
 
-      content_codeblocks_replaced = replace_tokens_with_codeblocks(new_content, tokens_array_codeblocks)
-      content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
-      content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
-      content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+        tokens_array_codeblocks, content_codeblock = replace_codeblock_with_tokens(post.content)
+        tokens_array_titles, content_titles = replace_title_with_tokens(content_codeblock)
+        tokens_array_images, content_images = replace_image_with_tokens(content_titles)
+        tokens_array_links, content_links = replace_link_with_tokens(content_images)
 
-      final_content = content_titles_replaced
-      
-      print("***** Found Link = ", has_linked)
+        has_linked, text_linked, new_content = link_content4(folder_to_scan, content_links, current_item.dst_file, aliases_df)
 
-      # Save new content in the file
-      if has_linked:
-        # Mark the link_text as used
-        if text_linked:
-          audited_df.loc[(audited_df['link_text'] == text_linked) & (audited_df['dst_file'] == current_item.dst_file), 'link_exist'] = True
-        # Save the content
-        if dry_run == "true":
-              print("---> In dry run mode. Not saving files")
-        else:
-          print("Saving auto linked post")
-          post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
-          post.content = final_content
-          filecontent = frontmatter.dumps(post)
-          
-          with open(folder_to_scan + "/" + current_item.src_file, 'w') as f:
-            f.write(filecontent)
+        content_codeblocks_replaced = replace_tokens_with_codeblocks(new_content, tokens_array_codeblocks)
+        content_images_replaced = replace_tokens_with_codeblocks(content_codeblocks_replaced, tokens_array_images)
+        content_links_replaced = replace_tokens_with_codeblocks(content_images_replaced, tokens_array_links)
+        content_titles_replaced = replace_tokens_with_codeblocks(content_links_replaced, tokens_array_titles)
+
+        final_content = content_titles_replaced
+        
+        print("***** Found Link = ", has_linked)
+
+        # Save new content in the file
+        if has_linked:
+          # Mark the link_text as used
+          if text_linked:
+            audited_df.loc[(audited_df['link_text'] == text_linked) & (audited_df['dst_file'] == current_item.dst_file), 'link_exist'] = True
+          # Save the content
+          if dry_run == "true":
+                print("---> In dry run mode. Not saving files")
+          else:
+            print("Saving auto linked post")
+            post = frontmatter.load(folder_to_scan + "/" + current_item.src_file)
+            post.content = final_content
+            filecontent = frontmatter.dumps(post)
             
+            with open(folder_to_scan + "/" + current_item.src_file, 'w') as f:
+              f.write(filecontent)
+      else:
+        print("Destination post date {} is newer than yesterday {}. Not linking the file".format(dest_post_date, yesterday))        
 
     except Exception as e:
       print("bad error for file {}".format(current_item.dst_file), str(e))
