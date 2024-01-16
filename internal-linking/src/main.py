@@ -950,11 +950,11 @@ def autolink(folder_to_scan, audited_df, aliases_df):
       dest_post = frontmatter.load(folder_to_scan + "/" + current_item.dst_file)
 
       # Check that the dest_post has a date that is anterior to day's date
-      dest_post_date_str = dest_post['date'] if 'date' in dest_post else "1980-01-01"
+      dest_post_date = dest_post['date'] if 'date' in dest_post else datetime.datetime.strptime("1980-01-01", '%Y-%m-%d')
       # Shortening the date if it contains the time also
-      dest_post_date_str = dest_post_date_str[:10]
-      dest_post_date = datetime.datetime.strptime(dest_post_date_str, '%Y-%m-%d')
-      print("Dest post date str = {}, dest post date = {}  ".format(dest_post_date_str, dest_post_date))
+      # dest_post_date_str = dest_post_date_str[:10]
+      # dest_post_date = datetime.datetime.strptime(dest_post_date_str, '%Y-%m-%d')
+      print("Dest post date = {}  ".format(dest_post_date, dest_post_date))
       today = datetime.datetime.today().date()
       yesterday = today + datetime.timedelta(days=-1)
 
