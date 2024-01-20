@@ -27,7 +27,43 @@ def reschedule_files(posts_df, src_folder_path, dest_folder_path, dry_run):
   else:
     print("In dry run mode, skipping file write ...")
 
-def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, nb_days_ahead, dry_run):
+
+def get_startdate(extract_most_recent_date_from, nb_days_ahead=0):
+  """
+  Get the most recent date from the folder containing the post if provided.
+  Else it computes the most recent date from the nb of days ahead provided
+  """
+  start_date = datetime.datetime.now()
+  
+  # If the user provided a folder to get the max date, use it.
+  if extract_most_recent_date_from is not None:
+    posts_dates = [datetime.datetime.now()] # Add now initially so that at lease we get the current date a most recent
+    entries = glob.glob(extract_most_recent_date_from + "/**/*.md", recursive=True)
+    for entry in entries:
+        try:
+          entry = os.path.basename(entry)
+          print("Collecting date for the entry {}".format(entry))
+          post = frontmatter.load(extract_most_recent_date_from + "/" + entry)
+          if 'date' in post:
+            post_date = post['date']
+            posts_dates.append(post_date)
+        except Exception as e:
+          print("Error while collecting the date for the post ", entry)
+    
+    print("Dates collected: ", posts_dates)
+    start_date = max(posts_dates)
+    print("Most recent date = ", start_date)
+    return start_date
+  else:
+    # Else compute with the days ahead
+    # Generate the date range and associate them with the previous dataframe
+    print("Generating the new dates with {} days ahead".format(nb_days_ahead))
+    start_date = datetime.date.today() + datetime.timedelta(days=nb_days_ahead)
+  
+  start_date_str = start_date.strftime("%m/%d/%Y")
+  return start_date_str
+
+def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run):
 
   print("Auto scheduling posts from src folder ({}), to dest folder ({}) and days mask ({}) and dry run ({})".format(src_folder_path, dest_folder_path, days_mask, dry_run))
   
@@ -74,10 +110,10 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, nb_days_ah
   posts_df.sort_values(by=['current_date', 'score'], inplace=True)
   
 
-  # Generate the date range and associate them with the previous dataframe
-  print("Generating the new dates wit {} days ahead".format(nb_days_ahead))
-  tomorrow = datetime.date.today() + datetime.timedelta(days=nb_days_ahead)
-  start_date = tomorrow.strftime("%m/%d/%Y")
+  # # Generate the date range and associate them with the previous dataframe
+  # print("Generating the new dates wit {} days ahead".format(nb_days_ahead))
+  # tomorrow = datetime.date.today() + datetime.timedelta(days=nb_days_ahead)
+  # start_date = tomorrow.strftime("%m/%d/%Y")
   print("Start date: ", start_date)
   dates_df = pd.bdate_range(start=start_date, periods=posts_df.shape[0], freq='C', weekmask=days_mask)
   assigned_posts_df = posts_df.assign(new_date=dates_df)
@@ -102,4 +138,14 @@ days_mask = os.getenv('INPUT_DAYS_MASK')
 dry_run = os.getenv('INPUT_DRY_RUN')
 nb_days_ahead = int(os.getenv('INPUT_NB_DAYS_AHEAD', 1))
 
-auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, nb_days_ahead, dry_run)
+#use this folder to extract the most recent date so I can build on top of it
+extract_most_recent_date_from = os.getenv('INPUT_MOST_RECENT_DATE_FOLDER', None)
+if extract_most_recent_date_from is not None:
+  if extract_most_recent_date_from.endswith("/"):
+    extract_most_recent_date_from = extract_most_recent_date_from[:-1]
+print("Folder to extract the most recent date from: ", extract_most_recent_date_from)
+
+
+start_date = get_startdate(extract_most_recent_date_from, nb_days_ahead)
+
+auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run)
