@@ -268,6 +268,7 @@ jobs:
           dry_run: ${{ inputs.autoschedule_dryrun }} # false
           days_mask: ${{ inputs.autoschedule_days_mask }} # Mon Wed Fri Sun
           nb_days_ahead: ${{ inputs.autoschedule_nbdaysahead }} # 2
+          most_recent_date_folder: ${{ inputs.manualpublication_dstpath }}
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -16,6 +16,9 @@ inputs:
   days_mask:
     description: The days in the week (Mon Tue Wed Thu Fri) you want the program to select for your post schedules
     default: Mon Wed
+  most_recent_date_folder:
+    description: Folder from which to get the most recent post so the rest can be computed from there.
+
   
 
 outputs:
