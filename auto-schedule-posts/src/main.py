@@ -33,11 +33,11 @@ def get_startdate(extract_most_recent_date_from, nb_days_ahead=0):
   Get the most recent date from the folder containing the post if provided.
   Else it computes the most recent date from the nb of days ahead provided
   """
-  start_date = datetime.datetime.now()
+  start_date = datetime.date.today() # datetime.datetime.now()
   
   # If the user provided a folder to get the max date, use it.
   if extract_most_recent_date_from is not None:
-    posts_dates = [datetime.datetime.now()] # Add now initially so that at lease we get the current date a most recent
+    posts_dates = [datetime.date.today()] # [datetime.datetime.now()] # Add now initially so that at lease we get the current date a most recent
     entries = glob.glob(extract_most_recent_date_from + "/**/*.md", recursive=True)
     for entry in entries:
         try:
