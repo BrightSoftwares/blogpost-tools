@@ -28,6 +28,10 @@ def is_jekyll_filename_pretified(post):
   print("is_jekyll_filename_pretified >>> pretified = {}".format(pretified))
   return pretified is not None and pretified == True
 
+def is_refined_content(post):
+  refined = post['refined_content']  if 'refined_content' in post else None
+  print("is_refined_content >>> refined = {}".format(refined))
+  return refined is not None and refined == True
 
 def is_suggestions_to_blogposted(post):
   nb_characters = len(post.content)
@@ -113,6 +117,8 @@ def move_bloginspritationconverter_to_destination():
 def move_jekyllfilenamepretifier_to_destination():
   move_to_destination(src_folder, dst_folder, is_jekyll_filename_pretified)
 
+def move_refinedcontent_to_destination():
+  move_to_destination(src_folder, dst_folder, is_refined_content)
 
 def move_suggestionstoblogpost_to_destination():
   move_to_destination(src_folder, dst_folder, is_suggestions_to_blogposted)
