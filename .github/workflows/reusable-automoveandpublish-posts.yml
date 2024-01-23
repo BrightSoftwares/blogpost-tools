@@ -206,6 +206,15 @@ jobs:
           dry_run: ${{ inputs.rssconverter_dryrun }} # false
           function_to_run: move_iscontentenough_to_destination
 
+      # move_refinedcontent_to_destination: from generated raw content -> refined content if recined_content is true in front matter 
+      - name: (3bis) Move from generated raw content -> refined content if refined_content is true
+        uses: BrightSoftwares/blogpost-tools/auto-move-to-destination@main
+        with:
+          src_path: ${{ inputs.rssconverter_dstpath }} # /github/workspace/_drafts/200_rss_inspired_posts/
+          dst_path: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/300_generated_raw_content/
+          dry_run: false
+          function_to_run: move_refinedcontent_to_destination
+
       ## (3) Clean up the post proposals
       # Manual cleanup: from post proposal -> refined content
 
