@@ -9,7 +9,7 @@ from googleapiclient.errors import HttpError
 def get_yt_results_dataframe(obj_array):
   return pd.DataFrame(obj_array, columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
 
-def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results=10):
+def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_results_file, yt_video_duration, max_results=10):
 
     # Load the results youtube videos
     print("Results file to load", yt_results_file)
@@ -31,7 +31,7 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
           maxResults=max_results,
           order='relevance',
           type='video',
-          videoDuration=YOUTUBE_VIDEO_DURATION,
+          videoDuration=yt_video_duration,
           # videoLicense='creativeCommon'
       ).execute()
 
@@ -118,7 +118,7 @@ def save_youtube_search(query, results_df, dest_file):
   yt_results_df.to_csv(dest_file, index=False)
 
 
-def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_results_file, yt_already_used, max_results=25):
+def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_results_file, yt_already_used, yt_video_duration, max_results=25):
     
     # Loading already used videos
     try:
@@ -151,7 +151,7 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
             if ytvideo_url is None and title is not None:
 
                 # Get the best video for this query
-                search_results = youtube_search(title, yt_service_name, yt_api_version, yt_api_key, yt_results_file, max_results)
+                search_results = youtube_search(title, yt_service_name, yt_api_version, yt_api_key, yt_results_file, yt_video_duration, max_results)
                 print("search_results = ", search_results)
                 
                 # Save the results got from youtube
@@ -214,4 +214,4 @@ YOUTUBE_API_VERSION = 'v3'
 
 
 #blogpost_to_ytvideo(folder, yt_already_used)
-blogpost_to_ytvideo(folder, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, DEVELOPER_KEY, yt_results_file, yt_already_used, yt_max_results)
+blogpost_to_ytvideo(folder, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, DEVELOPER_KEY, yt_results_file, yt_already_used, YOUTUBE_VIDEO_DURATION, yt_max_results)
