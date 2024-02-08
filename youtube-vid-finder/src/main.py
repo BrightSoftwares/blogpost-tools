@@ -6,6 +6,20 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
+# Set DEVELOPER_KEY to the API key value from the APIs & auth > Registered apps
+# tab of
+#   https://cloud.google.com/console
+# Please ensure that you have enabled the YouTube Data API for your project.
+folder = os.getenv('INPUT_SRC_FOLDER')
+DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
+yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
+yt_results_file = os.getenv('INPUT_YT_SEARCH_RESULTS_FILE')
+yt_max_results = os.getenv('INPUT_YT_MAX_RESULTS', 10)
+YOUTUBE_VIDEO_DURATION = os.getenv('INPUT_YOUTUBE_VIDEO_DURATION', 'any')
+YOUTUBE_API_SERVICE_NAME = 'youtube'
+YOUTUBE_API_VERSION = 'v3'
+
+
 def get_yt_results_dataframe(obj_array):
   return pd.DataFrame(obj_array, columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
 
@@ -196,21 +210,6 @@ def blogpost_to_ytvideo(folder, yt_service_name, yt_api_version, yt_api_key, yt_
     # Export the result to csv
     used_vids_df.drop_duplicates(inplace=True)
     used_vids_df.to_csv(yt_already_used, index=False)
-
-
-
-# Set DEVELOPER_KEY to the API key value from the APIs & auth > Registered apps
-# tab of
-#   https://cloud.google.com/console
-# Please ensure that you have enabled the YouTube Data API for your project.
-folder = os.getenv('INPUT_SRC_FOLDER')
-DEVELOPER_KEY = os.getenv('INPUT_YOUTUBE_API_KEY')
-yt_already_used = os.getenv('INPUT_YT_ALREADY_USED_VIDS')
-yt_results_file = os.getenv('INPUT_YT_SEARCH_RESULTS_FILE')
-yt_max_results = os.getenv('INPUT_YT_MAX_RESULTS', 10)
-YOUTUBE_VIDEO_DURATION = os.getenv('INPUT_YOUTUBE_VIDEO_DURATION', 'any')
-YOUTUBE_API_SERVICE_NAME = 'youtube'
-YOUTUBE_API_VERSION = 'v3'
 
 
 #blogpost_to_ytvideo(folder, yt_already_used)
