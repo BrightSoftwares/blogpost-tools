@@ -20,6 +20,9 @@ YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
 
+def get_yt_empty_dataframe_with_headers():
+  return pd.DataFrame(columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
+
 def get_yt_results_dataframe(obj_array):
   return pd.DataFrame(obj_array, columns=['query', 'video_kind', 'video_title', 'video_id', 'video_description'])
 
@@ -36,31 +39,37 @@ def youtube_search(query, yt_service_name, yt_api_version, yt_api_key, yt_result
     print(existing_result_df)
 
     if existing_result_df.empty:
-      print("No existing result found for this query. Asking youtube")
-      # Call the search.list method to retrieve results matching the specified
-      # query term.
-      search_response = youtube.search().list(
-          q=query,
-          part='id,snippet',
-          maxResults=max_results,
-          order='relevance',
-          type='video',
-          videoDuration=yt_video_duration,
-          # videoLicense='creativeCommon'
-      ).execute()
+      print("No existing result found for this query. Checking if yt search params are valid")
 
-      # Append the new data to it
       theresults = []
-      for search_result in search_response.get('items', []):
-        print(search_result)
-        video_kind = search_result['id']['kind']
-
-        if video_kind == "youtube#video":
-          video_title = search_result['snippet']['title']
-          video_id = search_result['id']['videoId']
-          video_description = search_result['snippet']['description']
-
-          theresults.append([query, video_kind, video_title, video_id, video_description])
+      if yt_video_duration == "":
+        print("yt_video_duration have an invalid value. ({}) Not querying youtube".format(yt_video_duration))
+      else:
+        print("No existing result found for this query. Asking youtube")
+        # Call the search.list method to retrieve results matching the specified
+        # query term.
+        search_response = youtube.search().list(
+            q=query,
+            part='id,snippet',
+            maxResults=max_results,
+            order='relevance',
+            type='video',
+            videoDuration=yt_video_duration,
+            # videoLicense='creativeCommon'
+        ).execute()
+  
+        # Append the new data to it
+        
+        for search_result in search_response.get('items', []):
+          print(search_result)
+          video_kind = search_result['id']['kind']
+  
+          if video_kind == "youtube#video":
+            video_title = search_result['snippet']['title']
+            video_id = search_result['id']['videoId']
+            video_description = search_result['snippet']['description']
+  
+            theresults.append([query, video_kind, video_title, video_id, video_description])
 
       print("At the end of the processing we transform it into a dataframe")
       existing_result_df = get_yt_results_dataframe(theresults)
