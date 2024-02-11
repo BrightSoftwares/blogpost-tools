@@ -48,5 +48,21 @@ create_language_automation_folders(){
     create_automation_folders $DRAFT_EN_FOLDERS
 }
 
-create_language_automation_folders en
-create_language_automation_folders fr
+create_seo_folders(){
+    echo "Creating the _seo folders"
+    mkdir -p _seo/keyword-generation
+    touch _seo/keyword-generation/.gitkeep
+
+    mkdir -p _seo/markdown-linting
+    touch _seo/markdown-linting/.gitkeep
+
+    mkdir -p _seo/jekyll-filename-pretifier
+    touch _seo/jekyll-filename-pretifier/.gitkeep
+
+    mkdir -p _seo/internal-linking
+    touch _seo/internal-linking/.gitkeep
+}
+
+# create_language_automation_folders en
+# create_language_automation_folders fr
+create_seo_folders
