@@ -38,6 +38,19 @@ mkdir -p _drafts/300_generated_raw_content/900_posts_17/
 mkdir -p _drafts/300_generated_raw_content/900_posts_$count/;count=$count+1;find _drafts/ -name '*.md' | head -n 900 | xargs -d $'\n' mv -t _drafts/300_generated_raw_content/900_posts_$count/
 
 
+## Sort 300 posts in a folder
+## Increment the counter
+count=0
+mkdir -p _drafts/en/300_generated_raw_content/300_posts_$count/;find _drafts/ -name '*.md' | head -n 300 | xargs -d $'\n' mv -t _drafts/en/300_generated_raw_content/300_posts_$count/;count=$((count+1));echo $count
+
+## Sort 900 posts in a folder
+## Increment the counter
+count=0
+THELANG=en
+NBPOSTS=400
+SRC_MD_FOLDER=_drafts
+DST_FOLDER=_drafts/$THELANG/300_generated_raw_content/${NBPOSTS}_posts_${count}/;echo $DST_FOLDER;mkdir -p $DST_FOLDER;find $SRC_MD_FOLDER/ -name '*.md' | head -n $NBPOSTS | xargs -d $'\n' mv -t $DST_FOLDER;count=$((count+1));echo $count
+
 
 mv `ls *.md | head -900` ./_drafts/300_generated_raw_content/900_posts_1/
 
