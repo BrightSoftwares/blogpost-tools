@@ -95,6 +95,7 @@ def save_post(title, silot_terms, content, dst_folder):
   post['title'] = title
   post['date'] = datetime.today().strftime('%Y-%m-%d')
   post['silot_terms'] = silot_terms
+  post['refined_content'] = False
   post.content = content
 
 #     frontmatter = """
