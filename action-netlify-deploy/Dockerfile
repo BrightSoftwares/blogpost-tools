@@ -1,8 +1,3 @@
-FROM node:current-stretch-slim
-
-npm i -g netlify-cli
-
-ADD entrypoint.sh /entrypoint.sh
-ADD action.yml /action.yml
+FROM fullbright/action-netlify-deploy
 
 ENTRYPOINT ["/entrypoint.sh"]
