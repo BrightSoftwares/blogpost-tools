@@ -40,7 +40,9 @@ then
   COMMAND+=" --filter ${MONOREPO_PACKAGE}"
 fi
 
+echo "Running command: $COMMAND"
 OUTPUT=$(sh -c "$COMMAND")
+echo "Command execution output: $OUTPUT"
 
 # Set outputs
 NETLIFY_OUTPUT=$(echo "$OUTPUT")
