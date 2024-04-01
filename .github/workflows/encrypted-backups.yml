@@ -24,7 +24,8 @@ jobs:
       image_name: encrypted-backups
       tag: latest
       subfolder_name: encrypted-backups
-      dockerfile_name: Dockerfile.encrypted-backups
+      #dockerfile_name: Dockerfile.encrypted-backups
+      dockerfile_name: Dockerfile.encrypted-backups-alpine
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
