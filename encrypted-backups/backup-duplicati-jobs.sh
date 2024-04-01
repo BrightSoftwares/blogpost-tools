@@ -15,7 +15,8 @@ if [[ -z "$DUPLICATI_SERVER_URL" ]]; then
   exit -1
 else
   echo "All env variables defined. Continue the execution"
-  duc login $DUPLICATI_SERVER_URL
+  IP=$(nslookup $DUPLICATI_SERVER_URL | grep Address | grep -v \#53 | cut -f 2 -d' ')
+  duc login $IP
   duc export --all $DUPLICATI_BACKUP_FOLDER
 fi
 
