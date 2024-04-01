@@ -17,7 +17,7 @@ else
   echo "All env variables defined. Continue the execution"
   IP=$(nslookup $DUPLICATI_SERVER_URL | grep Address | grep -v \#53 | cut -f 2 -d' ')
   duc login $IP
-  duc export --all $DUPLICATI_BACKUP_FOLDER
+  duc export --all --output JSON --output-path $DUPLICATI_BACKUP_FOLDER
 fi
 
 
