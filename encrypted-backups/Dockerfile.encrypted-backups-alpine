@@ -2,11 +2,13 @@ FROM python:3.10-alpine
 
 RUN apk update && apk upgrade --available && \
     # apk add --update python3 python3-pip git apk-cron dnsutils inetutils-ping curl && \
-    apk add --update python3 git apk-cron bind-tools py3-pip curl && \
+    apk add --update python3 git apk-cron bind-tools py3-pip curl docker && \
     rm -rf /var/cache/apk/*
 RUN git clone https://github.com/pectojin/duplicati-client --depth 1 && \
-       cd duplicati-client/ && ln -s /duplicati-client/duplicati_client.py /usr/bin/duc && pip3 install -r requirements.txt 
-RUN curl -sSL https://get.docker.com/ | sh
+    cd duplicati-client/ && \
+    ln -s /duplicati-client/duplicati_client.py /usr/bin/duc && \
+    pip3 install -r requirements.txt 
+#RUN curl -sSL https://get.docker.com/ | sh
 
     
 
