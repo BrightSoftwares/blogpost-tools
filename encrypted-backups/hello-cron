@@ -1,2 +1,7 @@
 # must be ended with a new line "LF" (Unix) and not "CRLF" (Windows)
 * * * * * echo "Hello world" >> /var/log/cron.log 2>&1
+
+# Fails to call docker - as docker is not installed inside the container
+* * * * * bash /scripts/backup-docker-dbs.sh >> /var/log/cron.log 2>&1
+
+* * * * * bash /scripts/backup-duplicati-jobs.sh >> /var/log/cron.log 2>&1

@@ -1,0 +1,11 @@
+services:
+  encrypted-backups:
+    image: fullbright/encrypted-backups
+    container_name: encrypted-backups
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock 
+      - /home/codespace/backups/databases:/backups/databases
+      - /home/codespace/backups/duplicati:/backups/duplicati
+    environment:
+      - NB_DAYS=4
+      - DUPLICATI_SERVER_URL=http://localhost
