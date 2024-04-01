@@ -1,0 +1,30 @@
+name: Build and publish the encrypted backups image
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "encrypted-backups/**"
+
+      
+jobs:
+  build-and-publish-encrypted-backups:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a one line script
+        run: echo Hello from Github actions!
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: encrypted-backups
+      tag: latest
+      subfolder_name: encrypted-backups
+      dockerfile_name: Dockerfile.encrypted-backups
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
