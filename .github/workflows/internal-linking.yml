@@ -1,0 +1,30 @@
+name: Build and publish the internal linking image
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "internal-linking/**"
+
+      
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a one line script
+        run: echo Hello from Github actions!
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: internal-linking
+      tag: latest
+      subfolder_name: internal-linking
+      dockerfile_name: Dockerfile.internal-linking
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
