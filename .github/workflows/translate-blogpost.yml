@@ -1,0 +1,27 @@
+name: Build and publish the translate-blogpost image
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "translate-blogpost/**"
+
+      
+jobs:
+  build-and-publish-keyword-suggestion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: translate-blogpost
+      tag: latest
+      subfolder_name: translate-blogpost
+      dockerfile_name: Dockerfile.translate-blogpost
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
