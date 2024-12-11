@@ -1,0 +1,42 @@
+services:
+  #haproxy:
+  #  image: bright-monica:v0
+  #  environment:
+  #    MYSQL_HOST: sql999.main-hosting.eu
+  #    MYSQL_PORT: 3306
+  #    HAPROXY_PORT: 3306
+  #    HAPROXY_MAXCONN: 1
+  #  ports:
+  #    - "3306:3306"
+
+  monica:
+    #image: lscr.io/linuxserver/monica:latest
+    image: bright-monica:v0.3
+    container_name: monica
+    environment:
+      - APP_KEY=<fake>
+      #- PUID=1000
+      #- PGID=1000
+      #- TZ=Etc/UTC
+      - DB_HOST=127.0.0.1
+      - DB_PORT=3306
+      - DB_USERNAME=<fake>
+      - DB_PASSWORD=<fake>
+      - DB_DATABASE=<fake>
+      #- APP_URL=http://localhost:80 #optional
+      #- TRUSTED_PROXIES= #optional
+      #- APP_ENV=local #optional
+      #- APP_DISABLE_SIGNUP=true #optional
+      - MYSQL_HOST=<fake>
+      - MYSQL_PORT=3306
+      - HAPROXY_PORT=3306
+      - HAPROXY_MAXCONN=1
+      - APP_ENV=production
+    #volumes:
+    #  - $PWD/config:/config
+    ports:
+      - 80:80
+      #- 443:443
+      - 8404:8404
+      - 3306:3306
+    restart: unless-stopped
