@@ -1,0 +1,26 @@
+name: Build and publish the ha-linky image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ha-linky/**'
+      
+      
+jobs:
+  build-and-publish-monicahq-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: ha-linky
+      tag: latest
+      subfolder_name: ha-linky
+      dockerfile_name: standalone.Dockerfile
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
