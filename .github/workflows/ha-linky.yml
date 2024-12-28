@@ -8,13 +8,13 @@ on:
       
       
 jobs:
-  build-and-publish-monicahq-docker:
+  checkout-code:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
 
-  docker:
+  build-and-publish-docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
       image_name: ha-linky
