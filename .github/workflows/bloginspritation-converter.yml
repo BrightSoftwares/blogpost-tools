@@ -1,0 +1,27 @@
+name: Build and publish the blog inspiration image
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "bloginspritation-converter/**"
+
+      
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: bloginspritation-converter
+      tag: latest
+      subfolder_name: bloginspritation-converter
+      dockerfile_name: Dockerfile.bloginspritation-converter
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
