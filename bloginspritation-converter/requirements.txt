@@ -3,8 +3,8 @@ python-frontmatter
 nltk
 markdownify
 tomd
-spacy
-spacy-langdetect
+#spacy
+#spacy-langdetect
 googletrans==3.1.0a0
 lxml[html_clean]
 lxml_html_clean 
