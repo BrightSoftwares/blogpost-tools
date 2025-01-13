@@ -1,7 +1,7 @@
 from newspaper import Article
 from markdownify import markdownify as md
-from spacy_langdetect import LanguageDetector
-from spacy.language import Language
+#from spacy_langdetect import LanguageDetector
+#from spacy.language import Language
 from googletrans import Translator
 import spacy
 import nltk
