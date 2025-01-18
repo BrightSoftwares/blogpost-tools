@@ -28,13 +28,16 @@ jobs:
           echo "All files"
           find -maxdepth 2 -type f -ls
 
+          echo "Move the dockerfile under the public-backstage"
+          mv backstage/Dockerfile backstage/public-backstage/
+
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
       image_name: bright-backstage
       tag: latest
       subfolder_name: backstage
-      dockerfile_name: Dockerfile
+      dockerfile_name: public-backstage/Dockerfile
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
