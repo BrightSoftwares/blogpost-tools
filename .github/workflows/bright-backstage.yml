@@ -34,15 +34,49 @@ jobs:
           echo "After Dockerfile move All files"
           find -maxdepth 2 -type f -ls
 
-  docker:
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
-    needs: build-and-publish-docker
-    with:
-      image_name: bright-backstage
-      tag: latest
-      subfolder_name: backstage-public
-      dockerfile_name: Dockerfile
-      debug: true
-    secrets:
-      registry_username: ${{ secrets.DOCKER_USERNAME }}
-      registry_password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.registry_username }}
+          password: ${{ secrets.registry_password }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: metaapi
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ secrets.registry_username }}/bright-backstage
+          flavor: |
+            latest=true
+            prefix=
+            suffix=
+          tags: |
+            type=schedule
+            type=ref,event=tag,enable=true,prefix=,suffix=
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+          
+      - name: Build and push Docker image for API
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: "./backstage-public"
+          file: ./backstage-public/Dockerfile
+          push: true
+          tags: ${{ steps.metaapi.outputs.tags }}
+          labels: ${{ steps.metaapi.outputs.labels }}
+
+  # docker:
+  #   uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+  #   needs: build-and-publish-docker
+  #   with:
+  #     image_name: bright-backstage
+  #     tag: latest
+  #     subfolder_name: backstage-public
+  #     dockerfile_name: Dockerfile
+  #     debug: true
+  #   secrets:
+  #     registry_username: ${{ secrets.DOCKER_USERNAME }}
+  #     registry_password: ${{ secrets.DOCKER_PASSWORD }}
