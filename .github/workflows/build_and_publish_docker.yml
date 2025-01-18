@@ -14,6 +14,9 @@ on:
       dockerfile_name:
         type: string
         required: true
+      debug:
+        type: boolean
+        default: false
     secrets:
       registry_username:
         required: true
@@ -29,6 +32,15 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+
+      - name: Debug - List files with depth 2
+        if: ${{ inputs.debug }}
+        run: |
+          echo "Files in the folder ${{ inputs.subfolder_name }}"
+          echo "Showing folders"
+          find ${{ inputs.subfolder_name }} -maxdepth 2 -type d -ls
+          echo "Showing files"
+          find ${{ inputs.subfolder_name }} -maxdepth 2 -type f -ls
       
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
