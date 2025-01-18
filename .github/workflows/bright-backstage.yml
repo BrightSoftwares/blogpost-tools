@@ -29,7 +29,7 @@ jobs:
           find -maxdepth 2 -type f -ls
 
           echo "Move the dockerfile under the public-backstage"
-          mv backstage/Dockerfile backstage-public
+          mv backstage/Dockerfile backstage-public/Dockerfile
 
           echo "After Dockerfile move All files"
           find -maxdepth 2 -type f -ls
