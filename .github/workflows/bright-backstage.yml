@@ -28,23 +28,13 @@ jobs:
           echo "All files"
           find -maxdepth 2 -type f -ls
 
-      - name: Build and publish the image
-        uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
-        with:
-          image_name: bright-backstage
-          tag: latest
-          subfolder_name: backstage/public-backstage
-          dockerfile_name: ../Dockerfile
-          registry_username: ${{ secrets.DOCKER_USERNAME }}
-          registry_password: ${{ secrets.DOCKER_PASSWORD }}
-
-  # docker:
-  #   uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
-  #   with:
-  #     image_name: bright-backstage
-  #     tag: latest
-  #     subfolder_name: backstage/public-backstage
-  #     dockerfile_name: ../Dockerfile
-  #   secrets:
-  #     registry_username: ${{ secrets.DOCKER_USERNAME }}
-  #     registry_password: ${{ secrets.DOCKER_PASSWORD }}
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: bright-backstage
+      tag: latest
+      subfolder_name: backstage
+      dockerfile_name: Dockerfile
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
