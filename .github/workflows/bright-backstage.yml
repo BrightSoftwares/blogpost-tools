@@ -20,6 +20,14 @@ jobs:
           repository: backstage/backstage
           path: './backstage/public-backstage'
 
+      - name: Check all files presence
+        run: |
+          echo "All folders"
+          find -maxdepth 2 -type d -ls
+
+          echo "All files"
+          find -maxdepth 2 -type f -ls
+
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
