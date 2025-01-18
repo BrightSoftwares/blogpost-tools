@@ -64,6 +64,7 @@ jobs:
         with:
           context: "backstage-public"
           # file: ./backstage-public/Dockerfile
+          no-cache: true
           push: true
           tags: ${{ steps.metaapi.outputs.tags }}
           labels: ${{ steps.metaapi.outputs.labels }}
