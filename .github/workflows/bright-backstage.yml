@@ -41,6 +41,7 @@ jobs:
       tag: latest
       subfolder_name: backstage-public
       dockerfile_name: Dockerfile
+      debug: true
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
