@@ -31,6 +31,9 @@ jobs:
           echo "Move the dockerfile under the public-backstage"
           mv backstage/Dockerfile backstage/public-backstage/
 
+          echo "After Dockerfile move All files"
+          find -maxdepth 2 -type f -ls
+
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
