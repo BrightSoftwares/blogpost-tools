@@ -36,6 +36,7 @@ jobs:
 
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    needs: build-and-publish-docker
     with:
       image_name: bright-backstage
       tag: latest
