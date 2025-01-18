@@ -20,24 +20,24 @@ jobs:
           repository: backstage/backstage
           path: './backstage-public'
 
-      - name: Check all files presence
-        run: |
-
-          echo "All files"
-          find -maxdepth 2 -ls
-
-          echo "Move the dockerfile under the public-backstage"
-          mv backstage/Dockerfile backstage-public/Dockerfile
-
-          echo "After Dockerfile move All files"
-          find -maxdepth 2 -ls
-
       - name: Install using yarn
         run: |
           cd backstage-public
           yarn install --immutable
           yarn tsc
           yarn build:backend
+
+      - name: Check all files presence
+        run: |
+
+          echo "All files"
+          find -maxdepth 3 -ls
+
+          echo "Move the dockerfile under the public-backstage"
+          mv backstage/Dockerfile backstage-public/Dockerfile
+
+          echo "After Dockerfile move All files"
+          find -maxdepth 3 -ls
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
