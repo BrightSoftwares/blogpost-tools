@@ -32,6 +32,13 @@ jobs:
           echo "After Dockerfile move All files"
           find -maxdepth 2 -ls
 
+      - name: Install using yarn
+        run: |
+          cd backstage-public
+          yarn install --immutable
+          yarn tsc
+          yarn build:backend
+
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
