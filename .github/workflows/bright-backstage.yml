@@ -62,8 +62,8 @@ jobs:
       - name: Build and push Docker image for API
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
-          context: "./backstage-public"
-          file: ./backstage-public/Dockerfile
+          context: "backstage-public"
+          # file: ./backstage-public/Dockerfile
           push: true
           tags: ${{ steps.metaapi.outputs.tags }}
           labels: ${{ steps.metaapi.outputs.labels }}
