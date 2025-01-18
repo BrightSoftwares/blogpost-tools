@@ -1,0 +1,32 @@
+name: Build and publish the Backstage image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backstage/**'
+      
+      
+jobs:
+  build-and-publish-monicahq-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: backstage/backstage
+          path: './backstage/public-backstage'
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: bright-backstage
+      tag: latest
+      subfolder_name: backstage/public-backstage
+      dockerfile_name: ../Dockerfile
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
