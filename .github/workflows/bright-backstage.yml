@@ -22,17 +22,15 @@ jobs:
 
       - name: Check all files presence
         run: |
-          echo "All folders"
-          find -maxdepth 2 -type d -ls
 
           echo "All files"
-          find -maxdepth 2 -type f -ls
+          find -maxdepth 2 -ls
 
           echo "Move the dockerfile under the public-backstage"
           mv backstage/Dockerfile backstage-public/Dockerfile
 
           echo "After Dockerfile move All files"
-          find -maxdepth 2 -type f -ls
+          find -maxdepth 2 -ls
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
