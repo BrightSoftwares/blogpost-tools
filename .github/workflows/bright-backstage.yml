@@ -44,7 +44,7 @@ jobs:
         id: metaapi
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
-          images: ${{ secrets.registry_username }}/bright-backstage
+          images: ${{ secrets.DOCKER_USERNAME }}/bright-backstage
           flavor: |
             latest=true
             prefix=
