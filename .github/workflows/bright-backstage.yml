@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: backstage/backstage
-          path: './backstage/public-backstage'
+          path: './backstage-public'
 
       - name: Check all files presence
         run: |
@@ -29,7 +29,7 @@ jobs:
           find -maxdepth 2 -type f -ls
 
           echo "Move the dockerfile under the public-backstage"
-          mv backstage/Dockerfile backstage/public-backstage/
+          mv backstage/Dockerfile backstage-public
 
           echo "After Dockerfile move All files"
           find -maxdepth 2 -type f -ls
@@ -39,8 +39,8 @@ jobs:
     with:
       image_name: bright-backstage
       tag: latest
-      subfolder_name: backstage
-      dockerfile_name: public-backstage/Dockerfile
+      subfolder_name: backstage-public
+      dockerfile_name: Dockerfile
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
