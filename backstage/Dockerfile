@@ -31,7 +31,7 @@ COPY --chown=node:node .yarn ./.yarn
 COPY --chown=node:node .yarnrc.yml ./
 # COPY --chown=node:node backstage.json ./
 COPY --chown=node:node ../backstage/app-config.yaml ./
-COPY --chown=node:node ../backstage/app-config.production.yaml ./app-config.production.yaml
+COPY --chown=node:node ../backstage/app-config.production.yaml ./
 
 
 # This switches many Node.js dependencies to production mode.
