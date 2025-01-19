@@ -36,6 +36,8 @@ jobs:
 
           echo "Move the dockerfile under the public-backstage"
           mv backstage/Dockerfile backstage-public/Dockerfile
+          cp backstage/app-config.yaml backstage-public/app-config.yaml
+          cp backstage/app-config.production.yaml backstage-public/app-config.production.yaml
 
           echo "After Dockerfile move All files"
           find -maxdepth 3 -ls
