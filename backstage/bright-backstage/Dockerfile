@@ -29,7 +29,7 @@ WORKDIR /app
 # Copy files needed by Yarn
 COPY --chown=node:node .yarn ./.yarn
 COPY --chown=node:node .yarnrc.yml ./
-# COPY --chown=node:node backstage.json ./
+COPY --chown=node:node backstage.json ./
 COPY --chown=node:node app-config.yaml ./
 COPY --chown=node:node app-config.production.yaml ./
 
