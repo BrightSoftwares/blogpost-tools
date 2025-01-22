@@ -14,15 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          repository: backstage/backstage
-          path: './backstage-public'
+      # - name: Checkout
+      #   uses: actions/checkout@v2
+      #   with:
+      #     repository: backstage/backstage
+      #     path: './backstage-public'
 
       - name: Install using yarn
         run: |
-          cd backstage-public
+          cd backstage/bright-backstage
           yarn install --immutable
           export NODE_OPTIONS="--max-old-space-size=4096"
           yarn tsc
@@ -34,10 +34,10 @@ jobs:
           echo "All files"
           find -maxdepth 3 -ls
 
-          echo "Move the dockerfile under the public-backstage"
-          mv backstage/Dockerfile backstage-public/Dockerfile
-          cp backstage/app-config.yaml backstage-public/app-config.yaml
-          cp backstage/app-config.production.yaml backstage-public/app-config.production.yaml
+          # echo "Move the dockerfile under the public-backstage"
+          # mv backstage/Dockerfile backstage-public/Dockerfile
+          # cp backstage/app-config.yaml backstage-public/app-config.yaml
+          # cp backstage/app-config.production.yaml backstage-public/app-config.production.yaml
 
           echo "After Dockerfile move All files"
           find -maxdepth 3 -ls
@@ -70,7 +70,7 @@ jobs:
       - name: Build and push Docker image for API
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
-          context: "backstage-public"
+          context: "backstage/bright-backstage"
           # file: ./backstage-public/Dockerfile
           no-cache: true
           push: true
