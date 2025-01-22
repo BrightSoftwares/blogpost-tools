@@ -17,12 +17,12 @@ backend:
   database:
     client: pg
     connection:
-      connectionString: ${PG_CONNECTION_STRING}
-      #host: ${POSTGRES_HOST}
-      #port: ${POSTGRES_PORT}
-      #user: ${POSTGRES_USER}
-      #password: ${POSTGRES_PASSWORD}
-      #database: ${POSTGRES_DB}
+      #connectionString: ${PG_CONNECTION_STRING}
+      host: ${POSTGRES_HOST}
+      port: ${POSTGRES_PORT}
+      user: ${POSTGRES_USER}
+      password: ${POSTGRES_PASSWORD}
+      database: ${POSTGRES_DB}
       # https://node-postgres.com/features/ssl
       # you can set the sslmode configuration option via the `PGSSLMODE` environment variable
       # see https://www.postgresql.org/docs/current/libpq-ssl.html Table 33.1. SSL Mode Descriptions (e.g. require)
