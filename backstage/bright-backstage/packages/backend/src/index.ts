@@ -8,15 +8,15 @@
 
 import { createBackend } from '@backstage/backend-defaults';
 
-// Custom resolver to register people from their github account
-import { createBackendModule } from '@backstage/backend-plugin-api';
-import { githubAuthenticator } from '@backstage/plugin-auth-backend-module-github-provider';
-import {
-  authProvidersExtensionPoint,
-  createOAuthProviderFactory,
-} from '@backstage/plugin-auth-node';
+// // Custom resolver to register people from their github account
+// import { createBackendModule } from '@backstage/backend-plugin-api';
+// import { githubAuthenticator } from '@backstage/plugin-auth-backend-module-github-provider';
+// import {
+//   authProvidersExtensionPoint,
+//   createOAuthProviderFactory,
+// } from '@backstage/plugin-auth-node';
 
-import { stringifyEntityRef } from '@backstage/catalog-model';
+// import { stringifyEntityRef } from '@backstage/catalog-model';
 
 
 const backend = createBackend();
