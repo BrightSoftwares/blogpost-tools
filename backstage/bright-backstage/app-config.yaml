@@ -122,9 +122,89 @@ catalog:
       orgs: ['sergioafanou', 'BrightSoftwares', 'sweethome33', 'sweethome228']
       schedule:
         initialDelay: { seconds: 30 }
-        # frequency: { hours: 1 }
-        frequency: { minutes: 15 }
-        timeout: { minutes: 5 }
+        frequency: { hours: 1 }
+        # frequency: { minutes: 5 }
+        timeout: { minutes: 30 }
+    github:
+      bsServiceCatalogId:
+        organization: 'BrightSoftwares' # string
+        catalogPath: '/backstage/all.yaml' # string
+        filters:
+          branch: 'main' # string
+          repository: 'service-catalog' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      bsRepositoriesId:
+        organization: 'BrightSoftwares' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      sh228RepositoriesId:
+        organization: 'sweethome228' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      saRepositoriesId:
+        organization: 'sergioafanou' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      sh33RepositoriesId:
+        organization: 'sweethome33' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      causRepositoriesId:
+        organization: 'Causting' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      fbRepositoriesId:
+        organization: 'Full3right' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
+
+      htRepositoriesId:
+        organization: 'Hayes-Tech' # string
+        catalogPath: '/.github/catalog-info.yaml' # string
+        # filters:
+        #   branch: 'main' # string
+        #   repository: '.*' # Regex
+        schedule:
+          frequency: { hours: 1 }
+          timeout: { minutes: 20 }
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
