@@ -12,6 +12,8 @@ backend:
   # The listener can also be expressed as a single <host>:<port> string. In this case we bind to
   # all interfaces, the most permissive setting. The right value depends on your specific deployment.
   listen: ':7007'
+  cors:
+    origin: ['${CUSTOM_CORS_ORIGIN}', 'http://localhost:3000', 'http://127.0.0.1:3000']
 
   # config options: https://node-postgres.com/apis/client
   database:
@@ -23,6 +25,7 @@ backend:
       user: ${POSTGRES_USER}
       password: ${POSTGRES_PASSWORD}
       database: ${POSTGRES_DB}
+      pool_mode: ${POSTGRES_POOLMODE}
       # https://node-postgres.com/features/ssl
       # you can set the sslmode configuration option via the `PGSSLMODE` environment variable
       # see https://www.postgresql.org/docs/current/libpq-ssl.html Table 33.1. SSL Mode Descriptions (e.g. require)
@@ -64,3 +67,9 @@ catalog:
       target: ./examples/org.yaml
       rules:
         - allow: [User, Group]
+
+
+integrations:
+  github:
+    - host: github.com
+      token: '${GITHUB_TOKEN}'
