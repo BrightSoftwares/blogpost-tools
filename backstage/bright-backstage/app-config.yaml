@@ -83,6 +83,7 @@ scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
 catalog:
+  orphanStrategy: delete
   import:
     entityFilename: catalog-info.yaml
     pullRequestBranchName: backstage-integration
@@ -104,6 +105,12 @@ catalog:
       target: ../../examples/org.yaml
       rules:
         - allow: [User, Group]
+
+    # # Service catalog startup config
+    # - type: url
+    #   target: ${SERVICE_CATALOG_START_URL:-https://github.com/BrightSoftwares/service-catalog/blob/main/backstage/all.yaml}
+    #   rules:
+    #     - allow: [Component, System, API, Resource, Location, User, Group, Domain]
 
     ## Uncomment these lines to add more example data
     # - type: url
@@ -135,6 +142,8 @@ catalog:
         schedule:
           frequency: { hours: 1 }
           timeout: { minutes: 20 }
+        rules:
+          allow: [Component, System, API, Resource, Location, User, Group, Domain]
 
       bsRepositoriesId:
         organization: 'BrightSoftwares' # string

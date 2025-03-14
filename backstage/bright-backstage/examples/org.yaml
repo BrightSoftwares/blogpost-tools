@@ -1,11 +1,11 @@
----
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
-apiVersion: backstage.io/v1alpha1
-kind: User
-metadata:
-  name: fullbright
-spec:
-  memberOf: []
+# ---
+# # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
+# apiVersion: backstage.io/v1alpha1
+# kind: User
+# metadata:
+#   name: enzo.griffin
+# spec:
+#   memberOf: []
 ---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-group
 apiVersion: backstage.io/v1alpha1
