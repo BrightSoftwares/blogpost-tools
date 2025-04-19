@@ -147,7 +147,7 @@ def expand_yturls_to_blogpost():
 
         # Add new variables: min month searches and max monthly searches
         # Keep only the items between min, max avg monthly searches and first batch_size
-        blogpost_candidates_df = urlsfile_df_orig[ urlsfile_df_orig['url'].notnull() & (urlsfile_df_orig['status'] == "") ]
+        blogpost_candidates_df = urlsfile_df_orig[ urlsfile_df_orig['url'].notnull() & (urlsfile_df_orig['status'].isnull()) ]
         print("3. blogpost_candidates_df size: ", blogpost_candidates_df.shape)
 
         # Keep first batch size
