@@ -50,12 +50,19 @@ def get_best_transcript(transcript_list, language, ignore_manually_generated=Tru
   
 
 def get_video_description(video_id):
-  video_url = "https://www.youtube.com/watch?v={}".format(video_id)
-  print("Getting description for video url {}".format(video_url))
-  video = YouTube(video_url)
-  description = video.description
-  print(video.description)
-  return description
+  description = ""
+  try:
+    video_url = "https://www.youtube.com/watch?v={}".format(video_id)
+    print("Getting description for video url {}".format(video_url))
+    video = YouTube(video_url)
+    description = video.description
+    print(video.description)
+    # return description
+  except Exception as e:
+    print("Something bad occured while getting the description. ", str(e))
+    description = "An error occured."
+  finally:
+    return description
 
 
 def parse_video_descrption(description):
@@ -162,7 +169,7 @@ def get_yt_video_transcript(video_id, language='en'):
         print(debug_str)
         transcript_data_string += "\n"
       except Exception as e:
-        print("An error occured.", str(e))
+        print("An error occured during the conversion of the transcript.", str(e))
 
     return transcript_data_string
 
