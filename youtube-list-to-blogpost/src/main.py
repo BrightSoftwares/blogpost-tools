@@ -57,7 +57,7 @@ def get_yt_video_id_from_url(url):
 def generate_blog_post(destination_folder, data, language):
 
     print("Generating title for data = ", data, " with title = ", data['title'])
-    if data['title'] == "" or data['title'] is None or data['title'] == 'nan':
+    if data['title'] == "" or data['title'] is None or data['title'].isnull() or pd.isna(data['title']):
         title = slugify(data['url'])
     else:
         title = data['title']
