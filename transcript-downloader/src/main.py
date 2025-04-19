@@ -60,26 +60,31 @@ def get_video_description(video_id):
     # return description
   except Exception as e:
     print("Something bad occured while getting the description. ", str(e))
-    description = "An error occured."
+    description = "An error occured. Couldn't get the description."
   finally:
     return description
 
 
 def parse_video_descrption(description):
-  if description is not None:
-    print("Parsing video description", description[:50])
-    pattern = re.compile(r"(\(?[0-9:]{3,8}\)?) [-\s]?(.*)$", re.MULTILINE)
-    matches = pattern.findall(description)
-    print(matches)
-  
-    if len(matches) > 0:
-      return matches
+  try:
+    if description is not None:
+      print("Parsing video description", description[:50])
+      pattern = re.compile(r"(\(?[0-9:]{3,8}\)?) [-\s]?(.*)$", re.MULTILINE)
+      matches = pattern.findall(description)
+      print(matches)
+    
+      if len(matches) > 0:
+        return matches
+      else:
+        # If there is no chapters found in the description, return something to genetate all the text at once
+        return [('00:00:00', '')]
     else:
-      # If there is no chapters found in the description, return something to genetate all the text at once
+      print("Warning.This is unusual. The description is None. We return an empty result.")
       return [('00:00:00', '')]
-  else:
-    print("Warning.This is unusual. The description is None. We return an empty result.")
+  except Exception as e:
+    print("Error during description parsing. Error = ", str(e))
     return [('00:00:00', '')]
+    
 
 def parse_time_duration(time_duration):
 
@@ -132,6 +137,7 @@ def get_yt_video_transcript(video_id, language='en'):
 
     # Parse the description
     description = get_video_description(video_id)
+    print("Description retrieved: ", description)
     parsed_description = parse_video_descrption(description)
     print("Parsed descrption", parsed_description)
 
@@ -140,6 +146,7 @@ def get_yt_video_transcript(video_id, language='en'):
     # 2.a. If the timecode of the transcript match the description section => we add the text in that section
     # 2.b. Else we ignore that transcript
 
+    print("Converting transcript data ...")
     transcript_data_string = ""
     for index, desc in enumerate(parsed_description):
 
