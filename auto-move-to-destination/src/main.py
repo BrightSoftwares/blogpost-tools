@@ -43,7 +43,7 @@ def is_transcript_downloaded(post):
   transcribed = post['transcribed']  if 'transcribed' in post else None
   nb_characters = len(post.content)
   print("is_transcript_downloaded >>> transcribed = {}, nb_characters = {}".format(transcribed, nb_characters))
-  return transcribed is not None and nb_characters > min_content_nb_characters
+  return transcribed is not None and transcribed == True and nb_characters > min_content_nb_characters
 
 
 def is_unsplash_to_cloudinary(post):
