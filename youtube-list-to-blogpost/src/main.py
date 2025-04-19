@@ -78,17 +78,17 @@ def generate_blog_post(destination_folder, data, language):
         post['lang'] = language
         post['keyword_suggestion'] = title.lower()
 
-        # If we have the category, we add it to the blogpost
-        if not pd.isna(data['category']) and data['category'] != '':
-          post['category'] = [ data['category'] ]
+        # # If we have the category, we add it to the blogpost
+        # if not pd.isna(data['category']) and data['category'] != '':
+        #   post['category'] = [ data['category'] ]
 
-        # If we have the cornerstone is provided, we fill it in the blogpost
-        if not pd.isna(data['cornerstone']) and data['cornerstone'] != '':
-          post['cornerstone'] = data['cornerstone']
+        # # If we have the cornerstone is provided, we fill it in the blogpost
+        # if not pd.isna(data['cornerstone']) and data['cornerstone'] != '':
+        #   post['cornerstone'] = data['cornerstone']
 
-        # If we have the silot_terms is provided, we fill it in the blogpost
-        if not pd.isna(data['silot_terms']) and data['silot_terms'] != '':
-          post['silot_terms'] = data['silot_terms']
+        # # If we have the silot_terms is provided, we fill it in the blogpost
+        # if not pd.isna(data['silot_terms']) and data['silot_terms'] != '':
+        #   post['silot_terms'] = data['silot_terms']
 
         print("Saving youtube_video and youtube_video_id tags")
         post['youtube_video'] = data['url']
