@@ -13,6 +13,7 @@ import json
 import time
 import os
 import re
+from urllib.parse import urlparse, parse_qs
 
 charList = " " + string.ascii_lowercase + string.digits
 
