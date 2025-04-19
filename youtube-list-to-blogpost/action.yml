@@ -1,0 +1,25 @@
+name: "Youtube lists to blog posts expander"
+
+description: "Expands a list of youtube urls into markdown blog posts. Uses a seed of urls file."
+
+inputs:
+  expanded_blogposts_generation_folder:
+    description: The folder where we are going to generate the blogposts files from each urls in the seed
+    required: true
+  urls_file:
+    description: The path to the youtube_urls.csv file that will be used as a source.
+    default: youtube_urls.csv
+  batch_size:
+    description: The amount of suggestion to process in a batch
+    default: 10
+  
+
+  
+
+outputs:
+  keyword_suggestions:
+    description: The path to the updated urls file
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
