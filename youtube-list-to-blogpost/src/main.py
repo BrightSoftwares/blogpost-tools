@@ -13,13 +13,13 @@ import json
 import time
 import os
 import re
-import unidecode
 
 charList = " " + string.ascii_lowercase + string.digits
 
 def slugify(text):
-    text = unidecode.unidecode(text).lower()
-    return re.sub(r'[\W_]+', '-', text)
+    # text = unidecode.unidecode(text).lower()
+    # return re.sub(r'[\W_]+', '-', text)
+    return re.sub(r'\W+', '-', text).strip('-').lower()
 
 def get_yt_video_id_from_url(url):
     """Returns Video_ID extracting from the given url of Youtube
