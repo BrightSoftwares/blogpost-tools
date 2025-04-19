@@ -12,6 +12,9 @@ inputs:
   batch_size:
     description: The amount of suggestion to process in a batch
     default: 10
+  dry_run:
+    description: Whether to perform it for real or just a simulation
+    default: true
   
 
   

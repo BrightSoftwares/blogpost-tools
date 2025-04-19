@@ -126,6 +126,7 @@ def expand_yturls_to_blogpost():
     destination_folder = os.getenv('INPUT_EXPANDED_BLOGPOSTS_GENERATION_FOLDER')
     batch_size = int(os.getenv('INPUT_BATCH_SIZE', '10'))
     language = os.getenv('INPUT_LANGUAGE', 'en')
+    dry_run = os.getenv("INPUT_DRY_RUN", 'true')
     # keyword_min_volume_eligible = int(os.getenv('INPUT_KEYWORD_MIN_VOLUME_ELIGIBLE', '0'))
     # keyword_max_volume_eligible = int(os.getenv('INPUT_KEYWORD_MAX_VOLUME_ELIGIBLE', '5000000'))
 
@@ -189,7 +190,12 @@ def expand_yturls_to_blogpost():
                     
                   
             # Save the csv file
-            urlsfile_df_orig.to_csv(urls_file, index=False)
+            if dry_run == 'true':
+                print("In dry run mode, not scraping!")
+            else:
+                print('No dry run. updaing urls file')
+                urlsfile_df_orig.to_csv(urls_file, index=False)
+            
         else:
             print(
                 "Could not find the column url or language in the csv file")
