@@ -56,7 +56,8 @@ def get_yt_video_id_from_url(url):
 
 def generate_blog_post(destination_folder, data, language):
 
-    if data['title'] == "":
+    print("Generating title for data = ", data, " with title = ", data['title'])
+    if data['title'] == "" or data['title'] is None or data['title'] == 'nan':
         title = slugify(data['url'])
     else:
         title = data['title']
@@ -192,7 +193,7 @@ def expand_yturls_to_blogpost():
                   
             # Save the csv file
             if dry_run == 'true':
-                print("In dry run mode, not scraping!")
+                print("In dry run mode, not updating urls file!")
             else:
                 print('No dry run. updaing urls file')
                 urlsfile_df_orig.to_csv(urls_file, index=False)
