@@ -3,7 +3,7 @@
 import concurrent.futures
 from datetime import date
 from datetime import datetime
-from slugify import slugify
+# from slugify import slugify
 import pandas as pd
 import frontmatter
 import itertools
@@ -12,9 +12,14 @@ import string
 import json
 import time
 import os
+import re
+import unidecode
 
 charList = " " + string.ascii_lowercase + string.digits
 
+def slugify(text):
+    text = unidecode.unidecode(text).lower()
+    return re.sub(r'[\W_]+', '-', text)
 
 def get_yt_video_id_from_url(url):
     """Returns Video_ID extracting from the given url of Youtube
@@ -54,7 +59,7 @@ def generate_blog_post(destination_folder, data, language):
         title = slugify(data['url'])
     else:
         title = data['title']
-        
+
     print("Generate blog post", title)
     try:
         post = frontmatter.loads("---\n---\n")
