@@ -136,10 +136,12 @@ def get_yt_video_transcript(video_id, language='en'):
 
 
     # Parse the description
-    description = get_video_description(video_id)
-    print("Description retrieved: ", description)
-    parsed_description = parse_video_descrption(description)
-    print("Parsed descrption", parsed_description)
+    # description = get_video_description(video_id)
+    # print("Description retrieved: ", description)
+    # parsed_description = parse_video_descrption(description)
+    # print("Parsed descrption", parsed_description)
+
+    parsed_description = "Fake. Fix me"
 
     # 1. We loop through the parsed description
     # 2. We loop through the transcript data
