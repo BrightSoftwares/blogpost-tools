@@ -192,6 +192,7 @@ def expand_yturls_to_blogpost():
                     
                   
             # Save the csv file
+            print("dry_run = ", dry_run)
             if dry_run == 'true':
                 print("In dry run mode, not updating urls file!")
             else:
