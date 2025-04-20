@@ -174,7 +174,8 @@ def get_yt_video_transcript(video_id, language='en'):
 
             if desc_time <= line_time and line_time < next_desc_time:
               debug_str += "{}, ".format(line_time)
-              transcript_data_string += "{}\n".format(line['text'])
+              # transcript_data_string += "{}\n".format(line['text'])
+              transcript_data_string += "{}\n".format(line.text)
 
         print(debug_str)
         transcript_data_string += "\n"
