@@ -167,7 +167,8 @@ def get_yt_video_transcript(video_id, language='en'):
         for line in transcript_data:
             #print(line['text'])
             
-            line_time = parse_line_duration(line['start'], line['duration'])
+            # line_time = parse_line_duration(line['start'], line['duration'])
+            line_time = parse_line_duration(line.start, line.duration)
             #print("{} <= {} and {} < {}".format(desc_time, line_time, line_time, next_desc_time))
             
 
