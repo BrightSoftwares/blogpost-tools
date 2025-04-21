@@ -84,9 +84,9 @@ def generate_blog_post(destination_folder, data, language):
         post['lang'] = language
         post['keyword_suggestion'] = title.lower()
 
-        # # If we have the category, we add it to the blogpost
-        # if not pd.isna(data['category']) and data['category'] != '':
-        #   post['category'] = [ data['category'] ]
+        # If we have the category, we add it to the blogpost
+        if not pd.isna(data['category']) and data['category'] != '':
+          post['category'] = [ data['category'] ]
 
         # # If we have the cornerstone is provided, we fill it in the blogpost
         # if not pd.isna(data['cornerstone']) and data['cornerstone'] != '':
