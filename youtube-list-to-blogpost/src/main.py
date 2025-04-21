@@ -58,9 +58,13 @@ def generate_blog_post(destination_folder, data, language):
 
     print("Generating title for data = ", data, " with title = ", data['title'])
     if data['title'] == "" or data['title'] is None or pd.isna(data['title']):
-        title = slugify(data['url'])
+        # title = slugify(data['url'])
+        title = data['url']
     else:
         title = data['title']
+
+    print("Slugify the title")
+    title. = slugify(title)
 
     print("Generate blog post", title)
     try:
