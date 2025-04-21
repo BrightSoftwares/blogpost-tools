@@ -87,7 +87,11 @@ def generate_blog_post(destination_folder, data, language):
         # If we have the category, we add it to the blogpost
         # if not pd.isna(data['category']) and data['category'] != '':
         #   post['category'] = [ data['category'] ]
-        post['category'] = data.get('category', 'unknwon-category')
+        category = data.get('category', 'unknwon-category')
+        category = category.strip()
+        if category == "":
+            category = 'unknwon-category'
+        post['category'] = category
 
 
         # # If we have the cornerstone is provided, we fill it in the blogpost
