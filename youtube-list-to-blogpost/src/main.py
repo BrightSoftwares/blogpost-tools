@@ -64,7 +64,7 @@ def generate_blog_post(destination_folder, data, language):
         title = data['title']
 
     print("Slugify the title")
-    title. = slugify(title)
+    title = slugify(title)
 
     print("Generate blog post", title)
     try:
