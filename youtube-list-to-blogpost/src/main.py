@@ -81,8 +81,13 @@ def generate_blog_post(destination_folder, data, language):
         post['title'] = title
 
         post['date'] = date.today()
-        post['lang'] = language
         post['keyword_suggestion'] = title.lower()
+
+        language = data.get('language', 'en')
+        language = language.strip()
+        if language == "":
+            language = "en"
+        post['lang'] = language
 
         # If we have the category, we add it to the blogpost
         # if not pd.isna(data['category']) and data['category'] != '':
