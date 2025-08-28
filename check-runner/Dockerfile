@@ -1,9 +1,3 @@
-FROM ubuntu
-
-RUN apt update && apt install -y jq curl
-
-COPY . .
-
-RUN chmod u+x /src/check_runner.sh
+FROM fullbright/check-runner:latest
 
 CMD [ "/src/check_runner.sh" ]
