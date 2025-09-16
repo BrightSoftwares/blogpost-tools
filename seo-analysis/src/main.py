@@ -157,6 +157,9 @@ def generate_optimizations(sitemap_url: str, service_account_json_file_path: str
             return False
 
         logger.info(f"Google Search Console returned {len(sc_df)} rows")
+        if len(sc_df) == 0:
+            logger.error(f"Cannot continue without Google Search console data. Exciting ...")
+            return False
         
         # Validate Search Console data
         if not validate_search_console_data(sc_df):
