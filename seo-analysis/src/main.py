@@ -3,181 +3,320 @@ import numpy as np
 from ecommercetools import seo
 import datetime
 import os
+import logging
+from typing import Optional, Dict, Any
 
-# Inspiration
-# https://practicaldatascience.co.uk/data-science/how-to-identify-seo-keyword-opportunities-with-python
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def in_title(row):
-    if row['title'] is None:
+def in_title(row: pd.Series) -> int:
+    """Check if query appears in title"""
+    if pd.isna(row.get('title')) or pd.isna(row.get('query')):
         return 0
-    if str(row['query']) in row['title'].lower():
-        return 1
-    else:
-        return 0
+    return 1 if str(row['query']).lower() in str(row['title']).lower() else 0
 
-def in_subheading(row, subheading):
-    subheading_name = "{}s".format(subheading)
+def in_subheading(row: pd.Series, subheading: str) -> int:
+    """Check if query appears in specified subheading"""
+    subheading_name = f"{subheading}s"
     
-    if row[subheading_name] is None:
+    if pd.isna(row.get(subheading_name)) or pd.isna(row.get('query')):
         return 0
-    if str(row['query']) in row[subheading_name].lower():
-        return 1
-    else:
-        return 0
-        
-def in_h1s(row):
+    return 1 if str(row['query']).lower() in str(row[subheading_name]).lower() else 0
+
+def in_h1s(row: pd.Series) -> int:
     return in_subheading(row, "h1")
-    
-def in_h2s(row):
+
+def in_h2s(row: pd.Series) -> int:
     return in_subheading(row, "h2")
-    
-def in_h3s(row):
+
+def in_h3s(row: pd.Series) -> int:
     return in_subheading(row, "h3")
-    
-def in_h4s(row):
+
+def in_h4s(row: pd.Series) -> int:
     return in_subheading(row, "h4")
-    
-def in_h5s(row):
+
+def in_h5s(row: pd.Series) -> int:
     return in_subheading(row, "h5")
-    
-def in_h6s(row):
+
+def in_h6s(row: pd.Series) -> int:
     return in_subheading(row, "h6")
 
-def in_description(row):
-    if row['description'] is None:
+def in_description(row: pd.Series) -> int:
+    """Check if query appears in description"""
+    if pd.isna(row.get('description')) or pd.isna(row.get('query')):
         return 0
+    return 1 if str(row['query']).lower() in str(row['description']).lower() else 0
 
-    if str(row['query']) in str(row['description']).lower():
-        return 1 
-    else:
-        return 0
+def scrape_website(sitemap_url: str, dry_run: str) -> bool:
+    """Scrape website data from sitemap"""
+    try:
+        if dry_run.lower() == 'true':
+            logger.info("In dry run mode, not scraping!")
+            return False
+        
+        logger.info(f"Scraping sitemap: {sitemap_url}")
+        df_sitemap = seo.get_sitemap(sitemap_url)
+        
+        if df_sitemap.empty:
+            logger.warning("Sitemap is empty")
+            return False
+        
+        logger.info(f"Found {len(df_sitemap)} URLs in sitemap")
+        df_pages = seo.scrape_site(df_sitemap, 'loc', verbose=False)
+        
+        if df_pages.empty:
+            logger.warning("No pages scraped")
+            return False
+        
+        df_pages.to_csv("scraped_data.csv", index=False)
+        logger.info(f"Scraped {len(df_pages)} pages successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error scraping website: {str(e)}")
+        return False
 
-def scrape_website(sitemap_url, dry_run):
-  if dry_run == 'true':
-    print("In dry run mode, not scraping!")
-  else:
-    df_sitemap = seo.get_sitemap(sitemap_url)
-    #df_sitemap.head()
+def validate_search_console_data(sc_df: pd.DataFrame) -> bool:
+    """Validate Google Search Console data"""
+    required_columns = ['page', 'query', 'impressions', 'clicks', 'ctr', 'position']
+    
+    if sc_df.empty:
+        logger.warning("Google Search Console data is empty")
+        return False
+    
+    missing_columns = [col for col in required_columns if col not in sc_df.columns]
+    if missing_columns:
+        logger.error(f"Missing required columns in Search Console data: {missing_columns}")
+        return False
+    
+    logger.info(f"Search Console data validated: {len(sc_df)} rows")
+    return True
 
-    df_pages = seo.scrape_site(df_sitemap, 'loc', verbose=False)
-    #df_pages.head()
+def create_empty_optimization_files():
+    """Create empty CSV files when no data is available"""
+    logger.info("Creating empty optimization files due to no data")
+    
+    # Create empty traffic file
+    empty_traffic_df = pd.DataFrame(columns=[
+        "url", "query", "clicks", "impressions", "ctr", "position", 
+        "in_title", "in_description", "in_h1s", "in_h2s", "in_h3s", 
+        "in_h4s", "in_h5s", "in_h6s", "in_both", "hreflang", 
+        "generator", "title", "description", "h1s", "h2s", "h3s", 
+        "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"
+    ])
+    empty_traffic_df.to_csv('traffic.csv', index=False)
+    
+    # Create empty no traffic file
+    empty_no_traffic_df = pd.DataFrame(columns=["url", "title", "description"])
+    empty_no_traffic_df.to_csv('no_traffic.csv', index=False)
+    
+    # Create empty optimization priority file
+    empty_traffic_df.to_csv("to_optimize_priority.csv", index=False)
 
-    df_pages.to_csv("scraped_data.csv")
+def generate_optimizations(sitemap_url: str, service_account_json_file_path: str, 
+                         site_url: str, start_date: str, end_date: str) -> bool:
+    """Generate SEO optimizations based on scraped data and Google Search Console data"""
+    
+    logger.info(f"Generating SEO optimizations for {sitemap_url}")
+    logger.info(f"Using service account: {service_account_json_file_path}")
+    logger.info(f"Site URL: {site_url}")
+    logger.info(f"Date range: {start_date} to {end_date}")
+    
+    try:
+        # Check if scraped data exists
+        if not os.path.exists("scraped_data.csv"):
+            logger.error("Scraped data file not found. Run scraping first.")
+            create_empty_optimization_files()
+            return False
+        
+        # Load the scraped data
+        df_pages = pd.read_csv("scraped_data.csv")
+        logger.info(f"Loaded {len(df_pages)} scraped pages")
+        
+        if df_pages.empty:
+            logger.warning("No scraped data available")
+            create_empty_optimization_files()
+            return False
 
-def generate_optimizations(sitemap_url, service_account_json_file_path, site_url, start_date, end_date):
+        # Prepare Google Search Console query
+        payload = {
+            'startDate': start_date, 
+            'endDate': end_date,
+            'dimensions': ['page', 'query'],  
+            'rowLimit': 10000,
+            'startRow': 0
+        }
 
-  print("Generating SEO optimizations for {} with json file {} and website {} from {} to {}.".format(sitemap_url, service_account_json_file_path, site_url, start_date, end_date))
-  
-  # Load the scraped data
-  df_pages = pd.read_csv("scraped_data.csv")
+        logger.info("Querying Google Search Console...")
+        try:
+            sc_df = seo.query_google_search_console(service_account_json_file_path, site_url, payload)
+        except Exception as e:
+            logger.error(f"Error querying Google Search Console: {str(e)}")
+            create_empty_optimization_files()
+            return False
 
-  payload = {
-      'startDate': start_date, 
-      'endDate': end_date,
-      'dimensions': ['page', 'query'],  
-      'rowLimit': 10000,
-      'startRow': 0
-  }
+        logger.info(f"Google Search Console returned {len(sc_df)} rows")
+        
+        # Validate Search Console data
+        if not validate_search_console_data(sc_df):
+            create_empty_optimization_files()
+            return False
 
-  print("Getting the data from google search console")
-  sc_df = seo.query_google_search_console(service_account_json_file_path, site_url, payload)
+        # Process the data only if we have valid Search Console data
+        df = sc_df.sort_values(by=['page', 'impressions'], ascending=False)
+        df = df.drop_duplicates(subset='page', keep='first')
+        
+        logger.info("Merging scraped data with Google Search Console data")
+        df_all = df_pages.merge(df, how='left', left_on='url', right_on='page')
 
+        # Generate no traffic data
+        logger.info("Generating no traffic data")
+        df_no_traffic = df_all[df_all['query'].isnull()].fillna(0)
+        df_no_traffic.to_csv('no_traffic.csv', index=False)
+        logger.info(f"Found {len(df_no_traffic)} pages with no traffic")
 
-  #sc_df = pd.read_csv(search_console_path)
+        # Generate traffic data
+        logger.info("Generating traffic data")
+        df_traffic = df_all[df_all['query'].notnull()].copy()
+        
+        if df_traffic.empty:
+            logger.warning("No traffic data available")
+            create_empty_optimization_files()
+            return True
+        
+        # Remove duplicate 'page' column if it exists
+        if 'page' in df_traffic.columns:
+            df_traffic = df_traffic.drop('page', axis=1)
+        
+        df_traffic = df_traffic.sort_values(by='impressions', ascending=False)
+        logger.info(f"Found {len(df_traffic)} pages with traffic")
 
-  print("Data from Google search console", sc_df)
+        # Apply analysis functions safely
+        logger.info("Analyzing keyword placement...")
+        
+        analysis_functions = {
+            'in_title': in_title,
+            'in_description': in_description,
+            'in_h1s': in_h1s,
+            'in_h2s': in_h2s,
+            'in_h3s': in_h3s,
+            'in_h4s': in_h4s,
+            'in_h5s': in_h5s,
+            'in_h6s': in_h6s
+        }
+        
+        for col_name, func in analysis_functions.items():
+            try:
+                df_traffic[col_name] = df_traffic.apply(func, axis=1)
+                logger.info(f"Applied {col_name} analysis")
+            except Exception as e:
+                logger.warning(f"Error applying {col_name} analysis: {str(e)}")
+                df_traffic[col_name] = 0
 
-  df = sc_df.sort_values(by=['page', 'impressions'], ascending=False)
-  df = df.drop_duplicates(subset='page', keep='first')
-  df.sort_values(by='page').head()
+        # Calculate combined metric
+        df_traffic['in_both'] = np.where(
+            df_traffic['in_title'] + df_traffic['in_description'] == 2, 1, 0
+        )
 
-  print("Merging scraped data with Google search console one")
-  df_all = df_pages.merge(df, how='left', left_on='url', right_on='page')
+        # Save traffic data
+        df_traffic.to_csv('traffic.csv', index=False)
+        logger.info("Saved traffic analysis")
 
-  print("Generating no traffic data")
-  df_no_traffic = df_all[df_all['query'].isnull()].fillna(0)
-  df_no_traffic.to_csv('no_traffic.csv', index=False)
-  df_no_traffic.head()
+        # Generate optimization priorities
+        logger.info("Generating optimization priorities")
+        df_optimize_priority = df_traffic.sort_values(by='in_both', ascending=True).head(50).copy()
+        
+        # Remove paragraphs column if it exists (it can be very large)
+        if 'paragraphs' in df_optimize_priority.columns:
+            df_optimize_priority = df_optimize_priority.drop('paragraphs', axis=1)
 
-  print("Generating traffic data (where query is not null)")
-  print(df_all)
-  df_traffic = df_all[df_all['query'].notnull()]
-  del df_traffic['page']
-  df_traffic.sort_values(by='impressions', ascending=False).head()
+        # Reorganize columns (only include existing columns)
+        desired_columns = [
+            "url", "query", "clicks", "impressions", "ctr", "position", 
+            "in_title", "in_description", "in_h1s", "in_h2s", "in_h3s", 
+            "in_h4s", "in_h5s", "in_h6s", "in_both", "hreflang", 
+            "generator", "title", "description", "h1s", "h2s", "h3s", 
+            "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"
+        ]
+        
+        # Only include columns that actually exist in the dataframe
+        available_columns = [col for col in desired_columns if col in df_optimize_priority.columns]
+        df_optimize_priority = df_optimize_priority[available_columns]
+        
+        df_optimize_priority.to_csv("to_optimize_priority.csv", index=False)
+        logger.info(f"Generated optimization priorities for {len(df_optimize_priority)} pages")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in generate_optimizations: {str(e)}")
+        create_empty_optimization_files()
+        return False
 
-  in_title_df = df_traffic.apply(in_title, axis=1)
-  in_title_df = in_title_df if not in_title_df.empty else []
-  print("In title df=", in_title_df)
+def main():
+    """Main function with proper error handling"""
+    try:
+        # Get environment variables with defaults
+        sitemap_url = os.getenv("INPUT_SITEMAP_URL")
+        service_account_json_file_path = os.getenv("INPUT_SERVICE_ACCOUNT_JSON_FILE_PATH")
+        dry_run = os.getenv("INPUT_DRY_RUN", 'true')
+        date_offset = int(os.getenv("INPUT_DATE_OFFSET", "-1"))
+        date_duration = int(os.getenv("INPUT_DATE_DURATION", "-90"))
+        site_url = os.getenv("INPUT_SITE_URL")
 
-  in_description_df = df_traffic.apply(in_description, axis=1)
-  in_description_df = in_description_df if not in_description_df.empty else []
-  print("In description df=", in_description_df)
-  
-  in_h1s_df = df_traffic.apply(in_h1s, axis=1)
-  in_h1s_df = in_h1s_df if not in_h1s_df.empty else []
-  print("In h1s df=", in_h1s_df)
-  
-  in_h2s_df = df_traffic.apply(in_h2s, axis=1)
-  in_h2s_df = in_h2s_df if not in_h2s_df.empty else []
-  print("In h2s df=", in_h2s_df)
-  
-  in_h3s_df = df_traffic.apply(in_h3s, axis=1)
-  in_h3s_df = in_h3s_df if not in_h3s_df.empty else []
-  print("In h3s df=", in_h3s_df)
-  
-  in_h4s_df = df_traffic.apply(in_h4s, axis=1)
-  in_h4s_df = in_h4s_df if not in_h4s_df.empty else []
-  print("In h4s df=", in_h4s_df)
-  
-  in_h5s_df = df_traffic.apply(in_h5s, axis=1)
-  in_h5s_df = in_h5s_df if not in_h5s_df.empty else []
-  print("In h5s df=", in_h5s_df)
-  
-  in_h6s_df = df_traffic.apply(in_h6s, axis=1)
-  in_h6s_df = in_h6s_df if not in_h6s_df.empty else []
-  print("In h6s df=", in_h6s_df)
+        # Validate required inputs
+        if not sitemap_url:
+            logger.error("INPUT_SITEMAP_URL is required")
+            return False
+            
+        if not site_url:
+            logger.error("INPUT_SITE_URL is required")
+            return False
+            
+        if dry_run.lower() != 'true' and not service_account_json_file_path:
+            logger.error("INPUT_SERVICE_ACCOUNT_JSON_FILE_PATH is required when not in dry run mode")
+            return False
 
-  df_traffic = df_traffic.assign(in_title=in_title_df)
-  df_traffic = df_traffic.assign(in_description=in_description_df)
-  df_traffic = df_traffic.assign(in_h1s=in_h1s_df)
-  df_traffic = df_traffic.assign(in_h2s=in_h2s_df)
-  df_traffic = df_traffic.assign(in_h3s=in_h3s_df)
-  df_traffic = df_traffic.assign(in_h4s=in_h4s_df)
-  df_traffic = df_traffic.assign(in_h5s=in_h5s_df)
-  df_traffic = df_traffic.assign(in_h6s=in_h6s_df)
-  df_traffic['in_both'] = np.where(df_traffic['in_title'] + df_traffic['in_description'] == 2, 1, 0)
+        # Calculate dates
+        end_date = datetime.date.today() + datetime.timedelta(days=date_offset)
+        start_date = datetime.date.today() + datetime.timedelta(days=(date_offset + date_duration))
+        
+        logger.info(f"Date range: {start_date} to {end_date}")
 
-  df_traffic.to_csv('traffic.csv', index=False)
-  df_traffic.head()
+        # Scrape website
+        scrape_success = scrape_website(sitemap_url, dry_run)
+        
+        if dry_run.lower() == 'true':
+            logger.info("Dry run completed successfully")
+            return True
+            
+        if not scrape_success:
+            logger.error("Website scraping failed")
+            create_empty_optimization_files()
+            return False
 
-  print("Generating the to pages to optimized in priority")
-  print("Sorting the data by in both asc")
-  df_optimize_priority = df_traffic.sort_values(by='in_both', ascending=True).head(50)
-  df_optimize_priority.drop('paragraphs', inplace=True, axis=1)
+        # Generate optimizations
+        optimization_success = generate_optimizations(
+            sitemap_url, 
+            service_account_json_file_path, 
+            site_url, 
+            start_date.strftime("%Y-%m-%d"), 
+            end_date.strftime("%Y-%m-%d")
+        )
+        
+        if optimization_success:
+            logger.info("SEO analysis completed successfully")
+        else:
+            logger.warning("SEO analysis completed with issues")
+            
+        return optimization_success
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in main: {str(e)}")
+        create_empty_optimization_files()
+        return False
 
-  print("Reorganizing the columns")
-  df_optimize_priority = df_optimize_priority[["url", "query", "clicks", "impressions", "ctr", "position", "in_title", "in_description", "in_h1s", "in_h2s", "in_h3s", "in_h4s", "in_h5s", "in_h6s", "in_both", "hreflang", "generator", "title", "description", "h1s", "h2s", "h3s", "h4s", "h5s", "h6s", "absolute_links", "canonical", "robots"]]
-  df_optimize_priority.to_csv("to_optimize_priority.csv")
-
-
-
-sitemap_url = os.getenv("INPUT_SITEMAP_URL") #'https://bright-softwares.com/sitemap.xml'
-service_account_json_file_path = os.getenv("INPUT_SERVICE_ACCOUNT_JSON_FILE_PATH") # "/content/drive/MyDrive/ColabFiles/search_console/bright-softwares.com/blog-post-and-keywords-da04acec6e8a.secret.json" #"/content/drive/MyDrive/ColabFiles/search_console/bright-softwares.com/blog-post-and-keywords-2d8a34163543.json"
-dry_run = os.getenv("INPUT_DRY_RUN", 'true') # 'true'
-date_offset = int(os.getenv("INPUT_DATE_OFFSET", "-1")) # -1
-date_duration = int(os.getenv("INPUT_DATE_DURATION", "-90")) # -90
-
-site_url = os.getenv("INPUT_SITE_URL") # "sc-domain:bright-softwares.com"
-
-# Convert this input relative dates
-#start_date = '2021-01-01'
-#end_date = '2022-06-31'
-end_date = datetime.date.today() + datetime.timedelta(days=date_offset)
-start_date = datetime.date.today() + datetime.timedelta(days=(date_offset + date_duration))
-print(start_date)
-print(end_date)
-
-scrape_website(sitemap_url, dry_run)
-
-generate_optimizations(sitemap_url, service_account_json_file_path, site_url, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
-
+if __name__ == "__main__":
+    success = main()
+    exit(0 if success else 1)

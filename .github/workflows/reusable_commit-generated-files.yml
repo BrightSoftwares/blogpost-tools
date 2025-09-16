@@ -1,0 +1,295 @@
+name: Commit Generated Files
+
+on:
+  workflow_call:
+    inputs:
+      commit_message_prefix:
+        description: 'Prefix for the commit message'
+        required: false
+        type: string
+        default: 'Auto-generated files update'
+      
+      file_patterns:
+        description: 'File patterns to check for changes (space-separated)'
+        required: false
+        type: string
+        default: '*.csv *.json *.md *.txt'
+      
+      target_branch:
+        description: 'Target branch to commit to'
+        required: false
+        type: string
+        default: 'main'
+      
+      max_retries:
+        description: 'Maximum number of push retries'
+        required: false
+        type: number
+        default: 3
+      
+      retry_delay:
+        description: 'Delay between retries in seconds'
+        required: false
+        type: number
+        default: 10
+      
+      skip_if_no_changes:
+        description: 'Skip commit if no changes detected'
+        required: false
+        type: boolean
+        default: true
+      
+      create_summary:
+        description: 'Create a workflow summary'
+        required: false
+        type: boolean
+        default: true
+      
+      exclude_patterns:
+        description: 'File patterns to exclude from commit (space-separated)'
+        required: false
+        type: string
+        default: '*.secret.* *.key *.pem'
+    
+    outputs:
+      changes_committed:
+        description: 'Whether changes were committed'
+        value: ${{ jobs.commit-files.outputs.changes_committed }}
+      
+      files_changed:
+        description: 'Number of files changed'
+        value: ${{ jobs.commit-files.outputs.files_changed }}
+      
+      commit_sha:
+        description: 'SHA of the commit created'
+        value: ${{ jobs.commit-files.outputs.commit_sha }}
+
+jobs:
+  commit-files:
+    runs-on: ubuntu-latest
+    outputs:
+      changes_committed: ${{ steps.commit.outputs.changes_committed }}
+      files_changed: ${{ steps.check_files.outputs.files_changed }}
+      commit_sha: ${{ steps.commit.outputs.commit_sha }}
+    
+    steps:
+      - name: Check for generated files and changes
+        id: check_files
+        run: |
+          echo "Checking for generated files and changes..."
+          
+          # Define file patterns to check
+          file_patterns="${{ inputs.file_patterns }}"
+          exclude_patterns="${{ inputs.exclude_patterns }}"
+          
+          echo "Looking for files matching: $file_patterns"
+          echo "Excluding files matching: $exclude_patterns"
+          
+          # Find generated files
+          found_files=()
+          total_lines=0
+          
+          for pattern in $file_patterns; do
+            while IFS= read -r -d '' file; do
+              # Skip if file matches exclude patterns
+              skip_file=false
+              for exclude_pattern in $exclude_patterns; do
+                if [[ "$file" == $exclude_pattern ]]; then
+                  echo "Skipping excluded file: $file"
+                  skip_file=true
+                  break
+                fi
+              done
+              
+              if [[ "$skip_file" == false ]] && [[ -f "$file" ]]; then
+                found_files+=("$file")
+                if [[ "$file" == *.csv ]] || [[ "$file" == *.txt ]] || [[ "$file" == *.md ]]; then
+                  lines=$(wc -l < "$file" 2>/dev/null || echo "0")
+                  total_lines=$((total_lines + lines))
+                  echo "✓ Found: $file ($lines lines)"
+                else
+                  echo "✓ Found: $file"
+                fi
+              fi
+            done < <(find . -maxdepth 3 -name "$pattern" -type f -print0 2>/dev/null)
+          done
+          
+          echo "found_files_count=${#found_files[@]}" >> $GITHUB_OUTPUT
+          echo "total_lines=$total_lines" >> $GITHUB_OUTPUT
+          
+          # Check for git changes
+          git_changes=$(git status --porcelain | wc -l)
+          echo "files_changed=$git_changes" >> $GITHUB_OUTPUT
+          
+          # Create file list for summary
+          if [[ ${#found_files[@]} -gt 0 ]]; then
+            printf '%s\n' "${found_files[@]}" > generated_files_list.txt
+          fi
+          
+          echo "Found ${#found_files[@]} generated files"
+          echo "Detected $git_changes file changes in git"
+          
+          # Set flag for whether to proceed
+          if [[ "${{ inputs.skip_if_no_changes }}" == "true" && $git_changes -eq 0 ]]; then
+            echo "should_commit=false" >> $GITHUB_OUTPUT
+            echo "No changes detected, skipping commit"
+          else
+            echo "should_commit=true" >> $GITHUB_OUTPUT
+            echo "Changes detected, proceeding with commit"
+          fi
+
+      - name: Commit and push changes
+        id: commit
+        if: steps.check_files.outputs.should_commit == 'true'
+        run: |
+          echo "Committing ${{ steps.check_files.outputs.files_changed }} file changes..."
+          
+          # Configure git with bot user
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Add files to git (excluding sensitive patterns)
+          exclude_patterns="${{ inputs.exclude_patterns }}"
+          for exclude_pattern in $exclude_patterns; do
+            # Remove any files matching exclude patterns from git if they were added
+            git reset HEAD "$exclude_pattern" 2>/dev/null || true
+            git rm --cached "$exclude_pattern" 2>/dev/null || true
+          done
+          
+          # Add all other changes
+          git add .
+          
+          # Remove excluded files again to be sure
+          for exclude_pattern in $exclude_patterns; do
+            git reset HEAD "$exclude_pattern" 2>/dev/null || true
+          done
+          
+          # Check if there are actually changes to commit after exclusions
+          if git diff --cached --quiet; then
+            echo "No changes to commit after applying exclusions"
+            echo "changes_committed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Create detailed commit message
+          timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          commit_message="${{ inputs.commit_message_prefix }} - $timestamp"
+          commit_message="$commit_message\n\nGenerated files: ${{ steps.check_files.outputs.found_files_count }}"
+          commit_message="$commit_message\nTotal changes: ${{ steps.check_files.outputs.files_changed }}"
+          commit_message="$commit_message\nWorkflow: ${{ github.workflow }}"
+          commit_message="$commit_message\nRun: ${{ github.run_number }}"
+          
+          if [[ ${{ steps.check_files.outputs.total_lines }} -gt 0 ]]; then
+            commit_message="$commit_message\nTotal data lines: ${{ steps.check_files.outputs.total_lines }}"
+          fi
+          
+          # Commit the changes
+          git commit -m "$commit_message"
+          commit_sha=$(git rev-parse HEAD)
+          echo "commit_sha=$commit_sha" >> $GITHUB_OUTPUT
+          
+          # Push with retry logic
+          max_retries=${{ inputs.max_retries }}
+          retry_delay=${{ inputs.retry_delay }}
+          target_branch="${{ inputs.target_branch }}"
+          
+          retry_count=0
+          push_success=false
+          
+          while [[ $retry_count -lt $max_retries ]]; do
+            echo "Push attempt $((retry_count + 1)) of $max_retries..."
+            
+            # Pull latest changes and rebase
+            if git pull --rebase origin "$target_branch"; then
+              echo "Successfully rebased with remote changes"
+            else
+              echo "Warning: Rebase failed, attempting to push anyway"
+            fi
+            
+            # Attempt to push
+            if git push origin "$target_branch"; then
+              echo "✅ Successfully pushed changes to $target_branch"
+              push_success=true
+              break
+            else
+              retry_count=$((retry_count + 1))
+              echo "❌ Push attempt $retry_count failed"
+              
+              if [[ $retry_count -lt $max_retries ]]; then
+                echo "Waiting $retry_delay seconds before retry..."
+                sleep $retry_delay
+                
+                # Exponential backoff - double the delay for next attempt
+                retry_delay=$((retry_delay * 2))
+              fi
+            fi
+          done
+          
+          if [[ "$push_success" == true ]]; then
+            echo "changes_committed=true" >> $GITHUB_OUTPUT
+            echo "Successfully committed and pushed changes"
+          else
+            echo "changes_committed=false" >> $GITHUB_OUTPUT
+            echo "Failed to push changes after $max_retries attempts"
+            exit 1
+          fi
+
+      - name: Create workflow summary
+        if: always() && inputs.create_summary == true
+        run: |
+          echo "# Generated Files Commit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Number:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** ${{ inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Summary statistics
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Generated Files Found:** ${{ steps.check_files.outputs.found_files_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **File Changes Detected:** ${{ steps.check_files.outputs.files_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Changes Committed:** ${{ steps.commit.outputs.changes_committed || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.commit.outputs.commit_sha }}" != "" ]]; then
+            echo "- **Commit SHA:** \`${{ steps.commit.outputs.commit_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ ${{ steps.check_files.outputs.total_lines }} -gt 0 ]]; then
+            echo "- **Total Data Lines:** ${{ steps.check_files.outputs.total_lines }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # List generated files if any
+          if [[ -f generated_files_list.txt ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Generated Files" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            while IFS= read -r file; do
+              if [[ -f "$file" ]]; then
+                size=$(du -h "$file" 2>/dev/null | cut -f1 || echo "unknown")
+                echo "- \`$file\` ($size)" >> $GITHUB_STEP_SUMMARY
+              fi
+            done < generated_files_list.txt
+          fi
+          
+          # Add configuration details
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **File Patterns:** \`${{ inputs.file_patterns }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Exclude Patterns:** \`${{ inputs.exclude_patterns }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Retries:** ${{ inputs.max_retries }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Skip if No Changes:** ${{ inputs.skip_if_no_changes }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Clean up temporary files
+        if: always()
+        run: |
+          # Clean up any temporary files created during this workflow
+          rm -f generated_files_list.txt
+          
+          # Remove any sensitive files that might have been created
+          exclude_patterns="${{ inputs.exclude_patterns }}"
+          for exclude_pattern in $exclude_patterns; do
+            find . -name "$exclude_pattern" -type f -delete 2>/dev/null || true
+          done
+          
+          echo "Cleanup completed"
