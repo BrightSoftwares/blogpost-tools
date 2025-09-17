@@ -1,3 +1,4 @@
+scikit-learn
 pandas
 git+https://github.com/fullbright/ecommercetools@master
 google-api-python-client
