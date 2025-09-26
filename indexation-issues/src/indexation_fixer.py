@@ -33,8 +33,8 @@ class FixResult:
 class IndexationFixer:
     """Automated fixer for indexation issues"""
     
-    def __init__(self, site_url: str, site_type: str = "jekyll", dry_run: bool = False):
-        self.site_url = site_url.rstrip('/')
+    def __init__(self, site_url: str = "", site_type: str = "jekyll", dry_run: bool = False):
+        self.site_url = site_url.rstrip('/') if site_url else ""
         self.site_type = site_type.lower()
         self.dry_run = dry_run
         self.changes_log = []
@@ -1226,6 +1226,330 @@ This page has moved to [{to_url}]({to_url}).
         except Exception as e:
             logger.error(f"Error exporting results: {e}")
             return ""
+
+    def apply_fixes(self, analysis_results: Dict, fix_types: Optional[List[str]] = None) -> Dict:
+        """Apply fixes from analysis results - GitHub Actions compatible interface"""
+        if not analysis_results or "indexation_issues" not in analysis_results:
+            return {
+                "error": "No analysis results provided",
+                "fixes_applied": 0,
+                "fixes_failed": 0,
+                "fixes_skipped": 0
+            }
+        
+        fix_results = {
+            "timestamp": datetime.now().isoformat(),
+            "dry_run": self.dry_run,
+            "fixes_applied": 0,
+            "fixes_failed": 0,
+            "fixes_skipped": 0,
+            "details": []
+        }
+        
+        try:
+            # Create backup if not dry run
+            if not self.dry_run and not self.create_backup():
+                return {
+                    "error": "Failed to create backup",
+                    "fixes_applied": 0,
+                    "fixes_failed": 0,
+                    "fixes_skipped": 0
+                }
+            
+            # Process each issue type
+            for issue_type, issue_data in analysis_results.get("indexation_issues", {}).items():
+                if fix_types and issue_type not in fix_types:
+                    fix_results["fixes_skipped"] += len(issue_data.get("pages", []))
+                    continue
+                
+                # Apply fixes based on issue type
+                if issue_type == "noindex_tag":
+                    results = self._apply_noindex_fixes_from_analysis(issue_data)
+                elif issue_type == "blocked_robots_txt":
+                    results = self._apply_robots_fixes_from_analysis(issue_data)
+                elif issue_type == "canonical_issues":
+                    results = self._apply_canonical_fixes_from_analysis(issue_data)
+                elif issue_type == "crawled_not_indexed":
+                    results = self._apply_content_quality_fixes_from_analysis(issue_data)
+                else:
+                    logger.warning(f"Unsupported fix type: {issue_type}")
+                    fix_results["fixes_skipped"] += len(issue_data.get("pages", []))
+                    continue
+                
+                # Aggregate results
+                for result in results:
+                    if result.success:
+                        fix_results["fixes_applied"] += 1
+                    else:
+                        fix_results["fixes_failed"] += 1
+                    
+                    fix_results["details"].append({
+                        "issue_type": issue_type,
+                        "fix_type": result.fix_type,
+                        "file_path": result.file_path,
+                        "success": result.success,
+                        "details": result.details,
+                        "error": result.error
+                    })
+            
+            return fix_results
+            
+        except Exception as e:
+            logger.error(f"Error applying fixes: {e}")
+            return {
+                "error": str(e),
+                "fixes_applied": fix_results.get("fixes_applied", 0),
+                "fixes_failed": fix_results.get("fixes_failed", 0),
+                "fixes_skipped": fix_results.get("fixes_skipped", 0)
+            }
+    
+    def save_changes_log(self, output_file: Optional[str] = None) -> str:
+        """Save changes log for GitHub Actions"""
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_path = output_file or f"indexation_changes_{timestamp}.json"
+            
+            changes_data = {
+                "timestamp": datetime.now().isoformat(),
+                "total_changes": len(self.changes_log),
+                "changes": self.changes_log
+            }
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(changes_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Changes log saved to: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error saving changes log: {e}")
+            return ""
+    
+    # Helper methods for applying fixes from analysis results
+    def _apply_noindex_fixes_from_analysis(self, issue_data: Dict) -> List[FixResult]:
+        """Apply noindex fixes from analysis results"""
+        results = []
+        fixes = issue_data.get("fixes", [])
+        
+        for fix in fixes:
+            if fix.get("type") == "fix_noindex" and fix.get("automated", False):
+                file_path = fix["file_path"]
+                changes = fix.get("changes", [])
+                
+                try:
+                    front_matter, content = self._parse_front_matter(file_path)
+                    modified = False
+                    changes_made = []
+                    
+                    for change in changes:
+                        field = change["field"]
+                        action = change["action"]
+                        
+                        if action == "remove" and field in front_matter:
+                            del front_matter[field]
+                            modified = True
+                            changes_made.append(f"Removed {field}")
+                        
+                        elif action == "set_value":
+                            front_matter[field] = change["new_value"]
+                            modified = True
+                            changes_made.append(f"Set {field} to {change['new_value']}")
+                    
+                    if modified:
+                        if not self.dry_run:
+                            success = self._save_front_matter(file_path, front_matter, content)
+                        else:
+                            success = True
+                        
+                        if success:
+                            self._log_change({
+                                "type": "noindex_fixed",
+                                "file": file_path,
+                                "changes": changes_made
+                            })
+                        
+                        results.append(FixResult(
+                            success=success,
+                            fix_type="noindex",
+                            file_path=file_path,
+                            details={"changes": changes_made}
+                        ))
+                
+                except Exception as e:
+                    results.append(FixResult(
+                        success=False,
+                        fix_type="noindex",
+                        file_path=file_path,
+                        details={},
+                        error=str(e)
+                    ))
+        
+        return results
+    
+    def _apply_robots_fixes_from_analysis(self, issue_data: Dict) -> List[FixResult]:
+        """Apply robots.txt fixes from analysis results"""
+        results = []
+        fixes = issue_data.get("fixes", [])
+        
+        for fix in fixes:
+            if fix.get("type") == "fix_robots_rule" and fix.get("automated", False):
+                robots_file = fix["robots_file"]
+                rule_to_remove = fix["rule_to_remove"]
+                
+                result = self._apply_single_robots_fix(robots_file, rule_to_remove)
+                if result:
+                    results.append(result)
+        
+        return results
+    
+    def _apply_canonical_fixes_from_analysis(self, issue_data: Dict) -> List[FixResult]:
+        """Apply canonical fixes from analysis results"""
+        results = []
+        fixes = issue_data.get("fixes", [])
+        
+        for fix in fixes:
+            if fix.get("type") == "add_canonical_tag" and fix.get("automated", False):
+                file_path = fix["file_path"]
+                canonical_url = fix["canonical_url"]
+                
+                result = self._add_canonical_url(file_path, canonical_url)
+                if result:
+                    results.append(result)
+        
+        return results
+    
+    def _apply_content_quality_fixes_from_analysis(self, issue_data: Dict) -> List[FixResult]:
+        """Apply content quality fixes from analysis results"""
+        results = []
+        fixes = issue_data.get("fixes", [])
+        
+        for fix in fixes:
+            if fix.get("type") == "improve_content_quality" and fix.get("automated", False):
+                file_path = fix["file_path"]
+                improvements = fix.get("improvements", [])
+                
+                result = self._apply_content_improvements(file_path, improvements)
+                if result:
+                    results.append(result)
+        
+        return results
+    
+    def _apply_single_robots_fix(self, robots_file: str, rule_to_remove: str) -> Optional[FixResult]:
+        """Apply single robots.txt fix"""
+        try:
+            if not os.path.exists(robots_file):
+                return FixResult(
+                    success=False,
+                    fix_type="robots_txt",
+                    file_path=robots_file,
+                    details={},
+                    error="Robots file not found"
+                )
+            
+            with open(robots_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Remove the problematic rule
+            lines = content.split('\n')
+            new_lines = []
+            rule_removed = False
+            
+            for line in lines:
+                if line.strip().startswith('Disallow:'):
+                    rule = line.split(':', 1)[1].strip()
+                    if rule != rule_to_remove:
+                        new_lines.append(line)
+                    else:
+                        rule_removed = True
+                else:
+                    new_lines.append(line)
+            
+            if rule_removed:
+                new_content = '\n'.join(new_lines)
+                
+                if not self.dry_run:
+                    # Create backup
+                    backup_path = f"{robots_file}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    shutil.copy2(robots_file, backup_path)
+                    
+                    with open(robots_file, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                
+                self._log_change({
+                    "type": "robots_rule_removed",
+                    "file": robots_file,
+                    "rule": rule_to_remove
+                })
+                
+                return FixResult(
+                    success=True,
+                    fix_type="robots_txt",
+                    file_path=robots_file,
+                    details={"rule_removed": rule_to_remove}
+                )
+            
+            return None
+            
+        except Exception as e:
+            return FixResult(
+                success=False,
+                fix_type="robots_txt",
+                file_path=robots_file,
+                details={"rule_to_remove": rule_to_remove},
+                error=str(e)
+            )
+    
+    def _apply_content_improvements(self, file_path: str, improvements: List[Dict]) -> Optional[FixResult]:
+        """Apply content quality improvements"""
+        try:
+            front_matter, content = self._parse_front_matter(file_path)
+            modified = False
+            applied_improvements = []
+            
+            for improvement in improvements:
+                imp_type = improvement["type"]
+                value = improvement["value"]
+                
+                if imp_type == "add_title" and not front_matter.get("title"):
+                    front_matter["title"] = value
+                    modified = True
+                    applied_improvements.append(f"Added title: {value}")
+                
+                elif imp_type == "add_description" and not front_matter.get("description"):
+                    front_matter["description"] = value
+                    modified = True
+                    applied_improvements.append("Added description")
+            
+            if modified:
+                if not self.dry_run:
+                    success = self._save_front_matter(file_path, front_matter, content)
+                else:
+                    success = True
+                
+                if success:
+                    self._log_change({
+                        "type": "content_improved",
+                        "file": file_path,
+                        "improvements": applied_improvements
+                    })
+                
+                return FixResult(
+                    success=success,
+                    fix_type="content_quality",
+                    file_path=file_path,
+                    details={"improvements": applied_improvements}
+                )
+            
+            return None
+            
+        except Exception as e:
+            return FixResult(
+                success=False,
+                fix_type="content_quality",
+                file_path=file_path,
+                details={},
+                error=str(e)
+            )
 
 
 def main():

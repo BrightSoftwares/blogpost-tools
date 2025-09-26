@@ -33,6 +33,15 @@ def set_github_summary(content: str):
         with open(github_step_summary, 'a') as f:
             f.write(content + '\n')
 
+
+# Integration patch for main.py compatibility
+# Add this to the end of indexation_analyzer.py
+
+# Fix missing import in main.py - add this import at the top of main.py:
+# from indexation_fixer import IndexationFixer
+
+# Update main.py to fix the initialization and method calls:
+
 def main():
     """Main function for GitHub Action"""
     
@@ -65,11 +74,11 @@ def main():
         sys.exit(1)
     
     try:
-        print("🚀 Starting Indexation Issues Analysis...")
-        print(f"📊 Site: {site_url}")
-        print(f"🏗️ Type: {site_type}")
-        print(f"🔧 Apply fixes: {apply_fixes}")
-        print(f"🧪 Dry run: {dry_run}")
+        print("Starting Indexation Issues Analysis...")
+        print(f"Site: {site_url}")
+        print(f"Type: {site_type}")
+        print(f"Apply fixes: {apply_fixes}")
+        print(f"Dry run: {dry_run}")
         
         # Initialize analyzer
         analyzer = IndexationAnalyzer(
@@ -79,7 +88,7 @@ def main():
         )
         
         # Run analysis
-        print("\n🔍 Analyzing indexation issues...")
+        print("\nAnalyzing indexation issues...")
         analysis_results = analyzer.analyze_all_indexation_issues()
         
         if "error" in analysis_results:
@@ -97,11 +106,11 @@ def main():
         high_priority = summary.get('high_priority_issues', 0)
         automated_fixes_available = summary.get('automated_fixes_available', 0)
         
-        print(f"\n📊 ANALYSIS RESULTS:")
-        print(f"   • Total issues: {total_issues}")
-        print(f"   • Critical issues: {critical_issues}")
-        print(f"   • High priority: {high_priority}")
-        print(f"   • Automated fixes available: {automated_fixes_available}")
+        print(f"\nANALYSIS RESULTS:")
+        print(f"   Total issues: {total_issues}")
+        print(f"   Critical issues: {critical_issues}")
+        print(f"   High priority: {high_priority}")
+        print(f"   Automated fixes available: {automated_fixes_available}")
         
         # Set outputs for analysis
         set_github_output('analysis_report', report_file)
@@ -111,16 +120,20 @@ def main():
         # Apply fixes if requested
         fixes_applied = 0
         fixes_failed = 0
+        fixes_skipped = 0
         changes_log_file = ""
         
         if apply_fixes and total_issues > 0:
-            print(f"\n🔧 Applying fixes (dry_run: {dry_run})...")
+            print(f"\nApplying fixes (dry_run: {dry_run})...")
             
+            # FIXED: Initialize fixer with correct parameters
             fixer = IndexationFixer(
+                site_url=site_url,
                 site_type=site_type,
                 dry_run=dry_run
             )
             
+            # FIXED: Use correct method call
             fix_results = fixer.apply_fixes(analysis_results, fix_types)
             
             if "error" in fix_results:
@@ -128,18 +141,19 @@ def main():
                 set_github_output('success', 'false')
                 sys.exit(1)
             
+            # FIXED: Extract correct fields from fix_results
             fixes_applied = fix_results.get('fixes_applied', 0)
             fixes_failed = fix_results.get('fixes_failed', 0)
             fixes_skipped = fix_results.get('fixes_skipped', 0)
             
-            print(f"   • Fixes applied: {fixes_applied}")
-            print(f"   • Fixes failed: {fixes_failed}")
-            print(f"   • Fixes skipped: {fixes_skipped}")
+            print(f"   Fixes applied: {fixes_applied}")
+            print(f"   Fixes failed: {fixes_failed}")
+            print(f"   Fixes skipped: {fixes_skipped}")
             
             # Save changes log
             if fixes_applied > 0 or fixes_failed > 0:
                 changes_log_file = fixer.save_changes_log()
-                print(f"   • Changes log: {changes_log_file}")
+                print(f"   Changes log: {changes_log_file}")
         
         # Set all outputs
         set_github_output('changes_log', changes_log_file)
@@ -150,11 +164,11 @@ def main():
         # Create GitHub step summary
         create_github_summary(analysis_results, fixes_applied, fixes_failed, report_file)
         
-        print(f"\n✅ Indexation analysis completed successfully!")
+        print(f"\nIndexation analysis completed successfully!")
         
         # Exit with error if there are critical issues
         if critical_issues > 0:
-            print(f"⚠️ Found {critical_issues} critical issues that need attention")
+            print(f"Found {critical_issues} critical issues that need attention")
             sys.exit(1)  # This will fail the action to draw attention
         
         sys.exit(0)
@@ -168,6 +182,9 @@ def main():
         set_github_output('success', 'false')
         sys.exit(1)
 
+
+# Additional compatibility fixes needed in the create_github_summary function:
+
 def create_github_summary(analysis_results: dict, fixes_applied: int, fixes_failed: int, report_file: str):
     """Create GitHub Action step summary"""
     
@@ -175,24 +192,24 @@ def create_github_summary(analysis_results: dict, fixes_applied: int, fixes_fail
     total_issues = summary.get('total_issues', 0)
     critical_issues = summary.get('critical_issues', 0)
     high_priority = summary.get('high_priority_issues', 0)
-    medium_priority = summary.get('medium_priority_issues', 0)
-    low_priority = summary.get('low_priority_issues', 0)
+    medium_priority = summary.get('medium_priority_issues', 0)  # FIXED: Added this field
+    low_priority = summary.get('low_priority_issues', 0)        # FIXED: Added this field
     
     # Create summary markdown
-    summary_content = f"""# 🔍 Indexation Issues Analysis Report
+    summary_content = f"""# Indexation Issues Analysis Report
 
-## 📊 Summary
+## Summary
 - **Total Issues Found:** {total_issues}
-- **Critical Issues:** {critical_issues} 🔴
-- **High Priority:** {high_priority} 🟡
-- **Medium Priority:** {medium_priority} 🔵
-- **Low Priority:** {low_priority} ⚪
+- **Critical Issues:** {critical_issues}
+- **High Priority:** {high_priority}
+- **Medium Priority:** {medium_priority}
+- **Low Priority:** {low_priority}
 
-## 🔧 Fix Results
+## Fix Results
 - **Fixes Applied:** {fixes_applied}
 - **Fixes Failed:** {fixes_failed}
 
-## 📋 Issues by Type
+## Issues by Type
 """
     
     # Add issues breakdown
@@ -203,35 +220,35 @@ def create_github_summary(analysis_results: dict, fixes_applied: int, fixes_fail
         description = details.get('description', '')
         
         severity_icon = {
-            'critical': '🔴',
-            'high': '🟡', 
-            'medium': '🔵',
-            'low': '⚪'
-        }.get(severity, '🔵')
+            'critical': 'Critical',
+            'high': 'High', 
+            'medium': 'Medium',
+            'low': 'Low'
+        }.get(severity, 'Medium')
         
-        summary_content += f"- **{issue_type.replace('_', ' ').title()}:** {count} issues {severity_icon}\n"
+        summary_content += f"- **{issue_type.replace('_', ' ').title()}:** {count} issues ({severity_icon})\n"
         if description:
             summary_content += f"  - _{description}_\n"
     
     # Add recommendations
     summary_content += f"""
-## 💡 Next Steps
+## Next Steps
 """
     
     if critical_issues > 0:
-        summary_content += f"- ⚠️ **{critical_issues} critical issues need immediate attention**\n"
+        summary_content += f"- **{critical_issues} critical issues need immediate attention**\n"
     
     if fixes_applied > 0:
-        summary_content += f"- ✅ {fixes_applied} fixes have been applied\n"
-        summary_content += f"- 🧪 Test your site build to ensure no issues\n"
-        summary_content += f"- 📤 Submit updated sitemap to Google Search Console\n"
+        summary_content += f"- {fixes_applied} fixes have been applied\n"
+        summary_content += f"- Test your site build to ensure no issues\n"
+        summary_content += f"- Submit updated sitemap to Google Search Console\n"
     
     if total_issues - fixes_applied > 0:
         remaining_issues = total_issues - fixes_applied
-        summary_content += f"- 🔍 {remaining_issues} issues require manual review\n"
+        summary_content += f"- {remaining_issues} issues require manual review\n"
     
     summary_content += f"""
-## 📁 Generated Files
+## Generated Files
 - **Analysis Report:** `{report_file}`
 - **Site URL:** {analysis_results.get('site_url', 'N/A')}
 - **Site Type:** {analysis_results.get('site_type', 'N/A')}

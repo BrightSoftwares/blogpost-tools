@@ -1189,12 +1189,14 @@ class IndexationAnalyzer:
             _, content = self._parse_front_matter(file_path)
             
             # Look for first H1 heading
-            h1_match = re.search(r'^#\s+(.+)', content, re.MULTILINE)
+            h1_match = re.search(r'^#\s+(.+)
+    , content, re.MULTILINE)
             if h1_match:
                 return h1_match.group(1).strip()
             
             # Look for first H2 heading
-            h2_match = re.search(r'^##\s+(.+)', content, re.MULTILINE)
+            h2_match = re.search(r'^##\s+(.+)
+    , content, re.MULTILINE)
             if h2_match:
                 return h2_match.group(1).strip()
             
@@ -1254,6 +1256,8 @@ class IndexationAnalyzer:
             "total_issues": 0,
             "critical_issues": 0,
             "high_priority_issues": 0,
+            "medium_priority_issues": 0,
+            "low_priority_issues": 0,
             "automated_fixes_available": 0,
             "manual_fixes_required": 0,
             "issues_by_type": {}
@@ -1263,20 +1267,27 @@ class IndexationAnalyzer:
             pages = issue_data.get("pages", [])
             fixes = issue_data.get("fixes", [])
             severity = issue_data.get("severity", "low")
+            description = issue_data.get("description", "")
             
             count = len(pages)
             summary["total_issues"] += count
             summary["issues_by_type"][issue_type] = {
                 "count": count,
                 "severity": severity,
+                "description": description,
                 "automated_fixes": len([f for f in fixes if f.get("automated", False)]),
                 "manual_fixes": len([f for f in fixes if not f.get("automated", False)])
             }
             
+            # Count by priority level
             if severity == "critical":
                 summary["critical_issues"] += count
             elif severity == "high":
                 summary["high_priority_issues"] += count
+            elif severity == "medium":
+                summary["medium_priority_issues"] += count
+            else:
+                summary["low_priority_issues"] += count
             
             summary["automated_fixes_available"] += len([f for f in fixes if f.get("automated", False)])
             summary["manual_fixes_required"] += len([f for f in fixes if not f.get("automated", False)])
@@ -1762,6 +1773,10 @@ This page has moved to [{to_url}]({to_url}).
         except Exception as e:
             logger.error(f"Error exporting results: {e}")
             return ""
+    
+    def save_analysis_report(self, analysis_results: Dict) -> str:
+        """Save analysis report for GitHub Actions integration"""
+        return self.export_results(analysis_results, output_format="json")
 
 
 def main():
