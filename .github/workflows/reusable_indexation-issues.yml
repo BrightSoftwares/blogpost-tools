@@ -188,4 +188,5 @@ jobs:
       max_retries: 3
       skip_if_no_changes: true
       create_summary: true
-      name: Indexation Issues Analyzer and Fixer
+      # name: Indexation Issues Analyzer and Fixer
+
