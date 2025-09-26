@@ -1,102 +1,6 @@
 name: Analyze indexation and fix issues
-analyze-indexation:
-    runs-on: ubuntu-latest
-    outputs:
-      total_issues_found: ${{ steps.run-analysis.outputs.total_issues_found }}
-      critical_issues: ${{ steps.run-analysis.outputs.critical_issues }}
-      fixes_applied: ${{ steps.run-analysis.outputs.fixes_applied }}
-      analysis_report: ${{ steps.run-analysis.outputs.analysis_report }}
-      success: ${{ steps.run-analysis.outputs.success }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      
-      - name: Setup service account file
-        id: setup-credentials
-        run: |
-          if [ -n "${{ secrets.service_account_json }}" ]; then
-            echo "Setting up service account from secret..."
-            echo '${{ secrets.service_account_json }}' > service-account.json
-            echo "service_account_path=service-account.json" >> $GITHUB_OUTPUT
-          elif [ -f "${{ inputs.service_account_file_path }}" ]; then
-            echo "Using existing service account file..."
-            echo "service_account_path=${{ inputs.service_account_file_path }}" >> $GITHUB_OUTPUT
-          elif [ -f "${{ inputs.service_account_file_path }}.gpg" ]; then
-            echo "Decrypting service account file..."
-            gpg --quiet --batch --yes --decrypt \
-                --passphrase="${{ secrets.gpg_passphrase }}" \
-                --output "${{ inputs.service_account_file_path }}" \
-                "${{ inputs.service_account_file_path }}.gpg"
-            echo "service_account_path=${{ inputs.service_account_file_path }}" >> $GITHUB_OUTPUT
-          else
-            echo "❌ No service account file found or provided"
-            exit 1
-          fi
-          
-          # Validate the service account file
-          if [ ! -s "$(cat $GITHUB_OUTPUT | grep service_account_path | cut -d= -f2)" ]; then
-            echo "❌ Service account file is empty"
-            exit 1
-          fi
-          
-          echo "✅ Service account file ready"
-      
-      - name: Run indexation analysis
-        id: run-analysis
-        uses: BrightSoftwares/blogpost-tools/indexation-issues@main
-        with:
-          site_url: ${{ inputs.site_url }}
-          site_type: ${{ inputs.site_type }}
-          service_account_json_file_path: ${{ steps.setup-credentials.outputs.service_account_path }}
-          apply_fixes: ${{ inputs.apply_fixes }}
-          dry_run: ${{ inputs.dry_run }}
-          fix_types: ${{ inputs.fix_types }}
-          max_issues_per_type: ${{ inputs.max_issues_per_type }}
-      
-      - name: Upload analysis artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: indexation-analysis-${{ github.run_number }}
-          path: |
-            indexation_analysis_*.json
-            indexation_fixes_log_*.json
-            *.backup
-          retention-days: 30
-      
-      - name: Cleanup sensitive files
-        if: always()
-        run: |
-          # Remove service account files
-          rm -f service-account.json
-          rm -f ${{ inputs.service_account_file_path }}
-          rm -f *.secret.*
-          echo "Sensitive files cleaned up"
-      
-      - name: Fail on critical issues
-        if: inputs.fail_on_critical_issues && steps.run-analysis.outputs.critical_issues > 0
-        run: |
-          echo "Critical indexation issues found: ${{ steps.run-analysis.outputs.critical_issues }}"
-          echo "Failing workflow as requested by fail_on_critical_issues setting"
-          exit 1
 
-commit-changes:
-    needs: analyze-indexation
-    if: always() && inputs.commit_changes && needs.analyze-indexation.outputs.fixes_applied > 0
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
-    with:
-      commit_message_prefix: "Fix indexation issues"
-      file_patterns: "indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md content/**/*.md robots.txt"
-      exclude_patterns: "*.secret.* *.backup service-account.json *.key *.pem"
-      target_branch: "main"
-      max_retries: 3
-      skip_if_no_changes: true
-      create_summary: true
-      name: Indexation Issues Analyzer and Fixer
+
 
 on:
   workflow_call:
@@ -183,3 +87,105 @@ on:
       success:
         description: 'Whether the analysis completed successfully'
         value: ${{ jobs.analyze-indexation.outputs.success }}
+
+
+
+jobs:
+  analyze-indexation:
+    runs-on: ubuntu-latest
+    outputs:
+      total_issues_found: ${{ steps.run-analysis.outputs.total_issues_found }}
+      critical_issues: ${{ steps.run-analysis.outputs.critical_issues }}
+      fixes_applied: ${{ steps.run-analysis.outputs.fixes_applied }}
+      analysis_report: ${{ steps.run-analysis.outputs.analysis_report }}
+      success: ${{ steps.run-analysis.outputs.success }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup service account file
+        id: setup-credentials
+        run: |
+          if [ -n "${{ secrets.service_account_json }}" ]; then
+            echo "Setting up service account from secret..."
+            echo '${{ secrets.service_account_json }}' > service-account.json
+            echo "service_account_path=service-account.json" >> $GITHUB_OUTPUT
+          elif [ -f "${{ inputs.service_account_file_path }}" ]; then
+            echo "Using existing service account file..."
+            echo "service_account_path=${{ inputs.service_account_file_path }}" >> $GITHUB_OUTPUT
+          elif [ -f "${{ inputs.service_account_file_path }}.gpg" ]; then
+            echo "Decrypting service account file..."
+            gpg --quiet --batch --yes --decrypt \
+                --passphrase="${{ secrets.gpg_passphrase }}" \
+                --output "${{ inputs.service_account_file_path }}" \
+                "${{ inputs.service_account_file_path }}.gpg"
+            echo "service_account_path=${{ inputs.service_account_file_path }}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ No service account file found or provided"
+            exit 1
+          fi
+          
+          # Validate the service account file
+          if [ ! -s "$(cat $GITHUB_OUTPUT | grep service_account_path | cut -d= -f2)" ]; then
+            echo "❌ Service account file is empty"
+            exit 1
+          fi
+          
+          echo "✅ Service account file ready"
+      
+      - name: Run indexation analysis
+        id: run-analysis
+        uses: BrightSoftwares/blogpost-tools/indexation-issues@main
+        with:
+          site_url: ${{ inputs.site_url }}
+          site_type: ${{ inputs.site_type }}
+          service_account_json_file_path: ${{ steps.setup-credentials.outputs.service_account_path }}
+          apply_fixes: ${{ inputs.apply_fixes }}
+          dry_run: ${{ inputs.dry_run }}
+          fix_types: ${{ inputs.fix_types }}
+          max_issues_per_type: ${{ inputs.max_issues_per_type }}
+      
+      - name: Upload analysis artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: indexation-analysis-${{ github.run_number }}
+          path: |
+            indexation_analysis_*.json
+            indexation_fixes_log_*.json
+            *.backup
+          retention-days: 30
+      
+      - name: Cleanup sensitive files
+        if: always()
+        run: |
+          # Remove service account files
+          rm -f service-account.json
+          rm -f ${{ inputs.service_account_file_path }}
+          rm -f *.secret.*
+          echo "Sensitive files cleaned up"
+      
+      - name: Fail on critical issues
+        if: inputs.fail_on_critical_issues && steps.run-analysis.outputs.critical_issues > 0
+        run: |
+          echo "Critical indexation issues found: ${{ steps.run-analysis.outputs.critical_issues }}"
+          echo "Failing workflow as requested by fail_on_critical_issues setting"
+          exit 1
+
+  commit-changes:
+    needs: analyze-indexation
+    if: always() && inputs.commit_changes && needs.analyze-indexation.outputs.fixes_applied > 0
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
+    with:
+      commit_message_prefix: "Fix indexation issues"
+      file_patterns: "indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md content/**/*.md robots.txt"
+      exclude_patterns: "*.secret.* *.backup service-account.json *.key *.pem"
+      target_branch: "main"
+      max_retries: 3
+      skip_if_no_changes: true
+      create_summary: true
+      name: Indexation Issues Analyzer and Fixer
