@@ -1189,14 +1189,12 @@ class IndexationAnalyzer:
             _, content = self._parse_front_matter(file_path)
             
             # Look for first H1 heading
-            h1_match = re.search(r'^#\s+(.+)
-    , content, re.MULTILINE)
+            h1_match = re.search(r'^#\s+(.+)', content, re.MULTILINE)
             if h1_match:
                 return h1_match.group(1).strip()
             
             # Look for first H2 heading
-            h2_match = re.search(r'^##\s+(.+)
-    , content, re.MULTILINE)
+            h2_match = re.search(r'^##\s+(.+)', content, re.MULTILINE)
             if h2_match:
                 return h2_match.group(1).strip()
             
