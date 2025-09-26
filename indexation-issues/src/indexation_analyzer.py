@@ -37,13 +37,15 @@ logger = logging.getLogger(__name__)
 class IndexationAnalyzer:
     """Complete indexation issues analyzer for Google Search Console"""
     
-    def __init__(self, service_account_path: str, site_url: str, site_type: str = "jekyll"):
+    def __init__(self, service_account_path: str, site_url: str, site_type: str = "jekyll", dry_run: bool = False):
         self.service_account_path = service_account_path
         self.site_url = site_url.rstrip('/')
         self.site_type = site_type.lower()
+        self.dry_run = dry_run
         self.service = None
+        self.changes_log = []
         
-        if GOOGLE_AVAILABLE:
+        if GOOGLE_AVAILABLE and os.path.exists(service_account_path):
             self.service = self._build_service()
         
         # Content directories by site type
@@ -99,10 +101,6 @@ class IndexationAnalyzer:
     def analyze_all_indexation_issues(self) -> Dict:
         """Analyze all types of indexation issues"""
         logger.info("Starting comprehensive indexation analysis...")
-        
-        if not self.service:
-            logger.error("Google Search Console service not available")
-            return {"error": "Google Search Console connection failed"}
         
         analysis_results = {
             "site_url": self.site_url,
@@ -775,74 +773,260 @@ class IndexationAnalyzer:
         for page in pages:
             rule = page["blocking_rule"]
             if rule not in rules_to_fix:
-                rules_to_fix, filename):
-                        date_part = filename[:10]
-                        title_part = filename[11:-3]
-                        year, month, day = date_part.split('-')
-                        return f"/{year}/{month}/{day}/{title_part}/"
-                
-                if "_pages" in file_path:
-                    rel_path = os.path.relpath(file_path, "_pages")
-                    return "/" + rel_path.replace('.md', '/')
-            
-            else:  # Hugo
-                if "content" in file_path:
-                    rel_path = os.path.relpath(file_path, "content")
-                    if rel_path.endswith('/index.md'):
-                        return "/" + os.path.dirname(rel_path) + "/"
-                    else:
-                        return "/" + rel_path.replace('.md', '/')
-            
-            return "/" + os.path.basename(file_path).replace('.md', '/')
+                rules_to_fix[rule] = []
+            rules_to_fix[rule].append(page)
         
+        # Create fix for each problematic rule
+        for rule, affected_pages in rules_to_fix.items():
+            fix = {
+                "type": "fix_robots_rule",
+                "robots_file": robots_path,
+                "rule_to_remove": rule,
+                "affected_pages": len(affected_pages),
+                "automated": True,
+                "backup_created": True
+            }
+            fixes.append(fix)
+        
+        return fixes
+    
+    def _extract_all_internal_links(self) -> List[Dict]:
+        """Extract all internal links from markdown files"""
+        internal_links = {}
+        
+        try:
+            content_dirs = self._get_content_directories()
+            
+            for content_dir in content_dirs:
+                if not os.path.exists(content_dir):
+                    continue
+                    
+                for file_path in Path(content_dir).rglob("*.md"):
+                    try:
+                        _, content = self._parse_front_matter(str(file_path))
+                        
+                        # Extract markdown links
+                        link_pattern = r'\[([^\]]*)\]\(([^)]+)\)'
+                        matches = re.findall(link_pattern, content)
+                        
+                        for link_text, link_url in matches:
+                            # Skip external links
+                            if link_url.startswith(('http://', 'https://', 'mailto:', '#')):
+                                continue
+                            
+                            # Normalize URL
+                            if not link_url.startswith('/'):
+                                link_url = '/' + link_url
+                            
+                            if link_url not in internal_links:
+                                internal_links[link_url] = {
+                                    "url": link_url,
+                                    "referring_pages": []
+                                }
+                            
+                            internal_links[link_url]["referring_pages"].append({
+                                "file_path": str(file_path),
+                                "link_text": link_text
+                            })
+                            
+                    except Exception as e:
+                        logger.warning(f"Error extracting links from {file_path}: {e}")
+                        continue
+            
+            return list(internal_links.values())
+            
         except Exception as e:
-            logger.warning(f"Error converting path to URL: {e}")
-            return "/" + os.path.basename(file_path).replace('.md', '/')
+            logger.error(f"Error extracting internal links: {e}")
+            return []
+    
+    def _find_replacement_page(self, broken_url: str) -> Optional[str]:
+        """Find a replacement page for a broken URL"""
+        try:
+            # Extract keywords from broken URL
+            url_parts = broken_url.strip('/').split('/')
+            keywords = []
+            
+            for part in url_parts:
+                # Split on common separators
+                words = re.split(r'[-_\s]+', part)
+                keywords.extend([w.lower() for w in words if len(w) > 2])
+            
+            if not keywords:
+                return None
+            
+            # Search through existing pages
+            content_dirs = self._get_content_directories()
+            best_match = None
+            best_score = 0
+            
+            for content_dir in content_dirs:
+                if not os.path.exists(content_dir):
+                    continue
+                    
+                for file_path in Path(content_dir).rglob("*.md"):
+                    try:
+                        front_matter, content = self._parse_front_matter(str(file_path))
+                        
+                        # Calculate match score
+                        score = 0
+                        title = str(front_matter.get('title', '')).lower()
+                        file_name = os.path.basename(str(file_path)).lower()
+                        content_text = content[:500].lower()
+                        
+                        for keyword in keywords:
+                            if keyword in title:
+                                score += 3
+                            if keyword in file_name:
+                                score += 2
+                            if keyword in content_text:
+                                score += 1
+                        
+                        if score > best_score and score > 2:
+                            best_score = score
+                            best_match = self._get_url_from_file_path(str(file_path))
+                            
+                    except Exception as e:
+                        logger.warning(f"Error searching replacement in {file_path}: {e}")
+                        continue
+            
+            return best_match
+            
+        except Exception as e:
+            logger.error(f"Error finding replacement page: {e}")
+            return None
+    
+    def _get_404_recommendation(self, broken_url: str, suggested_replacement: Optional[str]) -> str:
+        """Get recommendation for fixing 404 errors"""
+        if suggested_replacement:
+            return f"Update internal links to point to {suggested_replacement}, or create redirect"
+        else:
+            return "Create missing content or remove broken links"
+    
+    def _generate_404_fixes(self, pages: List[Dict]) -> List[Dict]:
+        """Generate fixes for 404 errors"""
+        fixes = []
+        
+        for page in pages:
+            if page.get("suggested_replacement"):
+                # Create redirect fix
+                fix = {
+                    "type": "create_redirect",
+                    "from_url": page["broken_url"],
+                    "to_url": page["suggested_replacement"],
+                    "automated": True
+                }
+                fixes.append(fix)
+                
+                # Update internal links fix
+                for referring_page in page["referring_pages"]:
+                    fix = {
+                        "type": "update_internal_link",
+                        "file_path": referring_page["file_path"],
+                        "old_url": page["broken_url"],
+                        "new_url": page["suggested_replacement"],
+                        "automated": True
+                    }
+                    fixes.append(fix)
+            else:
+                # Remove broken links
+                for referring_page in page["referring_pages"]:
+                    fix = {
+                        "type": "remove_broken_link",
+                        "file_path": referring_page["file_path"],
+                        "broken_url": page["broken_url"],
+                        "automated": False,
+                        "manual_review_required": True
+                    }
+                    fixes.append(fix)
+        
+        return fixes
+    
+    def _get_important_pages_list(self) -> List[Dict]:
+        """Get list of important pages to test for server errors"""
+        important_pages = []
+        
+        try:
+            content_dirs = self._get_content_directories()
+            
+            for content_dir in content_dirs:
+                if not os.path.exists(content_dir):
+                    continue
+                    
+                for file_path in Path(content_dir).rglob("*.md"):
+                    try:
+                        front_matter, content = self._parse_front_matter(str(file_path))
+                        
+                        # Prioritize important pages
+                        priority = self._calculate_page_priority(content, front_matter)
+                        
+                        if priority in ["high", "medium"]:
+                            url = self._get_url_from_file_path(str(file_path))
+                            important_pages.append({
+                                "url": url,
+                                "file_path": str(file_path),
+                                "priority": priority
+                            })
+                            
+                    except Exception as e:
+                        logger.warning(f"Error evaluating page importance {file_path}: {e}")
+                        continue
+            
+            # Limit to reasonable number for testing
+            important_pages = sorted(important_pages, key=lambda x: x["priority"], reverse=True)[:50]
+            
+            return important_pages
+            
+        except Exception as e:
+            logger.error(f"Error getting important pages list: {e}")
+            return []
     
     def _get_server_error_type(self, status_code: int) -> str:
         """Get server error type description"""
         error_types = {
             500: "Internal Server Error",
-            502: "Bad Gateway", 
+            501: "Not Implemented", 
+            502: "Bad Gateway",
             503: "Service Unavailable",
-            504: "Gateway Timeout"
+            504: "Gateway Timeout",
+            505: "HTTP Version Not Supported"
         }
         return error_types.get(status_code, f"Server Error {status_code}")
     
     def _get_server_error_recommendation(self, status_code: int) -> str:
         """Get recommendation for server errors"""
         recommendations = {
-            500: "Check server logs for internal errors; verify site generation process",
-            502: "Check proxy/load balancer configuration",
-            503: "Check server resources and hosting limits",
-            504: "Check server response times and optimize slow pages"
+            500: "Check server logs for application errors, review recent code changes",
+            501: "Check if requested functionality is implemented on server",
+            502: "Check reverse proxy configuration and upstream servers",
+            503: "Check server resources and capacity, review maintenance mode",
+            504: "Check upstream server response times and timeout configurations",
+            505: "Update HTTP version configuration"
         }
-        return recommendations.get(status_code, "Contact hosting provider to investigate server issues")
+        return recommendations.get(status_code, "Check server configuration and logs")
     
     def _generate_server_error_fixes(self, pages: List[Dict]) -> List[Dict]:
         """Generate fixes for server errors (mostly manual)"""
         fixes = []
         
         # Group by error type
-        errors_by_type = {}
+        error_groups = {}
         for page in pages:
             error_type = page.get("status_code", "unknown")
-            if error_type not in errors_by_type:
-                errors_by_type[error_type] = []
-            errors_by_type[error_type].append(page)
+            if error_type not in error_groups:
+                error_groups[error_type] = []
+            error_groups[error_type].append(page)
         
-        for error_type, affected_pages in errors_by_type.items():
+        for error_type, pages_with_error in error_groups.items():
             fix = {
                 "type": "server_error_investigation",
                 "error_type": error_type,
-                "affected_pages": len(affected_pages),
+                "affected_pages": len(pages_with_error),
                 "automated": False,
                 "recommended_actions": [
-                    "Check server logs for detailed error information",
-                    "Verify site build process completes successfully",
-                    "Test individual page generation",
-                    "Contact hosting provider if issues persist",
-                    "Check server resources and limits"
+                    "Check server logs",
+                    "Review server configuration", 
+                    "Monitor server resources",
+                    "Test pages individually"
                 ]
             }
             fixes.append(fix)
@@ -850,14 +1034,10 @@ class IndexationAnalyzer:
         return fixes
     
     def _validate_canonical_url(self, canonical_url: str) -> bool:
-        """Validate if canonical URL is accessible"""
+        """Validate canonical URL format"""
         try:
-            if canonical_url.startswith('/'):
-                canonical_url = urljoin(self.site_url, canonical_url)
-            
-            response = requests.head(canonical_url, timeout=10, allow_redirects=True)
-            return response.status_code == 200
-            
+            parsed = urlparse(canonical_url)
+            return bool(parsed.scheme and parsed.netloc)
         except Exception:
             return False
     
@@ -866,75 +1046,78 @@ class IndexationAnalyzer:
         fixes = []
         
         for issue in canonical_issues:
-            issue_type = issue["issue_type"]
+            page = issue["page"]
             
-            if issue_type == "duplicate_no_canonical":
+            if issue["issue_type"] == "duplicate_no_canonical":
                 fix = {
                     "type": "add_canonical_tag",
-                    "file_path": issue["page"]["file_path"],
+                    "file_path": page["file_path"],
                     "canonical_url": issue["duplicate_of"]["url"],
                     "automated": True
                 }
                 fixes.append(fix)
             
-            elif issue_type == "invalid_canonical":
+            elif issue["issue_type"] == "invalid_canonical":
                 fix = {
-                    "type": "fix_invalid_canonical", 
-                    "file_path": issue["page"]["file_path"],
-                    "current_canonical": issue["page"]["canonical_url"],
+                    "type": "fix_canonical_url",
+                    "file_path": page["file_path"],
+                    "current_canonical": page["canonical_url"],
                     "automated": False,
-                    "recommended_action": "Review and correct canonical URL or remove if not needed"
+                    "recommended_action": "Review and fix canonical URL format"
                 }
                 fixes.append(fix)
         
         return fixes
     
     def _assess_content_quality(self, content: str, front_matter: Dict) -> List[str]:
-        """Assess content quality and return list of issues"""
+        """Assess content quality issues"""
         issues = []
-        content_clean = content.strip()
         
-        # Check content length
-        if len(content_clean) < 300:
-            issues.append("content_too_short")
+        # Content length
+        if len(content.strip()) < 300:
+            issues.append("Content too short (less than 300 characters)")
         
-        # Check word count
-        word_count = len(content_clean.split())
+        # Word count
+        word_count = len(content.split())
         if word_count < 50:
-            issues.append("very_low_word_count")
+            issues.append(f"Low word count ({word_count} words)")
         
-        # Check for missing metadata
+        # Missing title
         if not front_matter.get('title'):
-            issues.append("missing_title")
+            issues.append("Missing title")
         
+        # Missing description
         if not front_matter.get('description'):
-            issues.append("missing_description")
+            issues.append("Missing meta description")
         
-        # Check content structure
-        paragraphs = [p.strip() for p in content_clean.split('\n\n') if len(p.strip()) > 20]
-        if len(paragraphs) < 2:
-            issues.append("poor_paragraph_structure")
+        # Empty or placeholder content
+        placeholder_indicators = ['lorem ipsum', 'placeholder', 'todo', 'coming soon']
+        content_lower = content.lower()
+        if any(indicator in content_lower for indicator in placeholder_indicators):
+            issues.append("Contains placeholder content")
         
-        # Check for mostly list content
-        lines = content_clean.split('\n')
-        list_lines = sum(1 for line in lines if line.strip().startswith(('- ', '* ', '1. ', '2. ', '3.')))
-        if lines and list_lines / len(lines) > 0.7:
-            issues.append("mostly_list_content")
+        # No headings
+        if not re.search(r'^#+\s', content, re.MULTILINE):
+            issues.append("No headings found")
         
-        # Check for duplicate/template content
-        if "lorem ipsum" in content_clean.lower() or "placeholder" in content_clean.lower():
-            issues.append("template_content")
+        # Title too short or generic
+        title = front_matter.get('title', '')
+        if title and len(title) < 10:
+            issues.append("Title too short")
+        
+        generic_titles = ['untitled', 'new post', 'draft', 'test']
+        if any(generic in title.lower() for generic in generic_titles):
+            issues.append("Generic or placeholder title")
         
         return issues
     
     def _calculate_content_quality_priority(self, quality_issues: List[str]) -> str:
         """Calculate priority for content quality issues"""
-        critical_issues = ["missing_title", "template_content", "very_low_word_count"]
-        high_issues = ["content_too_short", "missing_description"]
+        critical_issues = ['Content too short', 'Missing title', 'Contains placeholder content']
         
-        if any(issue in critical_issues for issue in quality_issues):
+        if any(critical in issue for critical in critical_issues for issue in quality_issues):
             return "high"
-        elif any(issue in high_issues for issue in quality_issues):
+        elif len(quality_issues) > 3:
             return "medium"
         else:
             return "low"
@@ -943,64 +1126,129 @@ class IndexationAnalyzer:
         """Get recommendations for content quality issues"""
         recommendations = []
         
-        issue_recommendations = {
-            "content_too_short": "Expand content to at least 500 words with detailed information",
-            "very_low_word_count": "Add substantial content with proper explanations",
-            "missing_title": "Add descriptive title to front matter",
-            "missing_description": "Add meta description for better SEO",
-            "poor_paragraph_structure": "Reorganize into well-structured paragraphs",
-            "mostly_list_content": "Add explanatory paragraphs between lists",
-            "template_content": "Replace placeholder content with original material"
-        }
-        
         for issue in quality_issues:
-            if issue in issue_recommendations:
-                recommendations.append(issue_recommendations[issue])
+            if "Content too short" in issue:
+                recommendations.append("Expand content with more detailed information")
+            elif "Low word count" in issue:
+                recommendations.append("Add more comprehensive content")
+            elif "Missing title" in issue:
+                recommendations.append("Add descriptive title")
+            elif "Missing meta description" in issue:
+                recommendations.append("Add SEO meta description")
+            elif "placeholder content" in issue:
+                recommendations.append("Replace placeholder content with real content")
+            elif "No headings" in issue:
+                recommendations.append("Add proper heading structure")
+            elif "Title too short" in issue:
+                recommendations.append("Create more descriptive title")
+            elif "Generic" in issue:
+                recommendations.append("Use specific, descriptive title")
         
-        return "; ".join(recommendations)
+        return "; ".join(set(recommendations)) if recommendations else "Improve content quality"
     
     def _generate_content_quality_fixes(self, pages: List[Dict]) -> List[Dict]:
         """Generate fixes for content quality issues"""
         fixes = []
         
         for page in pages:
-            automated_fixes = []
-            manual_fixes = []
+            fix = {
+                "type": "improve_content_quality",
+                "file_path": page["file_path"],
+                "automated": True,
+                "improvements": []
+            }
             
+            # Generate specific improvements based on issues
             for issue in page["quality_issues"]:
-                if issue == "missing_title":
-                    automated_fixes.append({
-                        "field": "title",
-                        "action": "generate_from_content"
-                    })
-                elif issue == "missing_description":
-                    automated_fixes.append({
-                        "field": "description", 
-                        "action": "generate_from_content"
-                    })
-                else:
-                    manual_fixes.append(issue)
+                if "Missing title" in issue:
+                    # Generate title from filename or first heading
+                    suggested_title = self._generate_title_from_content(page["file_path"])
+                    if suggested_title:
+                        fix["improvements"].append({
+                            "type": "add_title",
+                            "value": suggested_title
+                        })
+                
+                if "Missing meta description" in issue:
+                    # Generate description from first paragraph
+                    suggested_description = self._generate_description_from_content(page["file_path"])
+                    if suggested_description:
+                        fix["improvements"].append({
+                            "type": "add_description", 
+                            "value": suggested_description
+                        })
             
-            if automated_fixes:
-                fix = {
-                    "type": "automated_content_improvement",
-                    "file_path": page["file_path"],
-                    "automated_fixes": automated_fixes,
-                    "automated": True
-                }
-                fixes.append(fix)
-            
-            if manual_fixes:
-                fix = {
-                    "type": "manual_content_improvement",
-                    "file_path": page["file_path"],
-                    "issues": manual_fixes,
-                    "automated": False,
-                    "recommendations": self._get_content_quality_recommendations(manual_fixes)
-                }
+            if fix["improvements"]:
                 fixes.append(fix)
         
         return fixes
+    
+    def _generate_title_from_content(self, file_path: str) -> Optional[str]:
+        """Generate title from content or filename"""
+        try:
+            _, content = self._parse_front_matter(file_path)
+            
+            # Look for first H1 heading
+            h1_match = re.search(r'^#\s+(.+)
+    , content, re.MULTILINE)
+            if h1_match:
+                return h1_match.group(1).strip()
+            
+            # Look for first H2 heading
+            h2_match = re.search(r'^##\s+(.+)
+    , content, re.MULTILINE)
+            if h2_match:
+                return h2_match.group(1).strip()
+            
+            # Generate from filename
+            filename = os.path.basename(file_path)
+            if filename.endswith('.md'):
+                filename = filename[:-3]
+            
+            # Remove date prefix from Jekyll posts
+            filename = re.sub(r'^\d{4}-\d{2}-\d{2}-', '', filename)
+            
+            # Convert to title case
+            title = filename.replace('-', ' ').replace('_', ' ')
+            title = ' '.join(word.capitalize() for word in title.split())
+            
+            return title if len(title) > 5 else None
+            
+        except Exception as e:
+            logger.warning(f"Error generating title for {file_path}: {e}")
+            return None
+    
+    def _generate_description_from_content(self, file_path: str) -> Optional[str]:
+        """Generate meta description from content"""
+        try:
+            _, content = self._parse_front_matter(file_path)
+            
+            # Find first paragraph that's substantial
+            paragraphs = content.split('\n\n')
+            
+            for paragraph in paragraphs:
+                paragraph = paragraph.strip()
+                # Skip headings and short paragraphs
+                if paragraph.startswith('#') or len(paragraph) < 50:
+                    continue
+                
+                # Clean up markdown formatting
+                paragraph = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', paragraph)  # Links
+                paragraph = re.sub(r'\*\*([^*]*)\*\*', r'\1', paragraph)  # Bold
+                paragraph = re.sub(r'\*([^*]*)\*', r'\1', paragraph)  # Italic
+                paragraph = re.sub(r'`([^`]*)`', r'\1', paragraph)  # Code
+                
+                # Truncate to appropriate length
+                if len(paragraph) > 160:
+                    paragraph = paragraph[:157] + '...'
+                
+                return paragraph
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error generating description for {file_path}: {e}")
+            return None
     
     def _generate_summary(self, indexation_issues: Dict) -> Dict:
         """Generate summary of all indexation issues"""
@@ -1008,356 +1256,261 @@ class IndexationAnalyzer:
             "total_issues": 0,
             "critical_issues": 0,
             "high_priority_issues": 0,
-            "medium_priority_issues": 0,
-            "low_priority_issues": 0,
             "automated_fixes_available": 0,
             "manual_fixes_required": 0,
             "issues_by_type": {}
         }
         
         for issue_type, issue_data in indexation_issues.items():
-            if not issue_data or "pages" not in issue_data:
-                continue
-                
-            page_count = len(issue_data["pages"])
-            summary["total_issues"] += page_count
+            pages = issue_data.get("pages", [])
+            fixes = issue_data.get("fixes", [])
+            severity = issue_data.get("severity", "low")
             
-            severity = issue_data.get("severity", "medium")
-            if severity == "critical":
-                summary["critical_issues"] += page_count
-            elif severity == "high":
-                summary["high_priority_issues"] += page_count
-            elif severity == "medium":
-                summary["medium_priority_issues"] += page_count
-            else:
-                summary["low_priority_issues"] += page_count
-            
-            # Count automated vs manual fixes
-            for fix in issue_data.get("fixes", []):
-                if fix.get("automated", False):
-                    summary["automated_fixes_available"] += 1
-                else:
-                    summary["manual_fixes_required"] += 1
-            
+            count = len(pages)
+            summary["total_issues"] += count
             summary["issues_by_type"][issue_type] = {
-                "count": page_count,
+                "count": count,
                 "severity": severity,
-                "description": issue_data.get("description", "")
+                "automated_fixes": len([f for f in fixes if f.get("automated", False)]),
+                "manual_fixes": len([f for f in fixes if not f.get("automated", False)])
             }
+            
+            if severity == "critical":
+                summary["critical_issues"] += count
+            elif severity == "high":
+                summary["high_priority_issues"] += count
+            
+            summary["automated_fixes_available"] += len([f for f in fixes if f.get("automated", False)])
+            summary["manual_fixes_required"] += len([f for f in fixes if not f.get("automated", False)])
         
         return summary
     
-    def save_analysis_report(self, analysis_results: Dict, output_file: str = None) -> str:
-        """Save analysis results to JSON file"""
-        if not output_file:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"indexation_analysis_{timestamp}.json"
-        
-        try:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(analysis_results, f, indent=2, ensure_ascii=False, default=str)
-            
-            logger.info(f"Analysis report saved to: {output_file}")
-            return output_file
-            
-        except Exception as e:
-            logger.error(f"Error saving analysis report: {e}")
-            return ""
-
-
-class IndexationFixer:
-    """Applies fixes for indexation issues"""
-    
-    def __init__(self, site_type: str = "jekyll", dry_run: bool = True):
-        self.site_type = site_type.lower()
-        self.dry_run = dry_run
-        self.changes_log = []
-    
-    def apply_fixes(self, analysis_results: Dict, fix_types: List[str] = None) -> Dict:
-        """Apply indexation fixes based on analysis results"""
-        logger.info(f"Applying indexation fixes (dry_run: {self.dry_run})")
-        
+    # Fix implementation methods
+    def apply_fixes(self, analysis_results: Dict, fix_types: Optional[List[str]] = None) -> Dict:
+        """Apply automated fixes for indexation issues"""
         if not analysis_results or "indexation_issues" not in analysis_results:
-            return {"error": "No analysis results provided"}
+            return {"error": "No analysis results to apply fixes to"}
         
-        results = {
-            "fixes_applied": 0,
-            "fixes_failed": 0,
-            "fixes_skipped": 0,
-            "fixes_by_type": {},
-            "changes_log": []
+        if self.dry_run:
+            logger.info("DRY RUN MODE: No actual changes will be made")
+        
+        fix_results = {
+            "timestamp": datetime.now().isoformat(),
+            "fixes_applied": [],
+            "fixes_failed": [],
+            "summary": {
+                "total_fixes_attempted": 0,
+                "successful_fixes": 0,
+                "failed_fixes": 0
+            }
         }
         
-        # Default to all automated fix types
-        if fix_types is None:
-            fix_types = ["noindex_tag", "blocked_robots_txt", "not_found_404", "canonical_issues", "crawled_not_indexed"]
+        # Create backup if not dry run
+        if not self.dry_run:
+            self._create_backup()
         
-        try:
-            indexation_issues = analysis_results["indexation_issues"]
+        # Apply fixes for each issue type
+        for issue_type, issue_data in analysis_results["indexation_issues"].items():
+            if fix_types and issue_type not in fix_types:
+                continue
             
-            for issue_type in fix_types:
-                if issue_type not in indexation_issues:
-                    continue
-                
-                issue_data = indexation_issues[issue_type]
-                fix_results = self._apply_issue_type_fixes(issue_type, issue_data)
-                
-                results["fixes_by_type"][issue_type] = fix_results
-                results["fixes_applied"] += fix_results.get("applied", 0)
-                results["fixes_failed"] += fix_results.get("failed", 0)
-                results["fixes_skipped"] += fix_results.get("skipped", 0)
-            
-            results["changes_log"] = self.changes_log
-            
-            logger.info(f"Indexation fixes complete: {results['fixes_applied']} applied, {results['fixes_failed']} failed")
-            
-        except Exception as e:
-            logger.error(f"Error applying indexation fixes: {e}")
-            results["error"] = str(e)
-        
-        return results
-    
-    def _apply_issue_type_fixes(self, issue_type: str, issue_data: Dict) -> Dict:
-        """Apply fixes for a specific issue type"""
-        results = {"applied": 0, "failed": 0, "skipped": 0, "details": []}
-        
-        try:
             fixes = issue_data.get("fixes", [])
             
             for fix in fixes:
-                if not fix.get("automated", False):
-                    results["skipped"] += 1
-                    continue
+                fix_results["summary"]["total_fixes_attempted"] += 1
                 
                 try:
                     success = self._apply_single_fix(fix)
                     
                     if success:
-                        results["applied"] += 1
-                        results["details"].append({
+                        fix_results["fixes_applied"].append({
                             "fix_type": fix["type"],
-                            "file_path": fix.get("file_path", "N/A"),
-                            "status": "applied" if not self.dry_run else "dry_run"
+                            "issue_type": issue_type,
+                            "details": fix
                         })
+                        fix_results["summary"]["successful_fixes"] += 1
                     else:
-                        results["failed"] += 1
-                        results["details"].append({
+                        fix_results["fixes_failed"].append({
                             "fix_type": fix["type"],
-                            "file_path": fix.get("file_path", "N/A"),
-                            "status": "failed"
+                            "issue_type": issue_type,
+                            "error": "Fix application failed",
+                            "details": fix
                         })
-                
+                        fix_results["summary"]["failed_fixes"] += 1
+                        
                 except Exception as e:
                     logger.error(f"Error applying fix {fix.get('type', 'unknown')}: {e}")
-                    results["failed"] += 1
+                    fix_results["fixes_failed"].append({
+                        "fix_type": fix.get("type", "unknown"),
+                        "issue_type": issue_type,
+                        "error": str(e),
+                        "details": fix
+                    })
+                    fix_results["summary"]["failed_fixes"] += 1
         
+        logger.info(f"Fix application complete. {fix_results['summary']['successful_fixes']} successful, {fix_results['summary']['failed_fixes']} failed")
+        
+        return fix_results
+    
+    def _create_backup(self) -> bool:
+        """Create backup of important files before making changes"""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = f"indexation_backup_{timestamp}"
+            
+            if os.path.exists(backup_dir):
+                shutil.rmtree(backup_dir)
+            
+            os.makedirs(backup_dir)
+            
+            # Backup content directories
+            for content_dir in self._get_content_directories():
+                if os.path.exists(content_dir):
+                    dest_dir = os.path.join(backup_dir, content_dir)
+                    shutil.copytree(content_dir, dest_dir)
+                    logger.info(f"Backed up {content_dir} to {dest_dir}")
+            
+            # Backup robots.txt if exists
+            robots_paths = ["robots.txt", "_site/robots.txt", "public/robots.txt"]
+            for robots_path in robots_paths:
+                if os.path.exists(robots_path):
+                    shutil.copy2(robots_path, backup_dir)
+                    logger.info(f"Backed up {robots_path}")
+                    break
+            
+            self._log_change({
+                "type": "backup_created",
+                "backup_dir": backup_dir,
+                "timestamp": timestamp
+            })
+            
+            logger.info(f"Backup created in {backup_dir}")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error processing fixes for {issue_type}: {e}")
-            results["failed"] += 1
-        
-        return results
+            logger.error(f"Error creating backup: {e}")
+            return False
     
     def _apply_single_fix(self, fix: Dict) -> bool:
         """Apply a single fix"""
-        fix_type = fix["type"]
+        fix_type = fix.get("type")
         
-        try:
-            if fix_type == "fix_noindex":
-                return self._fix_noindex(fix)
-            elif fix_type == "update_robots_txt":
-                return self._fix_robots_txt(fix)
-            elif fix_type == "create_redirect":
-                return self._create_redirect(fix)
-            elif fix_type == "update_internal_link":
-                return self._update_internal_link(fix)
-            elif fix_type == "add_canonical_tag":
-                return self._add_canonical_tag(fix)
-            elif fix_type == "automated_content_improvement":
-                return self._improve_content_automatically(fix)
-            else:
-                logger.warning(f"Unknown fix type: {fix_type}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error applying {fix_type} fix: {e}")
+        if fix_type == "fix_noindex":
+            return self._apply_noindex_fix(fix)
+        elif fix_type == "fix_robots_rule":
+            return self._apply_robots_fix(fix)
+        elif fix_type == "create_redirect":
+            return self._apply_redirect_fix(fix)
+        elif fix_type == "update_internal_link":
+            return self._apply_link_update_fix(fix)
+        elif fix_type == "add_canonical_tag":
+            return self._apply_canonical_fix(fix)
+        elif fix_type == "improve_content_quality":
+            return self._apply_content_quality_fix(fix)
+        else:
+            logger.warning(f"Unknown fix type: {fix_type}")
             return False
     
-    def _fix_noindex(self, fix: Dict) -> bool:
-        """Fix noindex issues"""
+    def _apply_noindex_fix(self, fix: Dict) -> bool:
+        """Apply noindex fix to front matter"""
         try:
             file_path = fix["file_path"]
+            changes = fix.get("changes", [])
             
             if not os.path.exists(file_path):
-                logger.error(f"File not found: {file_path}")
                 return False
             
-            # Parse front matter
             front_matter, content = self._parse_front_matter(file_path)
-            original_front_matter = front_matter.copy()
+            modified = False
             
-            # Apply changes
-            changes_made = []
-            for change in fix.get("changes", []):
+            for change in changes:
                 field = change["field"]
                 action = change["action"]
                 
-                if action == "set_value":
+                if action == "remove" and field in front_matter:
+                    del front_matter[field]
+                    modified = True
+                    logger.info(f"Removed {field} from {file_path}")
+                
+                elif action == "set_value":
                     front_matter[field] = change["new_value"]
-                    changes_made.append(f"Set {field} = {change['new_value']}")
-                elif action == "remove":
-                    if field in front_matter:
-                        del front_matter[field]
-                        changes_made.append(f"Removed {field}")
+                    modified = True
+                    logger.info(f"Set {field} to {change['new_value']} in {file_path}")
             
-            if changes_made:
-                if not self.dry_run:
-                    success = self._save_front_matter(file_path, front_matter, content)
-                    if success:
-                        self._log_change({
-                            "type": "noindex_fix",
-                            "file": file_path,
-                            "changes": changes_made,
-                            "original": original_front_matter,
-                            "updated": front_matter
-                        })
-                        return True
-                else:
-                    logger.info(f"DRY RUN: Would fix noindex in {file_path}: {'; '.join(changes_made)}")
-                    return True
+            if modified:
+                success = self._save_front_matter(file_path, front_matter, content)
+                if success:
+                    self._log_change({
+                        "type": "noindex_fixed",
+                        "file": file_path,
+                        "changes": changes
+                    })
+                return success
             
-            return False
+            return True
             
         except Exception as e:
-            logger.error(f"Error fixing noindex in {fix['file_path']}: {e}")
+            logger.error(f"Error applying noindex fix: {e}")
             return False
     
-    def _fix_robots_txt(self, fix: Dict) -> bool:
-        """Fix robots.txt issues"""
+    def _apply_robots_fix(self, fix: Dict) -> bool:
+        """Apply robots.txt fix"""
         try:
-            robots_path = fix["file_path"]
+            robots_file = fix["robots_file"]
             rule_to_remove = fix["rule_to_remove"]
             
-            if not os.path.exists(robots_path):
-                logger.error(f"Robots.txt not found: {robots_path}")
+            if not os.path.exists(robots_file):
                 return False
             
-            with open(robots_path, 'r', encoding='utf-8') as f:
+            with open(robots_file, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Create backup
-            backup_path = f"{robots_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
-            if not self.dry_run:
-                shutil.copy2(robots_path, backup_path)
-            
-            # Remove the problematic rule
+            # Remove the problematic disallow rule
             lines = content.split('\n')
             new_lines = []
-            removed_lines = []
             
             for line in lines:
-                if line.strip().startswith('Disallow:') and rule_to_remove in line:
-                    removed_lines.append(line.strip())
-                    new_lines.append(f"# Removed by indexation fixer: {line}")
+                if line.strip().startswith('Disallow:'):
+                    rule = line.split(':', 1)[1].strip()
+                    if rule != rule_to_remove:
+                        new_lines.append(line)
+                    else:
+                        logger.info(f"Removed robots rule: {rule_to_remove}")
                 else:
                     new_lines.append(line)
             
-            if removed_lines:
-                new_content = '\n'.join(new_lines)
-                
-                if not self.dry_run:
-                    with open(robots_path, 'w', encoding='utf-8') as f:
-                        f.write(new_content)
-                    
-                    self._log_change({
-                        "type": "robots_fix",
-                        "file": robots_path,
-                        "rule_removed": rule_to_remove,
-                        "lines_removed": removed_lines,
-                        "backup_file": backup_path
-                    })
-                    
-                    logger.info(f"Fixed robots.txt: removed rule '{rule_to_remove}'")
-                else:
-                    logger.info(f"DRY RUN: Would remove robots.txt rule: {rule_to_remove}")
-                
-                return True
+            new_content = '\n'.join(new_lines)
             
-            return False
+            if not self.dry_run:
+                with open(robots_file, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+            
+            self._log_change({
+                "type": "robots_rule_removed",
+                "file": robots_file,
+                "rule": rule_to_remove
+            })
+            
+            return True
             
         except Exception as e:
-            logger.error(f"Error fixing robots.txt: {e}")
+            logger.error(f"Error applying robots fix: {e}")
             return False
     
-    def _create_redirect(self, fix: Dict) -> bool:
-        """Create redirect for 404 fix"""
+    def _apply_redirect_fix(self, fix: Dict) -> bool:
+        """Apply redirect creation fix"""
         try:
             from_url = fix["from_url"]
             to_url = fix["to_url"]
             
             if self.site_type == "jekyll":
                 success = self._create_jekyll_redirect(from_url, to_url)
-            else:
+            else:  # Hugo
                 success = self._create_hugo_redirect(from_url, to_url)
             
             if success:
                 self._log_change({
-                    "type": "canonical_added",
-                    "file": file_path,
-                    "canonical_url": canonical_url
-                })
-            
-            return success
-            
-        except Exception as e:
-            logger.error(f"Error adding canonical tag: {e}")
-            return False
-    
-    def _improve_content_automatically(self, fix: Dict) -> bool:
-        """Apply automated content improvements"""
-        try:
-            file_path = fix["file_path"]
-            front_matter, content = self._parse_front_matter(file_path)
-            changes_made = []
-            
-            for auto_fix in fix.get("automated_fixes", []):
-                field = auto_fix["field"]
-                action = auto_fix["action"]
-                
-                if action == "generate_from_content":
-                    if field == "title" and not front_matter.get('title'):
-                        title = self._generate_title_from_content(content)
-                        if title:
-                            front_matter['title'] = title
-                            changes_made.append(f"Generated title: {title}")
-                    
-                    elif field == "description" and not front_matter.get('description'):
-                        description = self._generate_description_from_content(content)
-                        if description:
-                            front_matter['description'] = description
-                            changes_made.append(f"Generated description")
-            
-            if changes_made:
-                success = self._save_front_matter(file_path, front_matter, content)
-                if success:
-                    self._log_change({
-                        "type": "content_improvement",
-                        "file": file_path,
-                        "changes": changes_made
-                    })
-                return success
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error improving content automatically: {e}")
-            return False
-    
-    def _generate_title_from_content(self, content: str) -> Optional[str]:
-        """Generate title from content"""
-        try:
-            # Look for first H1 heading
-            h1_match = re.search(r'^#\s+(.+)redirect_created',
+                    "type": "redirect_created",
                     "from_url": from_url,
                     "to_url": to_url,
                     "site_type": self.site_type
@@ -1444,8 +1597,8 @@ This page has moved to [{to_url}]({to_url}).
             logger.error(f"Error creating Hugo redirect: {e}")
             return False
     
-    def _update_internal_link(self, fix: Dict) -> bool:
-        """Update internal link in markdown file"""
+    def _apply_link_update_fix(self, fix: Dict) -> bool:
+        """Apply internal link update fix"""
         try:
             file_path = fix["file_path"]
             old_url = fix["old_url"]
@@ -1487,8 +1640,8 @@ This page has moved to [{to_url}]({to_url}).
             logger.error(f"Error updating internal link: {e}")
             return False
     
-    def _add_canonical_tag(self, fix: Dict) -> bool:
-        """Add canonical tag"""
+    def _apply_canonical_fix(self, fix: Dict) -> bool:
+        """Apply canonical tag fix"""
         try:
             file_path = fix["file_path"]
             canonical_url = fix["canonical_url"]
@@ -1506,336 +1659,210 @@ This page has moved to [{to_url}]({to_url}).
                 })
             
             return success
-        
+            
         except Exception as e:
-            logger.error(f"Error adding canonical: {e}")
+            logger.error(f"Error adding canonical tag: {e}")
             return False
     
-    def _improve_content_automatically(self, fix: Dict) -> bool:
-        """Apply automated content improvements"""
+    def _apply_content_quality_fix(self, fix: Dict) -> bool:
+        """Apply content quality improvements"""
         try:
             file_path = fix["file_path"]
+            improvements = fix.get("improvements", [])
+            
+            if not improvements:
+                return True
+            
             front_matter, content = self._parse_front_matter(file_path)
-            changes = []
+            modified = False
             
-            for auto_fix in fix.get("automated_fixes", []):
-                field = auto_fix["field"]
-                action = auto_fix["action"]
+            for improvement in improvements:
+                imp_type = improvement["type"]
+                value = improvement["value"]
                 
-                if action == "generate_from_content":
-                    if field == "title" and not front_matter.get('title'):
-                        title = self._generate_title_from_content(content)
-                        if title:
-                            front_matter['title'] = title
-                            changes.append(f"Generated title: {title}")
-                    
-                    elif field == "description" and not front_matter.get('description'):
-                        description = self._generate_description_from_content(content)
-                        if description:
-                            front_matter['description'] = description
-                            changes.append("Generated description")
+                if imp_type == "add_title" and not front_matter.get("title"):
+                    front_matter["title"] = value
+                    modified = True
+                    logger.info(f"Added title '{value}' to {file_path}")
+                
+                elif imp_type == "add_description" and not front_matter.get("description"):
+                    front_matter["description"] = value
+                    modified = True
+                    logger.info(f"Added description to {file_path}")
             
-            if changes:
+            if modified:
                 success = self._save_front_matter(file_path, front_matter, content)
                 if success:
                     self._log_change({
-                        "type": "content_improvement",
+                        "type": "content_quality_improved",
                         "file": file_path,
-                        "changes": changes
+                        "improvements": improvements
                     })
                 return success
             
-            return False
-        
+            return True
+            
         except Exception as e:
-            logger.error(f"Error improving content: {e}")
+            logger.error(f"Error applying content quality fix: {e}")
             return False
     
-    def _generate_title_from_content(self, content: str) -> Optional[str]:
-        """Generate title from content"""
+    def _save_front_matter(self, file_path: str, front_matter: Dict, content: str) -> bool:
+        """Save front matter and content to file"""
         try:
-            # Look for headings
-            h1_match = re.search(r'^#\s+(.+)
-                        'home' in str(file_path).lower() or
-                        'about' in str(file_path).lower() or
-                        any(keyword in content.lower() for keyword in ['guide', 'tutorial', 'complete'])
-                    )
-                    
-                    if is_important:
-                        important_pages.append({
-                            "url": self._get_url_from_file_path(str(file_path)),
-                            "file_path": str(file_path),
-                            "title": front_matter.get('title', ''),
-                            "content_length": len(content)
-                        })
-                
-                except Exception as e:
-                    continue
-        
-        return important_pages[:20]  # Limit to top 20 to avoid too many requests
-    
-    def _get_server_error_type(self, status_code: int) -> str:
-        """Get server error type description"""
-        error_types = {
-            500: "Internal Server Error",
-            502: "Bad Gateway", 
-            503: "Service Unavailable",
-            504: "Gateway Timeout"
-        }
-        return error_types.get(status_code, f"Server Error {status_code}")
-    
-    def _get_server_error_recommendation(self, status_code: int) -> str:
-        """Get recommendation for server errors"""
-        recommendations = {
-            500: "Check server logs for internal errors; verify site generation process",
-            502: "Check proxy/load balancer configuration",
-            503: "Check server resources and hosting limits",
-            504: "Check server response times and optimize slow pages"
-        }
-        return recommendations.get(status_code, "Contact hosting provider to investigate server issues")
-    
-    def _generate_server_error_fixes(self, pages: List[Dict]) -> List[Dict]:
-        """Generate fixes for server errors (mostly manual)"""
-        fixes = []
-        
-        # Group by error type
-        errors_by_type = {}
-        for page in pages:
-            error_type = page.get("status_code", "unknown")
-            if error_type not in errors_by_type:
-                errors_by_type[error_type] = []
-            errors_by_type[error_type].append(page)
-        
-        for error_type, affected_pages in errors_by_type.items():
-            fix = {
-                "type": "server_error_investigation",
-                "error_type": error_type,
-                "affected_pages": len(affected_pages),
-                "automated": False,
-                "recommended_actions": [
-                    "Check server logs for detailed error information",
-                    "Verify site build process completes successfully",
-                    "Test individual page generation",
-                    "Contact hosting provider if issues persist",
-                    "Check server resources and limits"
-                ]
-            }
-            fixes.append(fix)
-        
-        return fixes
-    
-    def _validate_canonical_url(self, canonical_url: str) -> bool:
-        """Validate if canonical URL is accessible"""
-        try:
-            if canonical_url.startswith('/'):
-                canonical_url = urljoin(self.site_url, canonical_url)
-            
-            response = requests.head(canonical_url, timeout=10, allow_redirects=True)
-            return response.status_code == 200
-            
-        except Exception:
-            return False
-    
-    def _generate_canonical_fixes(self, canonical_issues: List[Dict]) -> List[Dict]:
-        """Generate fixes for canonical issues"""
-        fixes = []
-        
-        for issue in canonical_issues:
-            issue_type = issue["issue_type"]
-            
-            if issue_type == "duplicate_no_canonical":
-                fix = {
-                    "type": "add_canonical_tag",
-                    "file_path": issue["page"]["file_path"],
-                    "canonical_url": issue["duplicate_of"]["url"],
-                    "automated": True
-                }
-                fixes.append(fix)
-            
-            elif issue_type == "invalid_canonical":
-                fix = {
-                    "type": "fix_invalid_canonical", 
-                    "file_path": issue["page"]["file_path"],
-                    "current_canonical": issue["page"]["canonical_url"],
-                    "automated": False,
-                    "recommended_action": "Review and correct canonical URL or remove if not needed"
-                }
-                fixes.append(fix)
-        
-        return fixes
-    
-    def _assess_content_quality(self, content: str, front_matter: Dict) -> List[str]:
-        """Assess content quality and return list of issues"""
-        issues = []
-        content_clean = content.strip()
-        
-        # Check content length
-        if len(content_clean) < 300:
-            issues.append("content_too_short")
-        
-        # Check word count
-        word_count = len(content_clean.split())
-        if word_count < 50:
-            issues.append("very_low_word_count")
-        
-        # Check for missing metadata
-        if not front_matter.get('title'):
-            issues.append("missing_title")
-        
-        if not front_matter.get('description'):
-            issues.append("missing_description")
-        
-        # Check content structure
-        paragraphs = [p.strip() for p in content_clean.split('\n\n') if len(p.strip()) > 20]
-        if len(paragraphs) < 2:
-            issues.append("poor_paragraph_structure")
-        
-        # Check for mostly list content
-        lines = content_clean.split('\n')
-        list_lines = sum(1 for line in lines if line.strip().startswith(('- ', '* ', '1. ', '2. ', '3.')))
-        if lines and list_lines / len(lines) > 0.7:
-            issues.append("mostly_list_content")
-        
-        # Check for duplicate/template content
-        if "lorem ipsum" in content_clean.lower() or "placeholder" in content_clean.lower():
-            issues.append("template_content")
-        
-        return issues
-    
-    def _calculate_content_quality_priority(self, quality_issues: List[str]) -> str:
-        """Calculate priority for content quality issues"""
-        critical_issues = ["missing_title", "template_content", "very_low_word_count"]
-        high_issues = ["content_too_short", "missing_description"]
-        
-        if any(issue in critical_issues for issue in quality_issues):
-            return "high"
-        elif any(issue in high_issues for issue in quality_issues):
-            return "medium"
-        else:
-            return "low"
-    
-    def _get_content_quality_recommendations(self, quality_issues: List[str]) -> str:
-        """Get recommendations for content quality issues"""
-        recommendations = []
-        
-        issue_recommendations = {
-            "content_too_short": "Expand content to at least 500 words with detailed information",
-            "very_low_word_count": "Add substantial content with proper explanations",
-            "missing_title": "Add descriptive title to front matter",
-            "missing_description": "Add meta description for better SEO",
-            "poor_paragraph_structure": "Reorganize into well-structured paragraphs",
-            "mostly_list_content": "Add explanatory paragraphs between lists",
-            "template_content": "Replace placeholder content with original material"
-        }
-        
-        for issue in quality_issues:
-            if issue in issue_recommendations:
-                recommendations.append(issue_recommendations[issue])
-        
-        return "; ".join(recommendations)
-    
-    def _generate_content_quality_fixes(self, pages: List[Dict]) -> List[Dict]:
-        """Generate fixes for content quality issues"""
-        fixes = []
-        
-        for page in pages:
-            automated_fixes = []
-            manual_fixes = []
-            
-            for issue in page["quality_issues"]:
-                if issue == "missing_title":
-                    automated_fixes.append({
-                        "field": "title",
-                        "action": "generate_from_content"
-                    })
-                elif issue == "missing_description":
-                    automated_fixes.append({
-                        "field": "description", 
-                        "action": "generate_from_content"
-                    })
-                else:
-                    manual_fixes.append(issue)
-            
-            if automated_fixes:
-                fix = {
-                    "type": "automated_content_improvement",
-                    "file_path": page["file_path"],
-                    "automated_fixes": automated_fixes,
-                    "automated": True
-                }
-                fixes.append(fix)
-            
-            if manual_fixes:
-                fix = {
-                    "type": "manual_content_improvement",
-                    "file_path": page["file_path"],
-                    "issues": manual_fixes,
-                    "automated": False,
-                    "recommendations": self._get_content_quality_recommendations(manual_fixes)
-                }
-                fixes.append(fix)
-        
-        return fixes
-    
-    def _generate_summary(self, indexation_issues: Dict) -> Dict:
-        """Generate summary of all indexation issues"""
-        summary = {
-            "total_issues": 0,
-            "critical_issues": 0,
-            "high_priority_issues": 0,
-            "medium_priority_issues": 0,
-            "low_priority_issues": 0,
-            "automated_fixes_available": 0,
-            "manual_fixes_required": 0,
-            "issues_by_type": {}
-        }
-        
-        for issue_type, issue_data in indexation_issues.items():
-            if not issue_data or "pages" not in issue_data:
-                continue
-                
-            page_count = len(issue_data["pages"])
-            summary["total_issues"] += page_count
-            
-            severity = issue_data.get("severity", "medium")
-            if severity == "critical":
-                summary["critical_issues"] += page_count
-            elif severity == "high":
-                summary["high_priority_issues"] += page_count
-            elif severity == "medium":
-                summary["medium_priority_issues"] += page_count
+            if not front_matter:
+                new_content = content
             else:
-                summary["low_priority_issues"] += page_count
+                yaml_content = yaml.dump(front_matter, default_flow_style=False, allow_unicode=True)
+                new_content = f"---\n{yaml_content}---\n{content}"
             
-            # Count automated vs manual fixes
-            for fix in issue_data.get("fixes", []):
-                if fix.get("automated", False):
-                    summary["automated_fixes_available"] += 1
-                else:
-                    summary["manual_fixes_required"] += 1
+            if not self.dry_run:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                logger.debug(f"Saved front matter changes to {file_path}")
+            else:
+                logger.info(f"DRY RUN: Would save changes to {file_path}")
             
-            summary["issues_by_type"][issue_type] = {
-                "count": page_count,
-                "severity": severity,
-                "description": issue_data.get("description", "")
-            }
-        
-        return summary
-    
-    def save_analysis_report(self, analysis_results: Dict, output_file: str = None) -> str:
-        """Save analysis results to JSON file"""
-        if not output_file:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"indexation_analysis_{timestamp}.json"
-        
-        try:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(analysis_results, f, indent=2, ensure_ascii=False, default=str)
-            
-            logger.info(f"Analysis report saved to: {output_file}")
-            return output_file
+            return True
             
         except Exception as e:
-            logger.error(f"Error saving analysis report: {e}")
+            logger.error(f"Error saving front matter to {file_path}: {e}")
+            return False
+    
+    def _log_change(self, change: Dict):
+        """Log a change for tracking purposes"""
+        change["timestamp"] = datetime.now().isoformat()
+        self.changes_log.append(change)
+    
+    def export_results(self, analysis_results: Dict, fix_results: Optional[Dict] = None, 
+                      output_format: str = "json", output_file: Optional[str] = None) -> str:
+        """Export analysis and fix results"""
+        try:
+            export_data = {
+                "analysis": analysis_results,
+                "fixes": fix_results,
+                "export_timestamp": datetime.now().isoformat(),
+                "changes_log": self.changes_log
+            }
+            
+            if output_format == "json":
+                output_content = json.dumps(export_data, indent=2, ensure_ascii=False)
+                default_filename = f"indexation_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            elif output_format == "yaml":
+                output_content = yaml.dump(export_data, default_flow_style=False, allow_unicode=True)
+                default_filename = f"indexation_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.yaml"
+            else:
+                raise ValueError(f"Unsupported output format: {output_format}")
+            
+            output_path = output_file or default_filename
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(output_content)
+            
+            logger.info(f"Results exported to {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error exporting results: {e}")
             return ""
 
+
+def main():
+    """Main execution function"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Complete Indexation Issues Analyzer")
+    parser.add_argument("--service-account", required=True, help="Path to Google service account JSON file")
+    parser.add_argument("--site-url", required=True, help="Site URL (e.g., https://example.com)")
+    parser.add_argument("--site-type", default="jekyll", choices=["jekyll", "hugo"], help="Site type")
+    parser.add_argument("--dry-run", action="store_true", help="Run analysis without making changes")
+    parser.add_argument("--apply-fixes", action="store_true", help="Apply automated fixes")
+    parser.add_argument("--fix-types", nargs="*", help="Specific fix types to apply")
+    parser.add_argument("--output-format", default="json", choices=["json", "yaml"], help="Output format")
+    parser.add_argument("--output-file", help="Output file path")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    
+    args = parser.parse_args()
+    
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    
+    # Initialize analyzer
+    analyzer = IndexationAnalyzer(
+        service_account_path=args.service_account,
+        site_url=args.site_url,
+        site_type=args.site_type,
+        dry_run=args.dry_run
+    )
+    
+    try:
+        # Run analysis
+        logger.info("Starting indexation analysis...")
+        analysis_results = analyzer.analyze_all_indexation_issues()
+        
+        if "error" in analysis_results:
+            logger.error(f"Analysis failed: {analysis_results['error']}")
+            return 1
+        
+        # Print summary
+        summary = analysis_results.get("summary", {})
+        print(f"\n=== INDEXATION ANALYSIS SUMMARY ===")
+        print(f"Total issues found: {summary.get('total_issues', 0)}")
+        print(f"Critical issues: {summary.get('critical_issues', 0)}")
+        print(f"High priority issues: {summary.get('high_priority_issues', 0)}")
+        print(f"Automated fixes available: {summary.get('automated_fixes_available', 0)}")
+        print(f"Manual fixes required: {summary.get('manual_fixes_required', 0)}")
+        
+        # Show issues by type
+        if "issues_by_type" in summary:
+            print(f"\n=== ISSUES BY TYPE ===")
+            for issue_type, info in summary["issues_by_type"].items():
+                print(f"{issue_type}: {info['count']} issues (severity: {info['severity']})")
+                print(f"  - Automated fixes: {info['automated_fixes']}")
+                print(f"  - Manual fixes: {info['manual_fixes']}")
+        
+        fix_results = None
+        
+        # Apply fixes if requested
+        if args.apply_fixes:
+            logger.info("Applying automated fixes...")
+            fix_results = analyzer.apply_fixes(analysis_results, args.fix_types)
+            
+            if "error" in fix_results:
+                logger.error(f"Fix application failed: {fix_results['error']}")
+            else:
+                fix_summary = fix_results.get("summary", {})
+                print(f"\n=== FIX APPLICATION SUMMARY ===")
+                print(f"Total fixes attempted: {fix_summary.get('total_fixes_attempted', 0)}")
+                print(f"Successful fixes: {fix_summary.get('successful_fixes', 0)}")
+                print(f"Failed fixes: {fix_summary.get('failed_fixes', 0)}")
+        
+        # Export results
+        output_path = analyzer.export_results(
+            analysis_results, fix_results, 
+            args.output_format, args.output_file
+        )
+        
+        if output_path:
+            print(f"\nResults exported to: {output_path}")
+        
+        # Return appropriate exit code
+        if summary.get("critical_issues", 0) > 0:
+            logger.warning("Critical issues found - recommend immediate attention")
+            return 2
+        elif summary.get("total_issues", 0) > 0:
+            logger.info("Issues found but not critical")
+            return 1
+        else:
+            logger.info("No indexation issues found")
+            return 0
+            
+    except KeyboardInterrupt:
+        logger.info("Analysis interrupted by user")
+        return 1
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return 1
+
+
+if __name__ == "__main__":
+    exit(main())
