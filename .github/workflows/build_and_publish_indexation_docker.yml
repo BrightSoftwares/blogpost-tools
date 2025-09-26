@@ -1,0 +1,32 @@
+name: Build and publish the Indexation Issues analyzer image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'indexation-issues/**'
+  
+  # Build weekly to keep image updated
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  build-and-publish-indexation-analyzer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run basic validation
+        run: echo "Building Indexation Issues analyzer Docker image"
+        
+  docker:
+    needs: build-and-publish-indexation-analyzer
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: indexationanalyzer  
+      tag: latest
+      subfolder_name: indexation-issues
+      dockerfile_name: Dockerfile.indexationanalyzer
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}

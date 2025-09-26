@@ -1,0 +1,49 @@
+name: "Indexation Issues Analyzer"
+description: "Analyze and fix Google Search Console indexation issues for Jekyll/Hugo sites"
+inputs:
+  site_url:
+    description: 'The URL of the site to analyze (e.g., https://your-site.com)'
+    required: true
+  site_type:
+    description: 'Type of site: jekyll or hugo'
+    required: false
+    default: 'jekyll'
+  service_account_json_file_path:
+    description: 'Path to the Google Search Console service account JSON file'
+    required: true
+  apply_fixes:
+    description: 'Whether to apply automated fixes (true/false)'
+    required: false
+    default: 'false'
+  dry_run:
+    description: 'Preview changes without applying them (true/false)'
+    required: false
+    default: 'true'
+  fix_types:
+    description: 'Comma-separated list of fix types to apply (noindex_tag,blocked_robots_txt,not_found_404,canonical_issues,crawled_not_indexed)'
+    required: false
+    default: 'noindex_tag,blocked_robots_txt,canonical_issues,crawled_not_indexed'
+  max_issues_per_type:
+    description: 'Maximum number of issues to fix per type'
+    required: false
+    default: '20'
+
+outputs:
+  analysis_report:
+    description: 'Path to the generated analysis report JSON file'
+  changes_log:
+    description: 'Path to the changes log file (if fixes were applied)'
+  total_issues_found:
+    description: 'Total number of indexation issues found'
+  critical_issues:
+    description: 'Number of critical issues found'
+  fixes_applied:
+    description: 'Number of fixes successfully applied'
+  fixes_failed:
+    description: 'Number of fixes that failed'
+  success:
+    description: 'Whether the action completed successfully (true/false)'
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
