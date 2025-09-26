@@ -1125,12 +1125,12 @@ This page has moved to [{to_url}]({to_url}).
         """Generate title from content or filename"""
         try:
             # Look for first H1 heading
-            h1_match = re.search(r'^#\s+(.+), content, re.MULTILINE)
+            h1_match = re.search(r'^#\s+(.+)', content, re.MULTILINE)
             if h1_match:
                 return h1_match.group(1).strip()
             
             # Look for first H2 heading
-            h2_match = re.search(r'^##\s+(.+), content, re.MULTILINE)
+            h2_match = re.search(r'^##\s+(.+)', content, re.MULTILINE)
             if h2_match:
                 return h2_match.group(1).strip()
             
@@ -1191,7 +1191,7 @@ This page has moved to [{to_url}]({to_url}).
         """Extract date from Jekyll post filename"""
         try:
             filename = os.path.basename(file_path)
-            date_match = re.match(r'^(\d{4}-\d{2}-\d{2})-.+\.md, filename)
+            date_match = re.match(r'^(\d{4}-\d{2}-\d{2})-.+\.md', filename)
             if date_match:
                 return date_match.group(1)
             return None
