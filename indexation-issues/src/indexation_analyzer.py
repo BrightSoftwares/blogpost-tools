@@ -775,28 +775,29 @@ class IndexationAnalyzer:
         for page in pages:
             rule = page["blocking_rule"]
             if rule not in rules_to_fix:
-                rules_to_fix, content, re.MULTILINE)
-            if h1_match:
-                return h1_match.group(1).strip()
-            
-            h2_match = re.search(r'^##\s+(.+)
-                        'home' in str(file_path).lower() or
-                        'about' in str(file_path).lower() or
-                        any(keyword in content.lower() for keyword in ['guide', 'tutorial', 'complete'])
-                    )
-                    
-                    if is_important:
-                        important_pages.append({
-                            "url": self._get_url_from_file_path(str(file_path)),
-                            "file_path": str(file_path),
-                            "title": front_matter.get('title', ''),
-                            "content_length": len(content)
-                        })
+                rules_to_fix, filename):
+                        date_part = filename[:10]
+                        title_part = filename[11:-3]
+                        year, month, day = date_part.split('-')
+                        return f"/{year}/{month}/{day}/{title_part}/"
                 
-                except Exception as e:
-                    continue
+                if "_pages" in file_path:
+                    rel_path = os.path.relpath(file_path, "_pages")
+                    return "/" + rel_path.replace('.md', '/')
+            
+            else:  # Hugo
+                if "content" in file_path:
+                    rel_path = os.path.relpath(file_path, "content")
+                    if rel_path.endswith('/index.md'):
+                        return "/" + os.path.dirname(rel_path) + "/"
+                    else:
+                        return "/" + rel_path.replace('.md', '/')
+            
+            return "/" + os.path.basename(file_path).replace('.md', '/')
         
-        return important_pages[:20]  # Limit to top 20 to avoid too many requests
+        except Exception as e:
+            logger.warning(f"Error converting path to URL: {e}")
+            return "/" + os.path.basename(file_path).replace('.md', '/')
     
     def _get_server_error_type(self, status_code: int) -> str:
         """Get server error type description"""
@@ -1356,7 +1357,7 @@ class IndexationFixer:
         """Generate title from content"""
         try:
             # Look for first H1 heading
-            h1_match = re.search(r'^#\s+(.+)redirect_created",
+            h1_match = re.search(r'^#\s+(.+)redirect_created',
                     "from_url": from_url,
                     "to_url": to_url,
                     "site_type": self.site_type
