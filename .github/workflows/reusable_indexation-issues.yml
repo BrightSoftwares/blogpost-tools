@@ -83,7 +83,7 @@ analyze-indexation:
           echo "Failing workflow as requested by fail_on_critical_issues setting"
           exit 1
 
-  commit-changes:
+commit-changes:
     needs: analyze-indexation
     if: always() && inputs.commit_changes && needs.analyze-indexation.outputs.fixes_applied > 0
     uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
