@@ -94,7 +94,8 @@ commit-changes:
       target_branch: "main"
       max_retries: 3
       skip_if_no_changes: true
-      create_summary: truename: Indexation Issues Analyzer and Fixer
+      create_summary: true
+      name: Indexation Issues Analyzer and Fixer
 
 on:
   workflow_call:
@@ -181,7 +182,3 @@ on:
       success:
         description: 'Whether the analysis completed successfully'
         value: ${{ jobs.analyze-indexation.outputs.success }}
-
-jobs:
-  analyze-indexation:
-    runs-on
