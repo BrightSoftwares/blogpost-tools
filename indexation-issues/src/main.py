@@ -11,7 +11,8 @@ import logging
 from pathlib import Path
 
 # Import our indexation analyzer
-from indexation_analyzer import IndexationAnalyzer, IndexationFixer
+from indexation_analyzer import IndexationAnalyzer
+from indexation_fixer import IndexationFixer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
