@@ -73,6 +73,9 @@ jobs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}
     
     steps:
+      - name: Show the changes on the repo
+        run: |
+          git status 
       - name: Check for generated files and changes
         id: check_files
         run: |
