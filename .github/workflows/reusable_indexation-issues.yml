@@ -177,17 +177,36 @@ jobs:
           echo "Failing workflow as requested by fail_on_critical_issues setting"
           exit 1
 
-  commit-changes:
-    needs: analyze-indexation
-    if: always() && inputs.commit_changes && needs.analyze-indexation.outputs.fixes_applied > 0
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
-    with:
-      commit_message_prefix: "Fix indexation issues"
-      file_patterns: "indexation_changes_*.json indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md _drafts/*.md _drafts/**/*.md content/**/*.md robots.txt"
-      exclude_patterns: "*.secret.* *.backup service-account.json *.key *.pem"
-      target_branch: "main"
-      max_retries: 3
-      skip_if_no_changes: true
-      create_summary: true
-      # name: Indexation Issues Analyzer and Fixer
+      
+      - name: Commit changes if any
+        run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "Fix indexation issues"
+            git pull --rebase
+            git push
+          fi
+
+
+  # commit-changes:
+  #   needs: analyze-indexation
+  #   if: always() && inputs.commit_changes && needs.analyze-indexation.outputs.fixes_applied > 0
+  #   uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
+  #   with:
+  #     commit_message_prefix: "Fix indexation issues"
+  #     file_patterns: "indexation_changes_*.json indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md _drafts/*.md _drafts/**/*.md content/**/*.md robots.txt"
+  #     exclude_patterns: "*.secret.* *.backup service-account.json *.key *.pem"
+  #     target_branch: "main"
+  #     max_retries: 3
+  #     skip_if_no_changes: true
+  #     create_summary: true
+  #     # name: Indexation Issues Analyzer and Fixer
 
