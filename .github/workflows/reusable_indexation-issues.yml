@@ -183,7 +183,7 @@ jobs:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_commit-generated-files.yml@main
     with:
       commit_message_prefix: "Fix indexation issues"
-      file_patterns: "indexation_changes_*.json indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md *.* **/*.md **/*.* _drafts/**/*.md content/**/*.md robots.txt"
+      file_patterns: "indexation_changes_*.json indexation_analysis_*.json indexation_fixes_log_*.json _redirects/*.md content/redirects/*.md _posts/*.md _drafts/*.md _drafts/**/*.md content/**/*.md robots.txt"
       exclude_patterns: "*.secret.* *.backup service-account.json *.key *.pem"
       target_branch: "main"
       max_retries: 3
