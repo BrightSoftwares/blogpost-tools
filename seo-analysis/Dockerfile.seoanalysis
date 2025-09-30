@@ -1,9 +1,40 @@
-FROM python:3
+# Multi-stage build with slim base image
+FROM python:3.11-slim as builder
 
-COPY requirements.txt ./
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
+# Create and use virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install requirements
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Final stage
+FROM python:3.11-slim
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
 COPY . .
 
-CMD [ "python", "/src/main.py" ]
+# Run the application
+CMD ["python", "/src/main.py"]
+
+#FROM python:3
+#
+#COPY requirements.txt ./
+#
+#RUN pip install --no-cache-dir -r requirements.txt
+#
+#COPY . .
+#
+#CMD [ "python", "/src/main.py" ]
