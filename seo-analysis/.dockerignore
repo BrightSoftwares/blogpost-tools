@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Data files (CRITICAL - these can be huge!)
+*.csv
+*.parquet
+*.json
+*.xml
+*.xlsx
+*.db
+*.sqlite
+*.h5
+*.hdf5
+data/
+datasets/
+
+# Models (can be GBs)
+*.pkl
+*.pickle
+*.joblib
+*.model
+*.h5
+*.pt
+*.pth
+models/
+checkpoints/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+test/
+*.test.py
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
