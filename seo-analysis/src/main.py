@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ET
-from seo-analysis-fixer import SEOIssueFixer
+from seo_analysis_fixer import SEOIssueFixer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -571,6 +571,9 @@ def main():
     sitemap_url = os.getenv("INPUT_SITEMAP_URL")
     dry_run = os.getenv("INPUT_DRY_RUN", "true").lower() == "true"
     should_fix_issues = os.getenv("INPUT_FIX_ISSUES", "false").lower() == "true"
+    fix_severity = os.getenv("INPUT_FIX_SEVERITY", "critical,high").split(',')
+    content_dirs = os.getenv("INPUT_CONTENT_DIRS", "content,_posts,_pages").split(',')
+    no_backup = os.getenv("INPUT_NO_BACKUP", "true").lower() == "true"
     max_pages = os.getenv("INPUT_MAX_PAGES")
     output_dir = os.getenv("INPUT_OUTPUT_DIR", "_seo/seo-analysis/output")
     
@@ -630,17 +633,6 @@ def main():
         print(f"::set-output name=total_issues::{stats.get('total_issues', 0)}")
         print(f"::set-output name=critical_issues::{stats.get('issues_by_severity', {}).get('critical', 0)}")
         
-        # Return appropriate exit code
-        if stats.get('issues_by_severity', {}).get('critical', 0) > 0:
-            logger.warning("Critical issues found - immediate attention required")
-            return 2
-        elif stats.get('total_issues', 0) > 0:
-            logger.info("Issues found - review and optimize")
-            return 0  # Don't fail the build for non-critical issues
-        else:
-            logger.info("No issues found - site is well optimized!")
-            return 0
-        
     except KeyboardInterrupt:
         logger.info("Analysis interrupted by user")
         return 1
@@ -648,18 +640,29 @@ def main():
         logger.error(f"Fatal error: {e}", exc_info=True)
         return 1
 
+    analysis_file = f"{output_dir}/seo_analysis_latest.json"
+
+    logger.info("=" * 70)
+    logger.info("SEO ISSUE FIXER")
+    logger.info("=" * 70)
+    logger.info(f"Analysis file: {analysis_file}")
+    logger.info(f"Content directories: {content_dirs}")
+    logger.info(f"Dry run: {dry_run}")
+    logger.info(f"Backup: {not no_backup}")
+    logger.info(f"Severity filter: {fix_severity}")
+    logger.info("=" * 70)
 
     if should_fix_issues:
         logger.info("FIXING MODE: Running the script to fix the issues automatically")
         try:
             fixer = SEOIssueFixer(
-                analysis_file=args.analysis_file,
-                content_dirs=args.content_dirs,
-                dry_run=args.dry_run,
-                backup=not args.no_backup
+                analysis_file=analysis_file,
+                content_dirs=content_dirs,
+                dry_run=dry_run,
+                backup=not no_backup
             )
             
-            report = fixer.process_issues(severity_filter=args.severity)
+            report = fixer.process_issues(severity_filter=fix_severity)
             
             # Print summary
             summary = report['summary']
@@ -670,7 +673,7 @@ def main():
             print(f"Fixes successful: {summary['fixes_successful']}")
             print(f"Fixes failed: {summary['fixes_failed']}")
             
-            if args.dry_run:
+            if dry_run:
                 print("\nDRY RUN: No actual changes were made")
             else:
                 print(f"\nBackup location: {report.get('backup_location', 'N/A')}")
@@ -678,15 +681,30 @@ def main():
             print("=" * 70)
             
             # Exit code based on results
-            if summary['fixes_failed'] > summary['fixes_successful']:
+                
+            # Return appropriate exit code
+            if stats.get('issues_by_severity', {}).get('critical', 0) > 0:
+                logger.warning("Critical issues found - immediate attention required")
+                return 2
+            elif stats.get('total_issues', 0) > 0:
+                logger.info("Issues found - review and optimize")
+                return 0  # Don't fail the build for non-critical issues
+            elif summary['fixes_failed'] > summary['fixes_successful']:
+                logger.error("Issue fixing failed. Look at what is happening!")
                 return 1
-            return 0
+            else:
+                logger.info("No issues found - site is well optimized!")
+                return 0
+            
+            # if summary['fixes_failed'] > summary['fixes_successful']:
+            #     return 1
+            # return 0
             
         except Exception as e:
             logger.error(f"Fatal error: {e}", exc_info=True)
             return 1
     else:
-        logger.info("NO FIXING MODE: No fixing willbe performed")
+        logger.info("NO FIXING MODE: No fixing will be performed")
 
 if __name__ == "__main__":
     sys.exit(main())

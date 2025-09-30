@@ -11,4 +11,5 @@ beautifulsoup4
 requests-html
 lxml[html_clean]
 causalimpact
+PyYAML
 # Add other packages as needed based on runtime errors

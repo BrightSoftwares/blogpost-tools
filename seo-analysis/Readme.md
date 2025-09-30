@@ -1,5 +1,11 @@
 # Test the seo analyser
 
+## Build and test 
+
+
+docker build -t myapp:test -f Dockerfile.seoanalysis .
+docker run --rm -it myapp:test sh
+
 ## How to run in test mode from github codespace
 
 
@@ -11,7 +17,7 @@ With dry run
 
 INPUT_SITE_URL="https://joyousbyflora.com/sitemap.xml" INPUT_OUTPUT_DIR=output  INPUT_MAX_PAGES=5 python3 src/main.py 
 
-
+INPUT_SITE_URL="https://eagles-techs.com" INPUT_OUTPUT_DIR=output  INPUT_MAX_PAGES=50 INPUT_DRY_RUN=false INPUT_FIX_ISSUES=true python3 src/main.py
 
 # How to shrink the docker image
 
@@ -85,7 +91,7 @@ Run these to identify what's taking up space:
 
 ```bash
 # Build and dive into the image
-docker build -t myapp:test .
+docker build -t myapp:test -f Dockerfile.seoanalysis .
 docker run --rm -it myapp:test sh
 
 # Inside the container, check sizes:
