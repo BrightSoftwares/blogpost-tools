@@ -1,0 +1,11 @@
+# Install everything WITHOUT dependencies first
+
+
+# Then manually add only what you actually need
+scikit-learn
+pandas
+google-api-python-client
+numpy
+requests
+beautifulsoup4
+# Add other packages as needed based on runtime errors

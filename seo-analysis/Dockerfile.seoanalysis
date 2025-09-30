@@ -14,7 +14,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy and install requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-minimal.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-minimal.txt
+RUN pip install --no-deps git+https://github.com/fullbright/ecommercetools@master
 
 # Final stage
 FROM python:3.11-slim
