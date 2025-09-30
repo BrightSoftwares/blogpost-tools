@@ -8,4 +8,7 @@ google-api-python-client
 numpy
 requests
 beautifulsoup4
+requests-html
+lxml[html_clean]
+causalimpact
 # Add other packages as needed based on runtime errors
