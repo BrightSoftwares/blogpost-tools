@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ET
+from seo-analysis-fixer import SEOIssueFixer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -569,6 +570,7 @@ def main():
     site_url = os.getenv("INPUT_SITE_URL")
     sitemap_url = os.getenv("INPUT_SITEMAP_URL")
     dry_run = os.getenv("INPUT_DRY_RUN", "true").lower() == "true"
+    should_fix_issues = os.getenv("INPUT_FIX_ISSUES", "false").lower() == "true"
     max_pages = os.getenv("INPUT_MAX_PAGES")
     output_dir = os.getenv("INPUT_OUTPUT_DIR", "_seo/seo-analysis/output")
     
@@ -646,6 +648,45 @@ def main():
         logger.error(f"Fatal error: {e}", exc_info=True)
         return 1
 
+
+    if should_fix_issues:
+        logger.info("FIXING MODE: Running the script to fix the issues automatically")
+        try:
+            fixer = SEOIssueFixer(
+                analysis_file=args.analysis_file,
+                content_dirs=args.content_dirs,
+                dry_run=args.dry_run,
+                backup=not args.no_backup
+            )
+            
+            report = fixer.process_issues(severity_filter=args.severity)
+            
+            # Print summary
+            summary = report['summary']
+            print("\n" + "=" * 70)
+            print("FIX SUMMARY")
+            print("=" * 70)
+            print(f"Total fixes attempted: {summary['total_fixes_attempted']}")
+            print(f"Fixes successful: {summary['fixes_successful']}")
+            print(f"Fixes failed: {summary['fixes_failed']}")
+            
+            if args.dry_run:
+                print("\nDRY RUN: No actual changes were made")
+            else:
+                print(f"\nBackup location: {report.get('backup_location', 'N/A')}")
+            
+            print("=" * 70)
+            
+            # Exit code based on results
+            if summary['fixes_failed'] > summary['fixes_successful']:
+                return 1
+            return 0
+            
+        except Exception as e:
+            logger.error(f"Fatal error: {e}", exc_info=True)
+            return 1
+    else:
+        logger.info("NO FIXING MODE: No fixing willbe performed")
 
 if __name__ == "__main__":
     sys.exit(main())
