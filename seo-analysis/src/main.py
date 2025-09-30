@@ -573,7 +573,7 @@ def main():
     should_fix_issues = os.getenv("INPUT_FIX_ISSUES", "false").lower() == "true"
     fix_severity = os.getenv("INPUT_FIX_SEVERITY", "critical,high").split(',')
     content_dirs = os.getenv("INPUT_CONTENT_DIRS", "content,_posts,_pages").split(',')
-    no_backup = os.getenv("INPUT_NO_BACKUP", "true").lower() == "true"
+    no_backup = os.getenv("INPUT_NO_BACKUP", "false").lower() == "true"
     max_pages = os.getenv("INPUT_MAX_PAGES")
     output_dir = os.getenv("INPUT_OUTPUT_DIR", "_seo/seo-analysis/output")
     
