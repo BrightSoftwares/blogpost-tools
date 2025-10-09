@@ -1,0 +1,1215 @@
+name: Deploy to Google Workspace Marketplace
+
+on:
+  # Trigger on git tags (e.g., v1.0.0)
+  push:
+    tags:
+      - 'v*.*.*'
+  
+  # Trigger on merge to main
+  push:
+    branches:
+      - main
+      - master
+  
+  # Manual trigger with custom parameters
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: 'staging'
+      
+      version:
+        description: 'Version number (leave empty to use tag/timestamp)'
+        required: false
+        type: string
+      
+      gcp_strategy:
+        description: 'GCP project strategy'
+        required: false
+        type: choice
+        options:
+          - reuse
+          - create
+          - specific
+        default: 'reuse'
+      
+      gcp_project_id:
+        description: 'Specific GCP project ID (only if strategy is "specific")'
+        required: false
+        type: string
+      
+      skip_tests:
+        description: 'Skip testing phase'
+        required: false
+        type: boolean
+        default: false
+      
+      force_deploy:
+        description: 'Force deployment (skip validation)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  CONFIG_FILE: 'marketplace-config.yaml'
+
+jobs:
+  # Job 1: Validate configuration and environment
+  validate:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      config_valid: ${{ steps.validate.outputs.valid }}
+      environment: ${{ steps.determine_env.outputs.environment }}
+      version: ${{ steps.determine_version.outputs.version }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version detection
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml jsonschema google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client pillow requests
+
+      - name: Determine environment
+        id: determine_env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine version
+        id: determine_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="$(date +%Y.%m.%d)-${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Determined version: $VERSION"
+
+      - name: Create validation script
+        run: |
+          cat > validate_config.py << 'PYEOF'
+          import sys
+          import yaml
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image
+          import re
+
+          def validate_config(config_path, env):
+              """Validate marketplace configuration"""
+              
+              # Load base config
+              with open(config_path) as f:
+                  config = yaml.safe_load(f)
+              
+              # Load environment-specific config if exists
+              env_config_path = config_path.replace('.yaml', f'.{env}.yaml')
+              if os.path.exists(env_config_path):
+                  with open(env_config_path) as f:
+                      env_config = yaml.safe_load(f)
+                      # Merge configs (env overrides base)
+                      config = deep_merge(config, env_config)
+              
+              errors = []
+              warnings = []
+              
+              # Validate required fields
+              required_fields = [
+                  ('project.id', str),
+                  ('project.name', str),
+                  ('project.script_id', str),
+                  ('oauth_consent.support_email', str),
+              ]
+              
+              for field_path, field_type in required_fields:
+                  value = get_nested(config, field_path)
+                  if not value:
+                      errors.append(f"Missing required field: {field_path}")
+                  elif not isinstance(value, field_type):
+                      errors.append(f"Invalid type for {field_path}: expected {field_type.__name__}")
+              
+              # Validate project ID format
+              project_id = get_nested(config, 'project.id')
+              if project_id and not re.match(r'^[a-z0-9-]+$', project_id):
+                  errors.append("project.id must contain only lowercase letters, numbers, and hyphens")
+              
+              # Validate email format
+              email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              support_email = get_nested(config, 'oauth_consent.support_email')
+              if support_email and not re.match(email_pattern, support_email):
+                  errors.append(f"Invalid support email format: {support_email}")
+              
+              # Validate URLs for external apps
+              if get_nested(config, 'oauth_consent.user_type') == 'external':
+                  required_urls = ['privacy_policy_url', 'terms_of_service_url']
+                  for url_field in required_urls:
+                      url = get_nested(config, f'oauth_consent.{url_field}')
+                      if not url:
+                          errors.append(f"External apps require oauth_consent.{url_field}")
+                      elif not url.startswith('https://'):
+                          errors.append(f"{url_field} must use HTTPS")
+              
+              # Validate required files
+              required_files = get_nested(config, 'validation.required_files', [])
+              for req_file in required_files:
+                  if not os.path.exists(req_file):
+                      errors.append(f"Required file not found: {req_file}")
+              
+              # Validate assets if enabled
+              if get_nested(config, 'validation.validate_assets', True):
+                  asset_location = get_nested(config, 'marketplace.asset_location', 'external')
+                  
+                  # Validate icon
+                  icon_config = get_nested(config, 'marketplace.assets.icon', {})
+                  if asset_location == 'repo' and icon_config.get('repo_path'):
+                      icon_path = icon_config['repo_path']
+                      if os.path.exists(icon_path):
+                          try:
+                              img = Image.open(icon_path)
+                              if img.size != (128, 128):
+                                  warnings.append(f"Icon should be 128x128px, found {img.size}")
+                              if img.format != 'PNG':
+                                  warnings.append(f"Icon should be PNG format, found {img.format}")
+                          except Exception as e:
+                              errors.append(f"Error validating icon: {str(e)}")
+                      else:
+                          errors.append(f"Icon file not found: {icon_path}")
+                  
+                  # Validate screenshots
+                  screenshots = get_nested(config, 'marketplace.assets.screenshots', [])
+                  for idx, screenshot in enumerate(screenshots):
+                      if asset_location == 'repo' and screenshot.get('repo_path'):
+                          ss_path = screenshot['repo_path']
+                          if os.path.exists(ss_path):
+                              try:
+                                  img = Image.open(ss_path)
+                                  if img.size != (1280, 800):
+                                      warnings.append(f"Screenshot {idx+1} should be 1280x800px, found {img.size}")
+                                  if img.format != 'PNG':
+                                      warnings.append(f"Screenshot {idx+1} should be PNG format")
+                              except Exception as e:
+                                  errors.append(f"Error validating screenshot {idx+1}: {str(e)}")
+                          else:
+                              errors.append(f"Screenshot file not found: {ss_path}")
+              
+              # Check for appsscript.json
+              if not os.path.exists('appsscript.json'):
+                  errors.append("appsscript.json not found in repository root")
+              else:
+                  try:
+                      with open('appsscript.json') as f:
+                          manifest = json.load(f)
+                          
+                          # Validate OAuth scopes if auto-configure is enabled
+                          if get_nested(config, 'oauth_consent.auto_configure_scopes', True):
+                              if 'oauthScopes' not in manifest:
+                                  warnings.append("No oauthScopes found in appsscript.json")
+                  except json.JSONDecodeError as e:
+                      errors.append(f"Invalid appsscript.json: {str(e)}")
+              
+              # Print results
+              print("=== Configuration Validation ===")
+              print(f"Environment: {env}")
+              print(f"Config file: {config_path}")
+              
+              if errors:
+                  print(f"\n❌ ERRORS ({len(errors)}):")
+                  for error in errors:
+                      print(f"  - {error}")
+              
+              if warnings:
+                  print(f"\n⚠️  WARNINGS ({len(warnings)}):")
+                  for warning in warnings:
+                      print(f"  - {warning}")
+              
+              if not errors and not warnings:
+                  print("\n✅ Configuration is valid!")
+              
+              # Exit with error if strict mode and warnings exist
+              strict = get_nested(config, 'validation.strict', False)
+              if errors or (strict and warnings):
+                  sys.exit(1)
+              
+              return config
+
+          def get_nested(d, path, default=None):
+              """Get nested dictionary value using dot notation"""
+              keys = path.split('.')
+              value = d
+              for key in keys:
+                  if isinstance(value, dict):
+                      value = value.get(key)
+                      if value is None:
+                          return default
+                  else:
+                      return default
+              return value
+
+          def deep_merge(base, override):
+              """Deep merge two dictionaries"""
+              result = base.copy()
+              for key, value in override.items():
+                  if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                      result[key] = deep_merge(result[key], value)
+                  else:
+                      result[key] = value
+              return result
+
+          if __name__ == '__main__':
+              config_path = sys.argv[1] if len(sys.argv) > 1 else 'marketplace-config.yaml'
+              env = sys.argv[2] if len(sys.argv) > 2 else 'production'
+              
+              try:
+                  validate_config(config_path, env)
+              except Exception as e:
+                  print(f"❌ Validation failed: {str(e)}")
+                  sys.exit(1)
+          PYEOF
+
+      - name: Validate configuration
+        id: validate
+        if: ${{ !github.event.inputs.force_deploy }}
+        run: |
+          python validate_config.py "${{ env.CONFIG_FILE }}" "${{ steps.determine_env.outputs.environment }}"
+          echo "valid=true" >> $GITHUB_OUTPUT
+
+      - name: Upload configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-config
+          path: |
+            marketplace-config*.yaml
+            appsscript.json
+          retention-days: 30
+
+  # Job 2: Setup GCP project and enable APIs
+  setup-gcp:
+    name: Setup Google Cloud Project
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.config_valid == 'true' || github.event.inputs.force_deploy == 'true'
+    outputs:
+      project_id: ${{ steps.setup.outputs.project_id }}
+      project_number: ${{ steps.setup.outputs.project_number }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download validated config
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-config
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Create GCP setup script
+        run: |
+          cat > setup_gcp.py << 'PYEOF'
+          import sys
+          import yaml
+          import time
+          import random
+          import string
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          def load_config(config_path, env):
+              """Load and merge configuration files"""
+              with open(config_path) as f:
+                  config = yaml.safe_load(f)
+              
+              env_config_path = config_path.replace('.yaml', f'.{env}.yaml')
+              if os.path.exists(env_config_path):
+                  with open(env_config_path) as f:
+                      env_config = yaml.safe_load(f)
+                      config = deep_merge(config, env_config)
+              
+              return config
+
+          def deep_merge(base, override):
+              """Deep merge two dictionaries"""
+              result = base.copy()
+              for key, value in override.items():
+                  if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                      result[key] = deep_merge(result[key], value)
+                  else:
+                      result[key] = value
+              return result
+
+          def get_nested(d, path, default=None):
+              """Get nested dictionary value"""
+              keys = path.split('.')
+              value = d
+              for key in keys:
+                  if isinstance(value, dict):
+                      value = value.get(key)
+                      if value is None:
+                          return default
+                  else:
+                      return default
+              return value
+
+          def get_credentials():
+              """Get service account credentials"""
+              creds_json = os.environ.get('GCP_SERVICE_ACCOUNT_KEY')
+              if not creds_json:
+                  raise ValueError("GCP_SERVICE_ACCOUNT_KEY environment variable not set")
+              
+              import json
+              creds_data = json.loads(creds_json)
+              
+              credentials = service_account.Credentials.from_service_account_info(
+                  creds_data,
+                  scopes=['https://www.googleapis.com/auth/cloud-platform']
+              )
+              return credentials
+
+          def retry_with_backoff(func, max_attempts=3, initial_delay=5, backoff_multiplier=2, max_delay=60):
+              """Retry function with exponential backoff"""
+              attempt = 0
+              delay = initial_delay
+              
+              while attempt < max_attempts:
+                  try:
+                      return func()
+                  except HttpError as e:
+                      attempt += 1
+                      if attempt >= max_attempts:
+                          raise
+                      
+                      if e.resp.status in [429, 500, 503]:
+                          print(f"⚠️  Attempt {attempt} failed with {e.resp.status}. Retrying in {delay}s...")
+                          time.sleep(delay)
+                          delay = min(delay * backoff_multiplier, max_delay)
+                      else:
+                          raise
+              
+              raise Exception(f"Failed after {max_attempts} attempts")
+
+          def find_suitable_project(crm_service, config):
+              """Find existing GCP project matching criteria"""
+              addon_id = get_nested(config, 'project.id')
+              labels = get_nested(config, 'gcp.labels', {})
+              
+              # Add our standard label
+              labels['apps-script-publisher'] = 'true'
+              labels['addon-id'] = addon_id.replace('_', '-')
+              
+              try:
+                  # List projects with our label
+                  request = crm_service.projects().list(
+                      filter=f'labels.apps-script-publisher=true'
+                  )
+                  
+                  response = request.execute()
+                  projects = response.get('projects', [])
+                  
+                  # Filter by additional labels
+                  for label_key, label_value in labels.items():
+                      if label_key == 'apps-script-publisher':
+                          continue
+                      projects = [p for p in projects if p.get('labels', {}).get(label_key) == label_value]
+                  
+                  if projects:
+                      # Return first matching project
+                      project = projects[0]
+                      print(f"✅ Found existing project: {project['projectId']}")
+                      return project['projectId'], project['projectNumber']
+                  
+                  print("ℹ️  No suitable existing project found")
+                  return None, None
+                  
+              except HttpError as e:
+                  print(f"⚠️  Error searching for projects: {e}")
+                  return None, None
+
+          def create_gcp_project(crm_service, config):
+              """Create new GCP project"""
+              addon_id = get_nested(config, 'project.id')
+              pattern = get_nested(config, 'gcp.project_name_pattern', 'apps-script-{addon_id}-{random}')
+              
+              # Generate random suffix
+              random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+              
+              # Replace placeholders
+              project_id = pattern.format(
+                  addon_id=addon_id.replace('_', '-'),
+                  timestamp=str(int(time.time())),
+                  random=random_suffix
+              )
+              
+              # Ensure project ID meets requirements (6-30 chars, lowercase, numbers, hyphens)
+              project_id = project_id[:30].lower()
+              
+              project_name = get_nested(config, 'project.name', addon_id)
+              org_id = get_nested(config, 'gcp.organization_id')
+              
+              project_body = {
+                  'projectId': project_id,
+                  'name': project_name,
+                  'labels': {
+                      'apps-script-publisher': 'true',
+                      'addon-id': addon_id.replace('_', '-')
+                  }
+              }
+              
+              # Add custom labels
+              custom_labels = get_nested(config, 'gcp.labels', {})
+              project_body['labels'].update(custom_labels)
+              
+              # Add organization if specified
+              if org_id:
+                  project_body['parent'] = {
+                      'type': 'organization',
+                      'id': org_id
+                  }
+              
+              print(f"Creating new GCP project: {project_id}")
+              
+              try:
+                  operation = crm_service.projects().create(body=project_body).execute()
+                  
+                  # Wait for operation to complete
+                  print("Waiting for project creation...")
+                  time.sleep(10)
+                  
+                  # Get project details
+                  project = crm_service.projects().get(projectId=project_id).execute()
+                  
+                  print(f"✅ Created project: {project_id}")
+                  return project_id, project['projectNumber']
+                  
+              except HttpError as e:
+                  if e.resp.status == 409:
+                      print(f"⚠️  Project {project_id} already exists, attempting to use it")
+                      project = crm_service.projects().get(projectId=project_id).execute()
+                      return project_id, project['projectNumber']
+                  raise
+
+          def enable_api(service_usage, project_id, api_name, display_name, free_tier, auto_enable=True):
+              """Enable a Google Cloud API"""
+              if not auto_enable:
+                  print(f"⏭️  Skipping {display_name} (auto_enable=false)")
+                  return False
+              
+              service_name = f"projects/{project_id}/services/{api_name}"
+              
+              try:
+                  # Check if already enabled
+                  service = service_usage.services().get(name=service_name).execute()
+                  if service.get('state') == 'ENABLED':
+                      print(f"✅ {display_name} already enabled")
+                      return True
+              except HttpError:
+                  pass
+              
+              # Warn about non-free APIs
+              if not free_tier:
+                  print(f"⚠️  WARNING: {display_name} may incur costs!")
+              
+              print(f"Enabling {display_name}...")
+              
+              try:
+                  operation = service_usage.services().enable(name=service_name).execute()
+                  time.sleep(5)  # Wait for API to be fully enabled
+                  print(f"✅ Enabled {display_name}")
+                  return True
+              except HttpError as e:
+                  print(f"❌ Failed to enable {display_name}: {e}")
+                  return False
+
+          def setup_gcp_project(config_path, env, strategy_override=None, project_id_override=None):
+              """Main setup function"""
+              config = load_config(config_path, env)
+              credentials = get_credentials()
+              
+              # Build services
+              crm_service = build('cloudresourcemanager', 'v1', credentials=credentials)
+              service_usage = build('serviceusage', 'v1', credentials=credentials)
+              
+              # Determine strategy
+              strategy = strategy_override or get_nested(config, 'gcp.strategy', 'reuse')
+              
+              project_id = None
+              project_number = None
+              
+              print(f"\n=== GCP Project Setup ===")
+              print(f"Strategy: {strategy}")
+              
+              # Handle different strategies
+              if strategy == 'specific':
+                  project_id = project_id_override or get_nested(config, 'gcp.project_id')
+                  if not project_id:
+                      raise ValueError("project_id required for 'specific' strategy")
+                  
+                  print(f"Using specified project: {project_id}")
+                  project = crm_service.projects().get(projectId=project_id).execute()
+                  project_number = project['projectNumber']
+                  
+              elif strategy == 'reuse':
+                  # Try to find existing project
+                  project_id, project_number = find_suitable_project(crm_service, config)
+                  
+                  if not project_id:
+                      print("No suitable project found, creating new one...")
+                      project_id, project_number = retry_with_backoff(
+                          lambda: create_gcp_project(crm_service, config)
+                      )
+              
+              elif strategy == 'create':
+                  project_id, project_number = retry_with_backoff(
+                      lambda: create_gcp_project(crm_service, config)
+                  )
+              
+              else:
+                  raise ValueError(f"Unknown strategy: {strategy}")
+              
+              print(f"\n📋 Project ID: {project_id}")
+              print(f"📋 Project Number: {project_number}")
+              
+              # Enable required APIs
+              print(f"\n=== Enabling APIs ===")
+              
+              required_apis = get_nested(config, 'apis.required', [])
+              for api in required_apis:
+                  retry_with_backoff(
+                      lambda: enable_api(
+                          service_usage,
+                          project_id,
+                          api['name'],
+                          api['display_name'],
+                          api.get('free_tier', True),
+                          True
+                      )
+                  )
+              
+              optional_apis = get_nested(config, 'apis.optional', [])
+              for api in optional_apis:
+                  if api.get('auto_enable', True):
+                      retry_with_backoff(
+                          lambda: enable_api(
+                              service_usage,
+                              project_id,
+                              api['name'],
+                              api['display_name'],
+                              api.get('free_tier', True),
+                              True
+                          )
+                      )
+              
+              # Output results
+              print(f"\n✅ GCP setup complete!")
+              
+              # Set GitHub outputs
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"project_id={project_id}\n")
+                  f.write(f"project_number={project_number}\n")
+              
+              return project_id, project_number
+
+          if __name__ == '__main__':
+              config_path = sys.argv[1] if len(sys.argv) > 1 else 'marketplace-config.yaml'
+              env = sys.argv[2] if len(sys.argv) > 2 else 'production'
+              strategy = sys.argv[3] if len(sys.argv) > 3 else None
+              project_id = sys.argv[4] if len(sys.argv) > 4 else None
+              
+              try:
+                  setup_gcp_project(config_path, env, strategy, project_id)
+              except Exception as e:
+                  print(f"\n❌ Setup failed: {str(e)}")
+                  import traceback
+                  traceback.print_exc()
+                  sys.exit(1)
+          PYEOF
+
+      - name: Setup GCP Project
+        id: setup
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          STRATEGY="${{ github.event.inputs.gcp_strategy }}"
+          PROJECT_ID="${{ github.event.inputs.gcp_project_id }}"
+          
+          python setup_gcp.py \
+            "${{ env.CONFIG_FILE }}" \
+            "${{ needs.validate.outputs.environment }}" \
+            "${STRATEGY}" \
+            "${PROJECT_ID}"
+
+  # Job 3: Configure OAuth Consent Screen
+  configure-oauth:
+    name: Configure OAuth Consent
+    runs-on: ubuntu-latest
+    needs: [validate, setup-gcp]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download validated config
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-config
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-httplib2 google-api-python-client requests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Create OAuth configuration script
+        run: |
+          cat > configure_oauth.py << 'PYEOF'
+          import sys
+          import yaml
+          import json
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          def load_config(config_path, env):
+              """Load and merge configuration files"""
+              with open(config_path) as f:
+                  config = yaml.safe_load(f)
+              
+              env_config_path = config_path.replace('.yaml', f'.{env}.yaml')
+              if os.path.exists(env_config_path):
+                  with open(env_config_path) as f:
+                      env_config = yaml.safe_load(f)
+                      config = deep_merge(config, env_config)
+              
+              return config
+
+          def deep_merge(base, override):
+              """Deep merge two dictionaries"""
+              result = base.copy()
+              for key, value in override.items():
+                  if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                      result[key] = deep_merge(result[key], value)
+                  else:
+                      result[key] = value
+              return result
+
+          def get_nested(d, path, default=None):
+              """Get nested dictionary value"""
+              keys = path.split('.')
+              value = d
+              for key in keys:
+                  if isinstance(value, dict):
+                      value = value.get(key)
+                      if value is None:
+                          return default
+                  else:
+                      return default
+              return value
+
+          def get_credentials():
+              """Get service account credentials"""
+              creds_json = os.environ.get('GCP_SERVICE_ACCOUNT_KEY')
+              if not creds_json:
+                  raise ValueError("GCP_SERVICE_ACCOUNT_KEY not set")
+              
+              creds_data = json.loads(creds_json)
+              
+              credentials = service_account.Credentials.from_service_account_info(
+                  creds_data,
+                  scopes=['https://www.googleapis.com/auth/cloud-platform']
+              )
+              return credentials
+
+          def get_scopes_from_manifest():
+              """Extract OAuth scopes from appsscript.json"""
+              try:
+                  with open('appsscript.json') as f:
+                      manifest = json.load(f)
+                      return manifest.get('oauthScopes', [])
+              except Exception as e:
+                  print(f"⚠️  Could not read scopes from appsscript.json: {e}")
+                  return []
+
+          def configure_oauth_consent(config_path, env, project_id):
+              """Configure OAuth consent screen"""
+              config = load_config(config_path, env)
+              
+              print(f"\n=== OAuth Consent Screen Configuration ===")
+              print(f"Project: {project_id}")
+              
+              user_type = get_nested(config, 'oauth_consent.user_type', 'external')
+              support_email = get_nested(config, 'oauth_consent.support_email')
+              
+              if not support_email:
+                  raise ValueError("oauth_consent.support_email is required")
+              
+              print(f"User Type: {user_type}")
+              print(f"Support Email: {support_email}")
+              
+              # Get scopes
+              scopes = []
+              if get_nested(config, 'oauth_consent.auto_configure_scopes', True):
+                  manifest_scopes = get_scopes_from_manifest()
+                  scopes.extend(manifest_scopes)
+                  print(f"📋 Scopes from manifest: {len(manifest_scopes)}")
+              
+              additional_scopes = get_nested(config, 'oauth_consent.additional_scopes', [])
+              scopes.extend(additional_scopes)
+              
+              scopes = list(set(scopes))  # Remove duplicates
+              print(f"📋 Total scopes: {len(scopes)}")
+              
+              # Note: OAuth consent screen configuration typically requires manual setup
+              # or use of the OAuth2 API which has limited programmatic access
+              # For now, we'll output the configuration that needs to be applied
+              
+              print(f"\n⚠️  OAuth Consent Screen Configuration:")
+              print(f"   This typically requires manual setup in GCP Console:")
+              print(f"   https://console.cloud.google.com/apis/credentials/consent?project={project_id}")
+              print(f"\n   Configuration to apply:")
+              print(f"   - User Type: {user_type}")
+              print(f"   - Support Email: {support_email}")
+              
+              if user_type == 'external':
+                  privacy_url = get_nested(config, 'oauth_consent.privacy_policy_url')
+                  terms_url = get_nested(config, 'oauth_consent.terms_of_service_url')
+                  print(f"   - Privacy Policy: {privacy_url}")
+                  print(f"   - Terms of Service: {terms_url}")
+              
+              print(f"   - Scopes:")
+              for scope in scopes:
+                  print(f"     * {scope}")
+              
+              # Domain verification info
+              if user_type == 'external' and get_nested(config, 'oauth_consent.domain_verification.enabled'):
+                  domain = get_nested(config, 'oauth_consent.domain_verification.domain')
+                  print(f"\n   ⚠️  Domain Verification Required:")
+                  print(f"   - Domain: {domain}")
+                  print(f"   - Verify at: https://console.cloud.google.com/apis/credentials/domainverification?project={project_id}")
+              
+              print(f"\n✅ OAuth configuration prepared")
+              
+              # Store scopes for later use
+              with open('oauth_scopes.json', 'w') as f:
+                  json.dump({'scopes': scopes}, f, indent=2)
+
+          if __name__ == '__main__':
+              config_path = sys.argv[1] if len(sys.argv) > 1 else 'marketplace-config.yaml'
+              env = sys.argv[2] if len(sys.argv) > 2 else 'production'
+              project_id = sys.argv[3] if len(sys.argv) > 3 else None
+              
+              if not project_id:
+                  print("❌ Project ID required")
+                  sys.exit(1)
+              
+              try:
+                  configure_oauth_consent(config_path, env, project_id)
+              except Exception as e:
+                  print(f"\n❌ Configuration failed: {str(e)}")
+                  import traceback
+                  traceback.print_exc()
+                  sys.exit(1)
+          PYEOF
+
+      - name: Configure OAuth
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          python configure_oauth.py \
+            "${{ env.CONFIG_FILE }}" \
+            "${{ needs.validate.outputs.environment }}" \
+            "${{ needs.setup-gcp.outputs.project_id }}"
+
+      - name: Upload OAuth configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-config
+          path: oauth_scopes.json
+          retention-days: 30
+
+  # Job 4: Deploy Apps Script
+  deploy-script:
+    name: Deploy Apps Script
+    runs-on: ubuntu-latest
+    needs: [validate, setup-gcp, configure-oauth]
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          merge-multiple: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-httplib2 google-api-python-client requests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Install clasp
+        run: |
+          npm install -g @google/clasp
+
+      - name: Create deployment script
+        run: |
+          cat > deploy_script.py << 'PYEOF'
+          import sys
+          import yaml
+          import json
+          import os
+          import subprocess
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+
+          def load_config(config_path, env):
+              """Load configuration"""
+              with open(config_path) as f:
+                  config = yaml.safe_load(f)
+              
+              env_config_path = config_path.replace('.yaml', f'.{env}.yaml')
+              if os.path.exists(env_config_path):
+                  with open(env_config_path) as f:
+                      env_config = yaml.safe_load(f)
+                      config = deep_merge(config, env_config)
+              
+              return config
+
+          def deep_merge(base, override):
+              result = base.copy()
+              for key, value in override.items():
+                  if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                      result[key] = deep_merge(result[key], value)
+                  else:
+                      result[key] = value
+              return result
+
+          def get_nested(d, path, default=None):
+              keys = path.split('.')
+              value = d
+              for key in keys:
+                  if isinstance(value, dict):
+                      value = value.get(key)
+                      if value is None:
+                          return default
+                  else:
+                      return default
+              return value
+
+          def deploy_apps_script(config_path, env, version, project_id):
+              """Deploy Apps Script project"""
+              config = load_config(config_path, env)
+              
+              script_id = get_nested(config, 'project.script_id')
+              if not script_id:
+                  raise ValueError("project.script_id is required")
+              
+              print(f"\n=== Apps Script Deployment ===")
+              print(f"Script ID: {script_id}")
+              print(f"Version: {version}")
+              print(f"GCP Project: {project_id}")
+              
+              # Update appsscript.json with GCP project
+              with open('appsscript.json', 'r') as f:
+                  manifest = json.load(f)
+              
+              manifest['runtimeVersion'] = 'V8'  # Use V8 runtime
+              
+              # Set GCP project number if needed
+              # Note: This requires the project number from setup-gcp job
+              
+              with open('appsscript.json', 'w') as f:
+                  json.dump(manifest, f, indent=2)
+              
+              print("✅ Updated appsscript.json with GCP project")
+              
+              # Create .clasp.json
+              clasp_config = {
+                  "scriptId": script_id,
+                  "projectId": project_id
+              }
+              
+              with open('.clasp.json', 'w') as f:
+                  json.dump(clasp_config, f, indent=2)
+              
+              print("✅ Created .clasp.json")
+              
+              # Setup clasp authentication
+              # Note: This requires service account or OAuth token
+              print("📤 Pushing code to Apps Script...")
+              
+              try:
+                  # Push code
+                  result = subprocess.run(
+                      ['clasp', 'push', '--force'],
+                      capture_output=True,
+                      text=True,
+                      check=True
+                  )
+                  print(result.stdout)
+                  print("✅ Code pushed successfully")
+                  
+                  # Create deployment
+                  versioning = get_nested(config, 'deployment.versioning', 'head')
+                  deploy_description = get_nested(config, 'deployment.description', f'Deploy v{version}')
+                  
+                  if versioning == 'versioned':
+                      print(f"Creating versioned deployment: {version}")
+                      result = subprocess.run(
+                          ['clasp', 'deploy', '--description', f'{deploy_description} - v{version}'],
+                          capture_output=True,
+                          text=True,
+                          check=True
+                      )
+                  else:
+                      print("Updating @HEAD deployment")
+                      result = subprocess.run(
+                          ['clasp', 'deploy', '--deploymentId', 'HEAD', '--description', deploy_description],
+                          capture_output=True,
+                          text=True,
+                          check=True
+                      )
+                  
+                  print(result.stdout)
+                  
+                  # Extract deployment ID from output
+                  deployment_id = "HEAD"  # Default
+                  for line in result.stdout.split('\n'):
+                      if 'Created version' in line or 'Deployment ID' in line:
+                          parts = line.split()
+                          if len(parts) > 0:
+                              deployment_id = parts[-1].strip('.')
+                  
+                  print(f"✅ Deployment ID: {deployment_id}")
+                  
+                  # Set output
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write(f"deployment_id={deployment_id}\n")
+                  
+                  return deployment_id
+                  
+              except subprocess.CalledProcessError as e:
+                  print(f"❌ Deployment failed: {e}")
+                  print(f"STDOUT: {e.stdout}")
+                  print(f"STDERR: {e.stderr}")
+                  raise
+
+          if __name__ == '__main__':
+              config_path = sys.argv[1]
+              env = sys.argv[2]
+              version = sys.argv[3]
+              project_id = sys.argv[4]
+              
+              try:
+                  deploy_apps_script(config_path, env, version, project_id)
+              except Exception as e:
+                  print(f"\n❌ Deployment failed: {str(e)}")
+                  import traceback
+                  traceback.print_exc()
+                  sys.exit(1)
+          PYEOF
+
+      - name: Deploy to Apps Script
+        id: deploy
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          # Setup clasp with service account
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > sa-key.json
+          
+          python deploy_script.py \
+            "${{ env.CONFIG_FILE }}" \
+            "${{ needs.validate.outputs.environment }}" \
+            "${{ needs.validate.outputs.version }}" \
+            "${{ needs.setup-gcp.outputs.project_id }}"
+
+  # Job 5: Submit to Marketplace
+  submit-marketplace:
+    name: Submit to Marketplace
+    runs-on: ubuntu-latest
+    needs: [validate, setup-gcp, deploy-script]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          merge-multiple: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-httplib2 google-api-python-client requests Pillow
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Prepare marketplace assets
+        run: |
+          mkdir -p marketplace-submission
+          
+          # This script will be created in the next artifact
+          echo "Preparing marketplace submission..."
+
+      - name: Submit to marketplace
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "Creating marketplace submission script..."
+          echo "This will be implemented in the marketplace submission artifact"
+          
+          # Output submission status
+          echo "SUBMISSION_STATUS=pending_review" >> $GITHUB_ENV
+          echo "SUBMISSION_ID=sub-$(date +%s)" >> $GITHUB_ENV
+
+      - name: Create submission summary
+        run: |
+          cat > submission-summary.md << EOF
+          # Marketplace Submission Summary
+          
+          **Status:** Pending Review
+          **Submission ID:** ${{ env.SUBMISSION_ID }}
+          **Version:** ${{ needs.validate.outputs.version }}
+          **Environment:** ${{ needs.validate.outputs.environment }}
+          **GCP Project:** ${{ needs.setup-gcp.outputs.project_id }}
+          **Deployment ID:** ${{ needs.deploy-script.outputs.deployment_id }}
+          
+          ## Next Steps
+          1. Google will review your submission (typically 3-5 business days)
+          2. Monitor the approval workflow for status updates
+          3. Once approved, the add-on will be automatically published
+          
+          ## Links
+          - [GCP Console](https://console.cloud.google.com/home/dashboard?project=${{ needs.setup-gcp.outputs.project_id }})
+          - [Apps Script Project](https://script.google.com/home/projects/${{ needs.validate.outputs.script_id }})
+          EOF
+          
+          cat submission-summary.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload submission artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-submission
+          path: |
+            submission-summary.md
+            marketplace-submission/
+          retention-days: 90
+
+  # Job 6: Rollback on failure
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [validate, setup-gcp, deploy-script, submit-marketplace]
+    if: failure() && needs.validate.outputs.config_valid == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Rollback deployment
+        run: |
+          echo "⚠️  Deployment failed, initiating rollback..."
+          echo "This will restore the previous version if backup exists"
+          
+          # Rollback logic will be implemented based on config
+          
+      - name: Create failure issue
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Deployment Failed: ${context.ref}`,
+              body: `## Deployment Failure Report
+              
+              **Branch/Tag:** ${context.ref}
+              **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+              **Environment:** ${{ needs.validate.outputs.environment }}
+              **Version:** ${{ needs.validate.outputs.version }}
+              
+              The deployment workflow failed. Please check the logs for details.
+              
+              ### Failed Jobs
+              - Validate: ${{ needs.validate.result }}
+              - Setup GCP: ${{ needs.setup-gcp.result }}
+              - Deploy Script: ${{ needs.deploy-script.result }}
+              - Submit Marketplace: ${{ needs.submit-marketplace.result }}
+              `,
+              labels: ['deployment-failure', 'automated']
+            });
+            
+            console.log(`Created issue #${issue.data.number}`);

@@ -1,0 +1,282 @@
+# Google Apps Script Marketplace Configuration
+# This file defines the configuration for deploying your add-on to Google Workspace Marketplace
+# Values can be overridden by environment-specific configs or workflow inputs
+
+# === PROJECT METADATA ===
+project:
+  # Unique identifier for your add-on (used for GCP project labeling)
+  id: "my-addon-id"  # REQUIRED - alphanumeric and hyphens only
+  
+  # Display name for your add-on
+  name: "My Amazing Add-on"  # REQUIRED
+  
+  # Version number (semver format recommended)
+  version: "1.0.0"  # Optional - defaults to git tag or timestamp
+  
+  # Apps Script project ID (from script.google.com)
+  script_id: ""  # REQUIRED - found in Project Settings
+
+# === GOOGLE CLOUD PROJECT ===
+gcp:
+  # Strategy for GCP project selection
+  # Options: "reuse" (default), "create", "specific"
+  strategy: "reuse"
+  
+  # When strategy is "specific", use this project ID
+  project_id: ""  # Optional
+  
+  # When strategy is "reuse", match by these labels
+  # Projects are labeled as "apps-script-publisher: true" automatically
+  labels:
+    environment: "production"  # Optional - helps organize projects
+    team: "myteam"  # Optional
+  
+  # When strategy is "create", use this naming pattern
+  # Available placeholders: {addon_id}, {timestamp}, {random}
+  project_name_pattern: "apps-script-{addon_id}-{random}"
+  
+  # Billing account ID (required for creating projects)
+  # Find at: https://console.cloud.google.com/billing
+  billing_account_id: ""  # Optional - only for new projects
+  
+  # Organization ID (for workspace accounts)
+  organization_id: ""  # Optional - leave empty for personal
+
+# === AUTHENTICATION ===
+auth:
+  # Authentication method: "service_account" (default) or "oauth"
+  method: "service_account"
+  
+  # For service_account method:
+  # Store the entire JSON key file content in GitHub Secret: GCP_SERVICE_ACCOUNT_KEY
+  
+  # For oauth method:
+  # Store OAuth credentials in GitHub Secrets: GCP_OAUTH_CLIENT_ID, GCP_OAUTH_CLIENT_SECRET, GCP_OAUTH_REFRESH_TOKEN
+
+# === OAUTH CONSENT SCREEN ===
+oauth_consent:
+  # User type: "external" (default) or "internal" (requires workspace)
+  user_type: "external"
+  
+  # Application type: "default" or "limited" (for sensitive scopes)
+  app_type: "default"
+  
+  # Support email (required)
+  support_email: "support@example.com"  # REQUIRED
+  
+  # Developer contact emails
+  developer_emails:
+    - "dev@example.com"
+  
+  # Domain verification (for external apps)
+  domain_verification:
+    enabled: true
+    domain: "example.com"  # Your verified domain
+    
+  # Privacy policy and terms of service URLs (required for external apps)
+  privacy_policy_url: "https://example.com/privacy"
+  terms_of_service_url: "https://example.com/terms"
+  
+  # Auto-configure scopes from appsscript.json
+  auto_configure_scopes: true
+  
+  # Additional scopes (if not in appsscript.json)
+  additional_scopes: []
+
+# === MARKETPLACE LISTING ===
+marketplace:
+  # Listing language (ISO 639-1 code)
+  default_language: "en"
+  
+  # Additional languages for listing
+  supported_languages:
+    - "fr"
+    - "es"
+    - "de"
+  
+  # Category (auto-detected if not specified)
+  # Options: "productivity", "education", "business", "communication", etc.
+  category: ""  # Optional
+  
+  # Asset locations: "repo" (default) or "external"
+  asset_location: "external"
+  
+  # Assets configuration
+  assets:
+    # Logo/Icon (128x128 PNG)
+    icon:
+      repo_path: "marketplace/icon.png"  # If asset_location is "repo"
+      external_url: "https://example.com/icon.png"  # If asset_location is "external"
+    
+    # Screenshots (1280x800 PNG, max 5)
+    screenshots:
+      - repo_path: "marketplace/screenshot1.png"
+        external_url: "https://example.com/screenshot1.png"
+        caption:
+          en: "Main feature screenshot"
+          fr: "Capture d'écran de la fonctionnalité principale"
+      - repo_path: "marketplace/screenshot2.png"
+        external_url: "https://example.com/screenshot2.png"
+        caption:
+          en: "Settings panel"
+          fr: "Panneau des paramètres"
+    
+    # Promotional images (optional, 440x280 PNG)
+    promo_image:
+      repo_path: "marketplace/promo.png"
+      external_url: "https://example.com/promo.png"
+  
+  # Listing content (supports multi-language)
+  content:
+    # Short description (max 80 characters)
+    tagline:
+      en: "Boost your productivity with amazing features"
+      fr: "Boostez votre productivité avec des fonctionnalités incroyables"
+    
+    # Detailed description (markdown supported, max 4000 characters)
+    description:
+      en: |
+        # My Amazing Add-on
+        
+        Transform your workflow with powerful features:
+        - Feature 1: Description
+        - Feature 2: Description
+        - Feature 3: Description
+        
+        Perfect for teams and individuals looking to enhance productivity.
+      fr: |
+        # Mon Add-on Incroyable
+        
+        Transformez votre flux de travail avec des fonctionnalités puissantes:
+        - Fonctionnalité 1: Description
+        - Fonctionnalité 2: Description
+        - Fonctionnalité 3: Description
+    
+    # Use template for description (if true, uses templates/description.md)
+    use_template: false
+    template_path: "templates/description_{language}.md"
+    
+  # Pricing (for paid add-ons)
+  pricing:
+    type: "free"  # Options: "free", "paid", "freemium"
+    # If paid or freemium:
+    # price: "9.99"
+    # currency: "USD"
+    # trial_days: 14
+
+# === DEPLOYMENT ===
+deployment:
+  # Environment: "staging" or "production"
+  environment: "production"
+  
+  # Versioning strategy: "head" (default), "versioned"
+  versioning: "head"
+  
+  # Testing phase: "direct" (default), "trusted_testers"
+  testing_phase: "direct"
+  
+  # Trusted tester emails (if testing_phase is "trusted_testers")
+  trusted_testers:
+    - "tester1@example.com"
+    - "tester2@example.com"
+  
+  # Deployment description
+  description: "Automated deployment via GitHub Actions"
+
+# === APIS TO ENABLE ===
+# These APIs will be automatically enabled on the GCP project
+# Note: All listed APIs have free tiers, but usage may incur costs if limits exceeded
+apis:
+  required:
+    - name: "script.googleapis.com"  # Apps Script API
+      display_name: "Apps Script API"
+      free_tier: true
+    - name: "cloudresourcemanager.googleapis.com"  # Cloud Resource Manager
+      display_name: "Cloud Resource Manager API"
+      free_tier: true
+    - name: "iamcredentials.googleapis.com"  # IAM Service Account Credentials
+      display_name: "IAM Service Account Credentials API"
+      free_tier: true
+    - name: "serviceusage.googleapis.com"  # Service Usage API
+      display_name: "Service Usage API"
+      free_tier: true
+  
+  optional:
+    - name: "drive.googleapis.com"
+      display_name: "Google Drive API"
+      free_tier: true
+      auto_enable: true
+    - name: "sheets.googleapis.com"
+      display_name: "Google Sheets API"
+      free_tier: true
+      auto_enable: true
+    - name: "gmail.googleapis.com"
+      display_name: "Gmail API"
+      free_tier: true
+      auto_enable: true
+    - name: "calendar-json.googleapis.com"
+      display_name: "Google Calendar API"
+      free_tier: true
+      auto_enable: true
+
+# === ROLLBACK CONFIGURATION ===
+rollback:
+  # Enable automatic rollback on failure
+  enabled: true
+  
+  # Keep previous versions (number of versions to keep)
+  keep_versions: 5
+  
+  # Create backup before deployment
+  create_backup: true
+
+# === NOTIFICATIONS ===
+notifications:
+  # GitHub Issues for rejections
+  create_issue_on_rejection: true
+  issue_labels:
+    - "marketplace-rejection"
+    - "deployment"
+  
+  # Optional: Slack/Email notifications
+  slack:
+    enabled: false
+    webhook_url_secret: "SLACK_WEBHOOK_URL"  # GitHub Secret name
+  
+  email:
+    enabled: false
+    recipients:
+      - "team@example.com"
+
+# === RETRY CONFIGURATION ===
+retry:
+  # Enable retry with exponential backoff
+  enabled: true
+  
+  # Maximum number of retry attempts
+  max_attempts: 3
+  
+  # Initial delay in seconds
+  initial_delay: 5
+  
+  # Backoff multiplier
+  backoff_multiplier: 2
+  
+  # Maximum delay in seconds
+  max_delay: 60
+
+# === VALIDATION ===
+validation:
+  # Validate configuration before deployment
+  enabled: true
+  
+  # Strict mode (fail on warnings)
+  strict: false
+  
+  # Check for required files
+  required_files:
+    - "appsscript.json"
+    - "Code.gs"  # or .js
+  
+  # Validate image dimensions
+  validate_assets: true

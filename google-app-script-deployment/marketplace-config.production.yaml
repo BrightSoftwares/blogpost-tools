@@ -1,0 +1,212 @@
+# Production Environment Configuration
+# This file overrides values from marketplace-config.yaml for production deployments
+# Values defined here take precedence over the base configuration
+
+# === PROJECT METADATA ===
+project:
+  # Production version gets incremented automatically from git tags
+  # No need to override version here
+  
+# === GOOGLE CLOUD PROJECT ===
+gcp:
+  # Production uses reuse strategy to conserve project quota
+  strategy: "reuse"
+  
+  # Production-specific labels for project identification
+  labels:
+    environment: "production"
+    lifecycle: "active"
+    cost-center: "engineering"
+  
+  # Use existing project if specified (comment out to auto-select)
+  # project_id: "my-production-project-123"
+
+# === OAUTH CONSENT SCREEN ===
+oauth_consent:
+  # Production always uses external for public access
+  user_type: "external"
+  
+  # Production support contact
+  support_email: "support@yourdomain.com"
+  
+  # Production developer contacts
+  developer_emails:
+    - "dev-team@yourdomain.com"
+    - "security@yourdomain.com"
+  
+  # Domain verification must be completed for production
+  domain_verification:
+    enabled: true
+    domain: "yourdomain.com"
+  
+  # Production URLs (must be HTTPS)
+  privacy_policy_url: "https://yourdomain.com/privacy"
+  terms_of_service_url: "https://yourdomain.com/terms"
+
+# === MARKETPLACE LISTING ===
+marketplace:
+  # Production uses external URLs for reliability
+  asset_location: "external"
+  
+  # Production assets (served from CDN)
+  assets:
+    icon:
+      external_url: "https://cdn.yourdomain.com/addons/my-addon/icon.png"
+    
+    screenshots:
+      - external_url: "https://cdn.yourdomain.com/addons/my-addon/screenshot1.png"
+        caption:
+          en: "Comprehensive dashboard view"
+          fr: "Vue d'ensemble du tableau de bord"
+          es: "Vista completa del panel"
+      - external_url: "https://cdn.yourdomain.com/addons/my-addon/screenshot2.png"
+        caption:
+          en: "Advanced settings and customization"
+          fr: "Paramètres avancés et personnalisation"
+          es: "Configuración avanzada y personalización"
+      - external_url: "https://cdn.yourdomain.com/addons/my-addon/screenshot3.png"
+        caption:
+          en: "Real-time collaboration features"
+          fr: "Fonctionnalités de collaboration en temps réel"
+          es: "Funciones de colaboración en tiempo real"
+    
+    promo_image:
+      external_url: "https://cdn.yourdomain.com/addons/my-addon/promo.png"
+  
+  # Production content with professional copy
+  content:
+    tagline:
+      en: "Transform your workflow with powerful automation"
+      fr: "Transformez votre flux de travail avec une automatisation puissante"
+      es: "Transforma tu flujo de trabajo con automatización potente"
+      de: "Verwandeln Sie Ihren Workflow mit leistungsstarker Automatisierung"
+    
+    description:
+      en: |
+        # Professional Add-on for Google Workspace
+        
+        Streamline your productivity with our comprehensive solution designed for modern teams.
+        
+        ## Key Features
+        - **Smart Automation**: Reduce repetitive tasks by up to 80%
+        - **Real-time Collaboration**: Work seamlessly with your team
+        - **Enterprise Security**: Bank-level encryption and compliance
+        - **Custom Workflows**: Tailor the tool to your unique needs
+        
+        ## Who It's For
+        Perfect for businesses of all sizes, from startups to Fortune 500 companies.
+        
+        ## Support
+        - 24/7 email support
+        - Comprehensive documentation
+        - Video tutorials
+        - Active community forum
+        
+        ## Pricing
+        Start with our free tier and upgrade as you grow.
+      
+      fr: |
+        # Add-on professionnel pour Google Workspace
+        
+        Rationalisez votre productivité avec notre solution complète...
+      
+      es: |
+        # Add-on profesional para Google Workspace
+        
+        Optimiza tu productividad con nuestra solución integral...
+
+# === DEPLOYMENT ===
+deployment:
+  # Production environment
+  environment: "production"
+  
+  # Production uses versioned deployments for rollback capability
+  versioning: "versioned"
+  
+  # Production goes directly to public after Google approval
+  testing_phase: "direct"
+  
+  # Production deployment description
+  description: "Production release via automated CI/CD"
+
+# === APIS TO ENABLE ===
+# Production enables all required APIs
+apis:
+  required:
+    - name: "script.googleapis.com"
+      display_name: "Apps Script API"
+      free_tier: true
+    - name: "cloudresourcemanager.googleapis.com"
+      display_name: "Cloud Resource Manager API"
+      free_tier: true
+    - name: "iamcredentials.googleapis.com"
+      display_name: "IAM Service Account Credentials API"
+      free_tier: true
+    - name: "serviceusage.googleapis.com"
+      display_name: "Service Usage API"
+      free_tier: true
+  
+  optional:
+    - name: "drive.googleapis.com"
+      display_name: "Google Drive API"
+      free_tier: true
+      auto_enable: true
+    - name: "sheets.googleapis.com"
+      display_name: "Google Sheets API"
+      free_tier: true
+      auto_enable: true
+
+# === ROLLBACK CONFIGURATION ===
+rollback:
+  # Production always has rollback enabled
+  enabled: true
+  
+  # Keep more versions in production for safety
+  keep_versions: 10
+  
+  # Always create backup before production deployment
+  create_backup: true
+
+# === NOTIFICATIONS ===
+notifications:
+  # Production creates issues for rejections
+  create_issue_on_rejection: true
+  issue_labels:
+    - "marketplace-rejection"
+    - "production"
+    - "urgent"
+  
+  # Production enables Slack notifications
+  slack:
+    enabled: true
+    webhook_url_secret: "SLACK_WEBHOOK_PRODUCTION"
+  
+  # Production enables email notifications
+  email:
+    enabled: true
+    recipients:
+      - "engineering-team@yourdomain.com"
+      - "product-manager@yourdomain.com"
+
+# === RETRY CONFIGURATION ===
+retry:
+  # Production has more aggressive retry
+  enabled: true
+  max_attempts: 5
+  initial_delay: 10
+  backoff_multiplier: 2
+  max_delay: 120
+
+# === VALIDATION ===
+validation:
+  # Production has strict validation
+  enabled: true
+  strict: true  # Fail on warnings
+  
+  required_files:
+    - "appsscript.json"
+    - "Code.gs"
+    - "README.md"
+    - "LICENSE"
+  
+  validate_assets: true

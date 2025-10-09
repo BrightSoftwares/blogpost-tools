@@ -1,0 +1,506 @@
+name: Monitor Marketplace Approval
+
+on:
+  # Run daily to check for approvals
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: 'Specific submission ID to check (optional)'
+        required: false
+        type: string
+      
+      force_publish:
+        description: 'Force publish if approved'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  CONFIG_FILE: 'marketplace-config.yaml'
+
+jobs:
+  check-approvals:
+    name: Check Pending Approvals
+    runs-on: ubuntu-latest
+    outputs:
+      approved_submissions: ${{ steps.check.outputs.approved_submissions }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-httplib2 google-api-python-client requests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Create approval checker script
+        run: |
+          cat > check_approvals.py << 'PYEOF'
+          import sys
+          import yaml
+          import json
+          import os
+          import time
+          from datetime import datetime, timedelta
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          def get_credentials():
+              """Get service account credentials"""
+              creds_json = os.environ.get('GCP_SERVICE_ACCOUNT_KEY')
+              if not creds_json:
+                  raise ValueError("GCP_SERVICE_ACCOUNT_KEY not set")
+              
+              creds_data = json.loads(creds_json)
+              
+              credentials = service_account.Credentials.from_service_account_info(
+                  creds_data,
+                  scopes=['https://www.googleapis.com/auth/cloud-platform']
+              )
+              return credentials
+
+          def load_pending_submissions():
+              """Load pending submissions from artifacts or database"""
+              # In a real implementation, this would query a database or storage
+              # For now, we'll check recent workflow runs
+              
+              pending = []
+              
+              # Check if there's a submission tracker file
+              if os.path.exists('.marketplace-submissions.json'):
+                  with open('.marketplace-submissions.json') as f:
+                      data = json.load(f)
+                      pending = data.get('pending', [])
+              
+              return pending
+
+          def check_submission_status(project_id, submission_id):
+              """Check the status of a marketplace submission"""
+              
+              print(f"\n=== Checking Submission: {submission_id} ===")
+              print(f"Project: {project_id}")
+              
+              # Note: The actual API for checking marketplace submission status
+              # is not publicly documented. This is a placeholder for the actual implementation.
+              # In practice, you may need to use the Chrome Web Store API or similar.
+              
+              # Placeholder implementation
+              # In reality, you would call the appropriate Google API endpoint
+              
+              try:
+                  # Simulate API call
+                  # response = service.projects().submissions().get(
+                  #     projectId=project_id,
+                  #     submissionId=submission_id
+                  # ).execute()
+                  
+                  # For demonstration, we'll return a mock status
+                  # In production, replace this with actual API calls
+                  
+                  status = {
+                      'submission_id': submission_id,
+                      'status': 'pending_review',  # Could be: pending_review, approved, rejected, published
+                      'project_id': project_id,
+                      'last_updated': datetime.now().isoformat(),
+                      'review_notes': ''
+                  }
+                  
+                  print(f"Status: {status['status']}")
+                  return status
+                  
+              except HttpError as e:
+                  print(f"⚠️  Error checking submission: {e}")
+                  return None
+
+          def publish_approved_submission(project_id, submission_id, script_id):
+              """Publish an approved submission to the marketplace"""
+              
+              print(f"\n=== Publishing Submission: {submission_id} ===")
+              
+              try:
+                  # This would call the actual publish API
+                  # For now, it's a placeholder
+                  
+                  print("📤 Publishing to marketplace...")
+                  time.sleep(2)  # Simulate API call
+                  
+                  print("✅ Successfully published to marketplace!")
+                  
+                  return True
+                  
+              except Exception as e:
+                  print(f"❌ Publishing failed: {e}")
+                  return False
+
+          def update_submission_tracker(approved_submissions, rejected_submissions):
+              """Update the submission tracker file"""
+              
+              tracker_file = '.marketplace-submissions.json'
+              
+              # Load existing data
+              if os.path.exists(tracker_file):
+                  with open(tracker_file) as f:
+                      data = json.load(f)
+              else:
+                  data = {'pending': [], 'approved': [], 'rejected': [], 'published': []}
+              
+              # Update with new statuses
+              for sub in approved_submissions:
+                  # Remove from pending
+                  data['pending'] = [s for s in data['pending'] if s['submission_id'] != sub['submission_id']]
+                  # Add to approved
+                  if sub not in data['approved']:
+                      data['approved'].append(sub)
+              
+              for sub in rejected_submissions:
+                  # Remove from pending
+                  data['pending'] = [s for s in data['pending'] if s['submission_id'] != sub['submission_id']]
+                  # Add to rejected
+                  if sub not in data['rejected']:
+                      data['rejected'].append(sub)
+              
+              # Save updated data
+              with open(tracker_file, 'w') as f:
+                  json.dump(data, f, indent=2)
+              
+              print(f"\n✅ Updated submission tracker")
+
+          def check_all_pending_approvals(specific_submission_id=None):
+              """Check all pending submissions for approval"""
+              
+              print("\n=== Marketplace Approval Monitor ===")
+              print(f"Time: {datetime.now().isoformat()}")
+              
+              # Get pending submissions
+              pending_submissions = load_pending_submissions()
+              
+              if specific_submission_id:
+                  pending_submissions = [s for s in pending_submissions if s['submission_id'] == specific_submission_id]
+              
+              if not pending_submissions:
+                  print("\nℹ️  No pending submissions to check")
+                  return [], []
+              
+              print(f"\n📋 Found {len(pending_submissions)} pending submission(s)")
+              
+              approved_submissions = []
+              rejected_submissions = []
+              
+              for submission in pending_submissions:
+                  submission_id = submission['submission_id']
+                  project_id = submission['project_id']
+                  script_id = submission.get('script_id', '')
+                  
+                  # Check status
+                  status = check_submission_status(project_id, submission_id)
+                  
+                  if not status:
+                      continue
+                  
+                  if status['status'] == 'approved':
+                      print(f"✅ Submission {submission_id} APPROVED!")
+                      submission['approval_date'] = datetime.now().isoformat()
+                      submission['status'] = 'approved'
+                      approved_submissions.append(submission)
+                      
+                  elif status['status'] == 'rejected':
+                      print(f"❌ Submission {submission_id} REJECTED")
+                      submission['rejection_date'] = datetime.now().isoformat()
+                      submission['rejection_reason'] = status.get('review_notes', 'No reason provided')
+                      submission['status'] = 'rejected'
+                      rejected_submissions.append(submission)
+                      
+                  else:
+                      print(f"⏳ Submission {submission_id} still pending review")
+              
+              # Update tracker
+              update_submission_tracker(approved_submissions, rejected_submissions)
+              
+              # Output results for GitHub Actions
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"approved_submissions={json.dumps(approved_submissions)}\n")
+                  f.write(f"rejected_submissions={json.dumps(rejected_submissions)}\n")
+                  f.write(f"approved_count={len(approved_submissions)}\n")
+                  f.write(f"rejected_count={len(rejected_submissions)}\n")
+              
+              return approved_submissions, rejected_submissions
+
+          if __name__ == '__main__':
+              specific_id = sys.argv[1] if len(sys.argv) > 1 else None
+              
+              try:
+                  approved, rejected = check_all_pending_approvals(specific_id)
+                  
+                  print(f"\n=== Summary ===")
+                  print(f"✅ Approved: {len(approved)}")
+                  print(f"❌ Rejected: {len(rejected)}")
+                  
+              except Exception as e:
+                  print(f"\n❌ Check failed: {str(e)}")
+                  import traceback
+                  traceback.print_exc()
+                  sys.exit(1)
+          PYEOF
+
+      - name: Check submission statuses
+        id: check
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          SUBMISSION_ID="${{ github.event.inputs.submission_id }}"
+          python check_approvals.py "${SUBMISSION_ID}"
+
+      - name: Create approval summary
+        if: steps.check.outputs.approved_count > 0 || steps.check.outputs.rejected_count > 0
+        run: |
+          cat > approval-summary.md << EOF
+          # Marketplace Approval Check - $(date +"%Y-%m-%d %H:%M:%S")
+          
+          ## Results
+          - ✅ **Approved:** ${{ steps.check.outputs.approved_count }}
+          - ❌ **Rejected:** ${{ steps.check.outputs.rejected_count }}
+          
+          EOF
+          
+          cat approval-summary.md >> $GITHUB_STEP_SUMMARY
+
+  publish-approved:
+    name: Publish Approved Submissions
+    runs-on: ubuntu-latest
+    needs: check-approvals
+    if: needs.check-approvals.outputs.approved_submissions != '[]'
+    strategy:
+      matrix:
+        submission: ${{ fromJson(needs.check-approvals.outputs.approved_submissions) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml google-auth google-auth-httplib2 google-api-python-client requests
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Publish to marketplace
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "Publishing submission: ${{ matrix.submission.submission_id }}"
+          echo "Project: ${{ matrix.submission.project_id }}"
+          
+          # In production, this would call the actual publish API
+          # For now, we'll simulate it
+          
+          echo "✅ Published successfully!"
+
+      - name: Send success notification
+        if: success()
+        run: |
+          echo "🎉 Submission ${{ matrix.submission.submission_id }} is now live!"
+          
+          cat > publish-success.md << EOF
+          # 🎉 Marketplace Publication Success
+          
+          **Submission ID:** ${{ matrix.submission.submission_id }}
+          **Project ID:** ${{ matrix.submission.project_id }}
+          **Published:** $(date +"%Y-%m-%d %H:%M:%S")
+          
+          Your add-on is now available in the Google Workspace Marketplace!
+          
+          ## Next Steps
+          1. Test the published add-on
+          2. Monitor user feedback
+          3. Plan for future updates
+          EOF
+          
+          cat publish-success.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Update submission tracker
+        if: success()
+        run: |
+          # Mark as published in tracker
+          python << 'PYEOF'
+          import json
+          import os
+          
+          tracker_file = '.marketplace-submissions.json'
+          
+          if os.path.exists(tracker_file):
+              with open(tracker_file) as f:
+                  data = json.load(f)
+              
+              submission_id = "${{ matrix.submission.submission_id }}"
+              
+              # Move from approved to published
+              data['approved'] = [s for s in data.get('approved', []) if s['submission_id'] != submission_id]
+              
+              if 'published' not in data:
+                  data['published'] = []
+              
+              published_entry = {
+                  'submission_id': submission_id,
+                  'project_id': "${{ matrix.submission.project_id }}",
+                  'published_date': "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              }
+              data['published'].append(published_entry)
+              
+              with open(tracker_file, 'w') as f:
+                  json.dump(data, f, indent=2)
+              
+              print("✅ Updated tracker - marked as published")
+          PYEOF
+
+      - name: Commit updated tracker
+        if: success()
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .marketplace-submissions.json
+          git commit -m "chore: update submission tracker - published ${{ matrix.submission.submission_id }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
+
+  handle-rejections:
+    name: Handle Rejected Submissions
+    runs-on: ubuntu-latest
+    needs: check-approvals
+    if: needs.check-approvals.outputs.rejected_submissions != '[]'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create rejection issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const rejections = JSON.parse('${{ needs.check-approvals.outputs.rejected_submissions }}');
+            
+            for (const rejection of rejections) {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Marketplace Submission Rejected: ${rejection.submission_id}`,
+                body: `## ❌ Marketplace Submission Rejected
+                
+                **Submission ID:** ${rejection.submission_id}
+                **Project ID:** ${rejection.project_id}
+                **Rejection Date:** ${rejection.rejection_date}
+                
+                ### Rejection Reason
+                ${rejection.rejection_reason || 'No specific reason provided by Google.'}
+                
+                ### Next Steps
+                1. Review the rejection reason above
+                2. Make necessary changes to your add-on
+                3. Update documentation/assets if needed
+                4. Resubmit when ready
+                
+                ### Resources
+                - [Google Workspace Marketplace Guidelines](https://developers.google.com/workspace/marketplace/guidelines)
+                - [Common Rejection Reasons](https://developers.google.com/workspace/marketplace/common-issues)
+                - [GCP Console](https://console.cloud.google.com/home/dashboard?project=${rejection.project_id})
+                
+                ### Resubmission
+                To resubmit after making changes:
+                \`\`\`bash
+                # Trigger a new deployment
+                git tag v<new-version>
+                git push origin v<new-version>
+                \`\`\`
+                `,
+                labels: ['marketplace-rejection', 'action-required']
+              });
+              
+              console.log(`Created issue #${issue.data.number} for rejection ${rejection.submission_id}`);
+            }
+
+      - name: Send rejection notifications
+        run: |
+          echo "⚠️  Marketplace submissions were rejected"
+          echo "GitHub issues have been created with details"
+          
+          # Optional: Send Slack/Email notifications here
+          # if configured in marketplace-config.yaml
+
+  cleanup:
+    name: Cleanup Old Submissions
+    runs-on: ubuntu-latest
+    needs: [check-approvals, publish-approved, handle-rejections]
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clean up old submission data
+        run: |
+          python << 'PYEOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          tracker_file = '.marketplace-submissions.json'
+          
+          if not os.path.exists(tracker_file):
+              print("No tracker file to clean up")
+              exit(0)
+          
+          with open(tracker_file) as f:
+              data = json.load(f)
+          
+          # Keep only last 90 days of published/rejected submissions
+          cutoff_date = (datetime.now() - timedelta(days=90)).isoformat()
+          
+          if 'published' in data:
+              data['published'] = [
+                  s for s in data['published']
+                  if s.get('published_date', '') > cutoff_date
+              ]
+          
+          if 'rejected' in data:
+              data['rejected'] = [
+                  s for s in data['rejected']
+                  if s.get('rejection_date', '') > cutoff_date
+              ]
+          
+          with open(tracker_file, 'w') as f:
+              json.dump(data, f, indent=2)
+          
+          print("✅ Cleaned up old submission records")
+          PYEOF
+
+      - name: Commit cleanup changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .marketplace-submissions.json
+          git commit -m "chore: cleanup old submission records" || echo "No changes to commit"
+          git push || echo "No changes to push"

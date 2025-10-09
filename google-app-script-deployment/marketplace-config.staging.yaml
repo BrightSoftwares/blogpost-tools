@@ -1,0 +1,163 @@
+# Staging Environment Configuration
+# This file overrides values from marketplace-config.yaml for staging deployments
+# Use staging to test before production release
+
+# === PROJECT METADATA ===
+project:
+  # Staging can have a different name to distinguish from production
+  name: "My Amazing Add-on (Staging)"
+
+# === GOOGLE CLOUD PROJECT ===
+gcp:
+  # Staging also reuses projects but with different labels
+  strategy: "reuse"
+  
+  # Staging-specific labels
+  labels:
+    environment: "staging"
+    lifecycle: "test"
+  
+  # Optionally use a dedicated staging project
+  # project_id: "my-staging-project-456"
+
+# === OAUTH CONSENT SCREEN ===
+oauth_consent:
+  # Staging can use internal if you have Google Workspace
+  user_type: "internal"  # or "external" for wider testing
+  
+  # Staging support email (can be test/dev email)
+  support_email: "dev-staging@yourdomain.com"
+  
+  developer_emails:
+    - "developers@yourdomain.com"
+  
+  # Staging URLs (can point to staging environment)
+  privacy_policy_url: "https://staging.yourdomain.com/privacy"
+  terms_of_service_url: "https://staging.yourdomain.com/terms"
+  
+  # Domain verification still required for external
+  domain_verification:
+    enabled: true
+    domain: "yourdomain.com"
+
+# === MARKETPLACE LISTING ===
+marketplace:
+  # Staging can use repo assets for faster iteration
+  asset_location: "repo"
+  
+  # Staging assets from repository
+  assets:
+    icon:
+      repo_path: "marketplace/staging/icon.png"
+    
+    screenshots:
+      - repo_path: "marketplace/staging/screenshot1.png"
+        caption:
+          en: "Staging feature preview"
+      - repo_path: "marketplace/staging/screenshot2.png"
+        caption:
+          en: "Test settings panel"
+  
+  # Staging content with [STAGING] prefix
+  content:
+    tagline:
+      en: "[STAGING] Test version - not for production use"
+    
+    description:
+      en: |
+        # [STAGING BUILD] My Amazing Add-on
+        
+        ⚠️ This is a staging/test version. Do not use in production.
+        
+        ## Testing Instructions
+        - Report bugs to: dev-staging@yourdomain.com
+        - Expected test scenarios: [list here]
+        - Known issues: [list here]
+        
+        ## Features Being Tested
+        - New automation features
+        - Updated UI components
+        - Performance improvements
+
+# === DEPLOYMENT ===
+deployment:
+  # Staging environment
+  environment: "staging"
+  
+  # Staging uses HEAD for faster iterations
+  versioning: "head"
+  
+  # Staging publishes to trusted testers first
+  testing_phase: "trusted_testers"
+  
+  # List of trusted testers
+  trusted_testers:
+    - "tester1@yourdomain.com"
+    - "tester2@yourdomain.com"
+    - "qa-team@yourdomain.com"
+  
+  description: "Staging deployment for testing"
+
+# === APIS TO ENABLE ===
+# Staging uses same APIs as production
+apis:
+  required:
+    - name: "script.googleapis.com"
+      display_name: "Apps Script API"
+      free_tier: true
+    - name: "cloudresourcemanager.googleapis.com"
+      display_name: "Cloud Resource Manager API"
+      free_tier: true
+    - name: "iamcredentials.googleapis.com"
+      display_name: "IAM Service Account Credentials API"
+      free_tier: true
+    - name: "serviceusage.googleapis.com"
+      display_name: "Service Usage API"
+      free_tier: true
+
+# === ROLLBACK CONFIGURATION ===
+rollback:
+  # Staging has rollback but keeps fewer versions
+  enabled: true
+  keep_versions: 3
+  create_backup: true
+
+# === NOTIFICATIONS ===
+notifications:
+  # Staging creates issues but with different labels
+  create_issue_on_rejection: true
+  issue_labels:
+    - "marketplace-rejection"
+    - "staging"
+  
+  # Staging can use different Slack channel
+  slack:
+    enabled: true
+    webhook_url_secret: "SLACK_WEBHOOK_STAGING"
+  
+  # Staging notifies dev team only
+  email:
+    enabled: true
+    recipients:
+      - "developers@yourdomain.com"
+
+# === RETRY CONFIGURATION ===
+retry:
+  # Staging has less aggressive retry
+  enabled: true
+  max_attempts: 3
+  initial_delay: 5
+  backoff_multiplier: 2
+  max_delay: 60
+
+# === VALIDATION ===
+validation:
+  # Staging validation is less strict
+  enabled: true
+  strict: false  # Warnings don't fail the build
+  
+  required_files:
+    - "appsscript.json"
+    - "Code.gs"
+  
+  validate_assets: true
