@@ -629,9 +629,15 @@ def main():
         
         # Set GitHub Actions output
         output_file = Path(output_dir) / "seo_analysis_latest.json"
-        print(f"::set-output name=analysis_file::{output_file}")
-        print(f"::set-output name=total_issues::{stats.get('total_issues', 0)}")
-        print(f"::set-output name=critical_issues::{stats.get('issues_by_severity', {}).get('critical', 0)}")
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+            # print(f'{name}={value}', file=fh)
+            print(f"analysis_file={output_file}", file=fh)
+            print(f"total_issues={stats.get('total_issues', 0)}", file=fh)
+            print(f"critical_issues={stats.get('issues_by_severity', {}).get('critical', 0)}", file=fh)
+            
+            # print(f"::set-output name=analysis_file::{output_file}")
+            # print(f"::set-output name=total_issues::{stats.get('total_issues', 0)}")
+            # print(f"::set-output name=critical_issues::{stats.get('issues_by_severity', {}).get('critical', 0)}")
         
     except KeyboardInterrupt:
         logger.info("Analysis interrupted by user")
