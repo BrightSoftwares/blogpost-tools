@@ -1,0 +1,296 @@
+name: Deploy Application (Master Orchestrator)
+
+# Master deployment workflow that routes to specific cloud providers
+# Automatically selects the appropriate deployment workflow based on hosting_provider input
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'Application name'
+        required: true
+        type: string
+
+      hosting_provider:
+        description: 'Hosting provider'
+        required: true
+        type: choice
+        options:
+          - 'o2switch'
+          - 'aws'
+          - 'gcp'
+          - 'azure'
+          - 'netlify'
+          - 'vercel'
+
+      # Common inputs for all providers
+      app_type:
+        description: 'Application type'
+        required: false
+        type: string
+        default: 'nodejs'
+
+      domain_name:
+        description: 'Domain name'
+        required: false
+        type: string
+
+      source_directory:
+        description: 'Source directory'
+        required: false
+        type: string
+        default: '.'
+
+      force_redeploy:
+        description: 'Force redeployment even if exists'
+        required: false
+        type: boolean
+        default: false
+
+      use_free_tier:
+        description: 'Use free tier resources'
+        required: false
+        type: boolean
+        default: true
+
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        type: boolean
+        default: false
+
+      # Provider-specific routing
+      # o2switch
+      cpanel_username:
+        description: '[o2switch] cPanel username'
+        required: false
+        type: string
+
+      # AWS
+      aws_region:
+        description: '[AWS] AWS region'
+        required: false
+        type: string
+        default: 'us-east-1'
+
+      aws_deployment_target:
+        description: '[AWS] Deployment target'
+        required: false
+        type: string
+        default: 's3-cloudfront'
+
+      # GCP
+      gcp_project_id:
+        description: '[GCP] Project ID'
+        required: false
+        type: string
+
+      gcp_region:
+        description: '[GCP] Region'
+        required: false
+        type: string
+        default: 'us-central1'
+
+      gcp_deployment_target:
+        description: '[GCP] Deployment target'
+        required: false
+        type: string
+        default: 'cloud-run'
+
+      # Azure
+      azure_subscription_id:
+        description: '[Azure] Subscription ID'
+        required: false
+        type: string
+
+      azure_resource_group:
+        description: '[Azure] Resource group'
+        required: false
+        type: string
+
+      azure_deployment_target:
+        description: '[Azure] Deployment target'
+        required: false
+        type: string
+        default: 'app-service'
+
+    secrets:
+      # o2switch
+      CPANEL_SSH_KEY:
+        required: false
+      CPANEL_PASSWORD:
+        required: false
+
+      # AWS
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+
+      # GCP
+      GCP_SERVICE_ACCOUNT_KEY:
+        required: false
+
+      # Azure
+      AZURE_CREDENTIALS:
+        required: false
+
+      # Common
+      DATABASE_PASSWORD:
+        required: false
+      ENV_FILE_CONTENT:
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status'
+        value: ${{ jobs.route-deployment.outputs.status }}
+
+      deployment_url:
+        description: 'Application URL'
+        value: ${{ jobs.route-deployment.outputs.url }}
+
+      hosting_provider:
+        description: 'Hosting provider used'
+        value: ${{ inputs.hosting_provider }}
+
+jobs:
+  route-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.set-output.outputs.status }}
+      url: ${{ steps.set-output.outputs.url }}
+
+    steps:
+      - name: Validate Provider Configuration
+        run: |
+          echo "Routing deployment to: ${{ inputs.hosting_provider }}"
+
+          # Validate required secrets for each provider
+          case "${{ inputs.hosting_provider }}" in
+            "o2switch")
+              if [ -z "${{ secrets.CPANEL_SSH_KEY }}" ] && [ -z "${{ secrets.CPANEL_PASSWORD }}" ]; then
+                echo "::error::Missing o2switch credentials. Provide CPANEL_SSH_KEY or CPANEL_PASSWORD"
+                exit 1
+              fi
+              if [ -z "${{ inputs.cpanel_username }}" ]; then
+                echo "::error::cpanel_username is required for o2switch deployment"
+                exit 1
+              fi
+              ;;
+            "aws")
+              if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+                echo "::error::Missing AWS credentials"
+                exit 1
+              fi
+              ;;
+            "gcp")
+              if [ -z "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" ]; then
+                echo "::error::Missing GCP_SERVICE_ACCOUNT_KEY"
+                exit 1
+              fi
+              if [ -z "${{ inputs.gcp_project_id }}" ]; then
+                echo "::error::gcp_project_id is required for GCP deployment"
+                exit 1
+              fi
+              ;;
+            "azure")
+              if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+                echo "::error::Missing AZURE_CREDENTIALS"
+                exit 1
+              fi
+              ;;
+          esac
+
+      - name: Deploy to o2switch
+        if: inputs.hosting_provider == 'o2switch'
+        uses: ./.github/workflows/reusable_deploy-to-o2switch.yml
+        with:
+          app_name: ${{ inputs.app_name }}
+          app_type: ${{ inputs.app_type }}
+          domain_name: ${{ inputs.domain_name }}
+          source_directory: ${{ inputs.source_directory }}
+          cpanel_username: ${{ inputs.cpanel_username }}
+          force_redeploy: ${{ inputs.force_redeploy }}
+          run_migrations: ${{ inputs.run_migrations }}
+        secrets:
+          CPANEL_SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+
+      - name: Deploy to AWS
+        if: inputs.hosting_provider == 'aws'
+        uses: ./.github/workflows/reusable_deploy-to-aws.yml
+        with:
+          app_name: ${{ inputs.app_name }}
+          deployment_target: ${{ inputs.aws_deployment_target }}
+          aws_region: ${{ inputs.aws_region }}
+          app_type: ${{ inputs.app_type }}
+          source_directory: ${{ inputs.source_directory }}
+          use_free_tier: ${{ inputs.use_free_tier }}
+          force_redeploy: ${{ inputs.force_redeploy }}
+        secrets:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+
+      - name: Deploy to GCP
+        if: inputs.hosting_provider == 'gcp'
+        uses: ./.github/workflows/reusable_deploy-to-gcp.yml
+        with:
+          app_name: ${{ inputs.app_name }}
+          deployment_target: ${{ inputs.gcp_deployment_target }}
+          gcp_project_id: ${{ inputs.gcp_project_id }}
+          gcp_region: ${{ inputs.gcp_region }}
+          app_type: ${{ inputs.app_type }}
+          source_directory: ${{ inputs.source_directory }}
+          use_free_tier: ${{ inputs.use_free_tier }}
+          force_redeploy: ${{ inputs.force_redeploy }}
+        secrets:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+
+      - name: Deploy to Azure
+        if: inputs.hosting_provider == 'azure'
+        uses: ./.github/workflows/reusable_deploy-to-azure.yml
+        with:
+          app_name: ${{ inputs.app_name }}
+          deployment_target: ${{ inputs.azure_deployment_target }}
+          azure_subscription_id: ${{ inputs.azure_subscription_id }}
+          resource_group: ${{ inputs.azure_resource_group }}
+          app_type: ${{ inputs.app_type }}
+          source_directory: ${{ inputs.source_directory }}
+          use_free_tier: ${{ inputs.use_free_tier }}
+          force_redeploy: ${{ inputs.force_redeploy }}
+        secrets:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+
+      - name: Set Outputs
+        id: set-output
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "url=Check deployment logs for URL" >> $GITHUB_OUTPUT
+
+      - name: Create Deployment Summary
+        run: |
+          echo "# 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application**: ${{ inputs.app_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Provider**: ${{ inputs.hosting_provider }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type**: ${{ inputs.app_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: ${{ inputs.domain_name || 'Auto-assigned' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.use_free_tier }}" = "true" ]; then
+            echo "💰 **Using Free Tier Resources**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify deployment at the provided URL" >> $GITHUB_STEP_SUMMARY
+          echo "2. Check application logs for any issues" >> $GITHUB_STEP_SUMMARY
+          echo "3. Configure custom domain if needed" >> $GITHUB_STEP_SUMMARY
+          echo "4. Set up monitoring and alerts" >> $GITHUB_STEP_SUMMARY

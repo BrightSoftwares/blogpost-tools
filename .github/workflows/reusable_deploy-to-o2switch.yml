@@ -1,0 +1,476 @@
+name: Deploy Application to o2switch/cPanel
+
+# Reusable workflow for deploying applications to o2switch shared hosting via SSH/SFTP
+# This workflow is idempotent - it checks if the application is already deployed before proceeding
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'Application name (used for directory naming)'
+        required: true
+        type: string
+
+      app_type:
+        description: 'Application type'
+        required: true
+        type: choice
+        options:
+          - 'nodejs'
+          - 'php-laravel'
+          - 'static-site'
+          - 'python'
+
+      domain_name:
+        description: 'Domain name for the application'
+        required: true
+        type: string
+
+      source_directory:
+        description: 'Source directory to deploy from (relative to repo root)'
+        required: false
+        type: string
+        default: '.'
+
+      cpanel_username:
+        description: 'cPanel username'
+        required: true
+        type: string
+
+      cpanel_host:
+        description: 'cPanel host/domain'
+        required: false
+        type: string
+        default: 'ssh.o2switch.net'
+
+      cpanel_port:
+        description: 'SSH port'
+        required: false
+        type: number
+        default: 22
+
+      deployment_path:
+        description: 'Deployment path on server (e.g., public_html/app)'
+        required: false
+        type: string
+        default: 'public_html'
+
+      node_version:
+        description: 'Node.js version (for nodejs apps)'
+        required: false
+        type: string
+        default: '18'
+
+      php_version:
+        description: 'PHP version (for PHP apps)'
+        required: false
+        type: string
+        default: '8.1'
+
+      run_migrations:
+        description: 'Run database migrations after deployment'
+        required: false
+        type: boolean
+        default: false
+
+      install_dependencies:
+        description: 'Install dependencies before deployment'
+        required: false
+        type: boolean
+        default: true
+
+      build_assets:
+        description: 'Build assets before deployment'
+        required: false
+        type: boolean
+        default: true
+
+      create_database:
+        description: 'Create database if not exists'
+        required: false
+        type: boolean
+        default: false
+
+      force_redeploy:
+        description: 'Force redeployment even if app already exists'
+        required: false
+        type: boolean
+        default: false
+
+      skip_backup:
+        description: 'Skip backup before deployment'
+        required: false
+        type: boolean
+        default: false
+
+    secrets:
+      CPANEL_SSH_KEY:
+        description: 'SSH private key for cPanel access'
+        required: false
+
+      CPANEL_PASSWORD:
+        description: 'cPanel password (alternative to SSH key)'
+        required: false
+
+      DATABASE_PASSWORD:
+        description: 'Database password'
+        required: false
+
+      ENV_FILE_CONTENT:
+        description: 'Content of .env file for the application'
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status (success, skipped, failed)'
+        value: ${{ jobs.deploy.outputs.deployment_status }}
+
+      app_url:
+        description: 'URL of the deployed application'
+        value: ${{ jobs.deploy.outputs.app_url }}
+
+      already_deployed:
+        description: 'Whether app was already deployed'
+        value: ${{ jobs.deploy.outputs.already_deployed }}
+
+      backup_path:
+        description: 'Path to backup if created'
+        value: ${{ jobs.deploy.outputs.backup_path }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.deploy_result.outputs.status }}
+      app_url: ${{ steps.deploy_result.outputs.url }}
+      already_deployed: ${{ steps.check_deployed.outputs.already_deployed }}
+      backup_path: ${{ steps.backup.outputs.backup_path }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        if: ${{ secrets.CPANEL_SSH_KEY != '' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CPANEL_SSH_KEY }}" > ~/.ssh/cpanel_key
+          chmod 600 ~/.ssh/cpanel_key
+          ssh-keyscan -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_host }} >> ~/.ssh/known_hosts
+
+      - name: Check if Application Already Deployed (Idempotency Check)
+        id: check_deployed
+        run: |
+          echo "Checking if ${{ inputs.app_name }} is already deployed..."
+
+          if [ "${{ inputs.force_redeploy }}" = "true" ]; then
+            echo "Force redeploy enabled, skipping check"
+            echo "already_deployed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check via SSH if app directory exists
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          # Check if deployment directory exists and has content
+          if $SSH_CMD "[ -d '${{ inputs.deployment_path }}/${{ inputs.app_name }}' ] && [ -n \"\$(ls -A '${{ inputs.deployment_path }}/${{ inputs.app_name }}')\" "; then
+            echo "Application already deployed at ${{ inputs.deployment_path }}/${{ inputs.app_name }}"
+            echo "already_deployed=true" >> $GITHUB_OUTPUT
+
+            # Check if it's actually running (for Node.js apps)
+            if [ "${{ inputs.app_type }}" = "nodejs" ]; then
+              if $SSH_CMD "ps aux | grep -v grep | grep '${{ inputs.app_name }}' > /dev/null"; then
+                echo "Application is running"
+                echo "app_running=true" >> $GITHUB_OUTPUT
+              else
+                echo "Application directory exists but not running"
+                echo "app_running=false" >> $GITHUB_OUTPUT
+                echo "already_deployed=false" >> $GITHUB_OUTPUT
+              fi
+            fi
+          else
+            echo "Application not deployed"
+            echo "already_deployed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip Deployment if Already Deployed
+        if: steps.check_deployed.outputs.already_deployed == 'true'
+        run: |
+          echo "::notice::Application ${{ inputs.app_name }} is already deployed and running"
+          echo "::notice::Skipping deployment. Use force_redeploy=true to redeploy"
+
+      - name: Setup Node.js
+        if: inputs.app_type == 'nodejs' && steps.check_deployed.outputs.already_deployed == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+
+      - name: Setup PHP
+        if: inputs.app_type == 'php-laravel' && steps.check_deployed.outputs.already_deployed == 'false'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.php_version }}
+          extensions: mbstring, dom, fileinfo, mysql
+
+      - name: Install Dependencies
+        if: inputs.install_dependencies && steps.check_deployed.outputs.already_deployed == 'false'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          case "${{ inputs.app_type }}" in
+            "nodejs")
+              npm ci --production
+              ;;
+            "php-laravel")
+              composer install --optimize-autoloader --no-dev
+              ;;
+            "python")
+              pip install -r requirements.txt
+              ;;
+          esac
+
+      - name: Build Assets
+        if: inputs.build_assets && steps.check_deployed.outputs.already_deployed == 'false'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          case "${{ inputs.app_type }}" in
+            "nodejs")
+              if [ -f "package.json" ] && grep -q "\"build\"" package.json; then
+                npm run build
+              fi
+              ;;
+            "php-laravel")
+              npm ci
+              npm run build
+              ;;
+          esac
+
+      - name: Create Deployment Package
+        if: steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          echo "Creating deployment package..."
+          cd ${{ inputs.source_directory }}
+
+          # Exclude development files
+          tar -czf /tmp/${{ inputs.app_name }}.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.env.local' \
+            --exclude='tests' \
+            --exclude='.github' \
+            --exclude='*.log' \
+            .
+
+          echo "Deployment package created: $(du -h /tmp/${{ inputs.app_name }}.tar.gz)"
+
+      - name: Backup Existing Installation
+        id: backup
+        if: steps.check_deployed.outputs.already_deployed == 'false' && !inputs.skip_backup
+        run: |
+          echo "Creating backup of existing installation..."
+
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          BACKUP_PATH="backups/${{ inputs.app_name }}_$(date +%Y%m%d_%H%M%S).tar.gz"
+
+          $SSH_CMD "
+            if [ -d '${{ inputs.deployment_path }}/${{ inputs.app_name }}' ]; then
+              mkdir -p backups
+              tar -czf $BACKUP_PATH -C ${{ inputs.deployment_path }} ${{ inputs.app_name }}
+              echo 'Backup created: $BACKUP_PATH'
+            fi
+          "
+
+          echo "backup_path=$BACKUP_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload to Server
+        if: steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          echo "Uploading deployment package to server..."
+
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            scp -i ~/.ssh/cpanel_key -P ${{ inputs.cpanel_port }} \
+              /tmp/${{ inputs.app_name }}.tar.gz \
+              ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}:/tmp/
+          else
+            sshpass -p '${{ secrets.CPANEL_PASSWORD }}' scp -P ${{ inputs.cpanel_port }} \
+              /tmp/${{ inputs.app_name }}.tar.gz \
+              ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}:/tmp/
+          fi
+
+      - name: Extract and Setup on Server
+        if: steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          $SSH_CMD << 'ENDSSH'
+            set -e
+
+            # Create deployment directory
+            mkdir -p ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            # Extract package
+            tar -xzf /tmp/${{ inputs.app_name }}.tar.gz -C ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            # Cleanup
+            rm /tmp/${{ inputs.app_name }}.tar.gz
+
+            cd ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            # Set permissions
+            find . -type d -exec chmod 755 {} \;
+            find . -type f -exec chmod 644 {} \;
+
+            echo "Deployment extracted successfully"
+          ENDSSH
+
+      - name: Create Environment File
+        if: steps.check_deployed.outputs.already_deployed == 'false' && secrets.ENV_FILE_CONTENT != ''
+        run: |
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          echo "${{ secrets.ENV_FILE_CONTENT }}" | $SSH_CMD "cat > ${{ inputs.deployment_path }}/${{ inputs.app_name }}/.env"
+
+      - name: Setup Node.js Application on cPanel
+        if: inputs.app_type == 'nodejs' && steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          $SSH_CMD << 'ENDSSH'
+            cd ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            # Install production dependencies
+            npm ci --production
+
+            # Setup using cPanel Node.js selector (if available)
+            # Note: This typically needs to be done via cPanel GUI first
+            echo "Node.js application setup complete"
+            echo "Note: Configure Node.js app in cPanel > Node.js Selector"
+            echo "Set Application Root: ${{ inputs.deployment_path }}/${{ inputs.app_name }}"
+            echo "Set Application Startup File: index.js or server.js"
+            echo "Set Domain: ${{ inputs.domain_name }}"
+          ENDSSH
+
+      - name: Setup Laravel Application
+        if: inputs.app_type == 'php-laravel' && steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          $SSH_CMD << 'ENDSSH'
+            cd ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            # Generate application key
+            php artisan key:generate --force
+
+            # Cache configuration
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            # Set permissions
+            chmod -R 775 storage bootstrap/cache
+
+            echo "Laravel application setup complete"
+          ENDSSH
+
+      - name: Run Database Migrations
+        if: inputs.run_migrations && steps.check_deployed.outputs.already_deployed == 'false'
+        run: |
+          if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
+            SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          else
+            SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
+          fi
+
+          $SSH_CMD << 'ENDSSH'
+            cd ${{ inputs.deployment_path }}/${{ inputs.app_name }}
+
+            case "${{ inputs.app_type }}" in
+              "php-laravel")
+                php artisan migrate --force
+                ;;
+              "nodejs")
+                if [ -f "package.json" ] && grep -q "\"migrate\"" package.json; then
+                  npm run migrate
+                fi
+                ;;
+            esac
+          ENDSSH
+
+      - name: Set Deployment Result
+        id: deploy_result
+        run: |
+          if [ "${{ steps.check_deployed.outputs.already_deployed }}" = "true" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+          echo "url=https://${{ inputs.domain_name }}" >> $GITHUB_OUTPUT
+
+      - name: Create Deployment Summary
+        run: |
+          echo "# Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Application Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Name**: ${{ inputs.app_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Type**: ${{ inputs.app_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: ${{ inputs.domain_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.deploy_result.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check_deployed.outputs.already_deployed }}" = "true" ]; then
+            echo "## ℹ️ Already Deployed" >> $GITHUB_STEP_SUMMARY
+            echo "Application was already deployed and running. Skipped redeployment." >> $GITHUB_STEP_SUMMARY
+            echo "Use \`force_redeploy: true\` to force redeployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "- **URL**: https://${{ inputs.domain_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Path**: ${{ inputs.deployment_path }}/${{ inputs.app_name }}" >> $GITHUB_STEP_SUMMARY
+
+            if [ -n "${{ steps.backup.outputs.backup_path }}" ]; then
+              echo "- **Backup**: ${{ steps.backup.outputs.backup_path }}" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Post-Deployment Steps" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.app_type }}" = "nodejs" ]; then
+            echo "1. Configure Node.js app in cPanel > Node.js Selector" >> $GITHUB_STEP_SUMMARY
+            echo "2. Set Application Root: \`${{ inputs.deployment_path }}/${{ inputs.app_name }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. Start the application" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Visit https://${{ inputs.domain_name }} to verify deployment" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/cpanel_key
+          rm -f /tmp/${{ inputs.app_name }}.tar.gz
