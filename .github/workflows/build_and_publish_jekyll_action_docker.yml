@@ -1,0 +1,39 @@
+name: Build and publish the Jekyll Action image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'jekyll-action/**'
+
+  # Build weekly to keep image updated
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  build-and-publish-jekyll-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run basic validation
+        run: |
+          echo "Building Jekyll Action Docker image"
+          echo "Checking required files exist..."
+          test -f jekyll-action/Dockerfile && echo "✓ Dockerfile exists"
+          test -f jekyll-action/entrypoint.sh && echo "✓ entrypoint.sh exists"
+          test -f jekyll-action/action.yml && echo "✓ action.yml exists"
+
+  docker:
+    needs: build-and-publish-jekyll-action
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: jekyll-action
+      tag: latest
+      subfolder_name: jekyll-action
+      dockerfile_name: Dockerfile
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
