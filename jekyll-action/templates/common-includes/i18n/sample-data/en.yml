@@ -1,0 +1,169 @@
+# English translations
+# Copy to _data/i18n/en.yml
+
+# Language metadata
+lang:
+  code: en
+  name: English
+  direction: ltr
+
+# Navigation
+navigation:
+  home: Home
+  about: About
+  services: Services
+  blog: Blog
+  contact: Contact
+  products: Products
+  cart: Cart
+  checkout: Checkout
+  account: My Account
+  search: Search
+
+# Common UI elements
+ui:
+  read_more: Read more
+  load_more: Load more
+  view_all: View all
+  back: Back
+  next: Next
+  previous: Previous
+  submit: Submit
+  cancel: Cancel
+  close: Close
+  open: Open
+  save: Save
+  edit: Edit
+  delete: Delete
+  confirm: Confirm
+  yes: "Yes"
+  no: "No"
+  search_placeholder: Search...
+  no_results: No results found
+  loading: Loading...
+
+# Forms
+forms:
+  required: Required
+  optional: Optional
+  email: Email address
+  password: Password
+  name: Name
+  first_name: First name
+  last_name: Last name
+  phone: Phone number
+  message: Message
+  subject: Subject
+  company: Company
+  address: Address
+  city: City
+  country: Country
+  postal_code: Postal code
+  validation:
+    required: This field is required
+    email: Please enter a valid email address
+    phone: Please enter a valid phone number
+    min_length: "Must be at least {min} characters"
+    max_length: "Must be no more than {max} characters"
+
+# Blog
+blog:
+  posted_on: Posted on
+  by_author: by
+  read_time: "{minutes} min read"
+  categories: Categories
+  tags: Tags
+  related_posts: Related posts
+  comments: Comments
+  share: Share this post
+  no_posts: No posts yet
+
+# E-commerce
+shop:
+  add_to_cart: Add to cart
+  buy_now: Buy now
+  out_of_stock: Out of stock
+  in_stock: In stock
+  price: Price
+  quantity: Quantity
+  subtotal: Subtotal
+  total: Total
+  shipping: Shipping
+  free_shipping: Free shipping
+  tax: Tax
+  discount: Discount
+  cart_empty: Your cart is empty
+  continue_shopping: Continue shopping
+  proceed_to_checkout: Proceed to checkout
+  order_summary: Order summary
+  payment_method: Payment method
+  order_placed: Order placed successfully!
+  order_number: "Order number: {number}"
+
+# Date formatting
+dates:
+  months:
+    - January
+    - February
+    - March
+    - April
+    - May
+    - June
+    - July
+    - August
+    - September
+    - October
+    - November
+    - December
+  months_short:
+    - Jan
+    - Feb
+    - Mar
+    - Apr
+    - May
+    - Jun
+    - Jul
+    - Aug
+    - Sep
+    - Oct
+    - Nov
+    - Dec
+  weekdays:
+    - Sunday
+    - Monday
+    - Tuesday
+    - Wednesday
+    - Thursday
+    - Friday
+    - Saturday
+  relative:
+    now: just now
+    seconds_ago: "{count} seconds ago"
+    minute_ago: a minute ago
+    minutes_ago: "{count} minutes ago"
+    hour_ago: an hour ago
+    hours_ago: "{count} hours ago"
+    yesterday: yesterday
+    days_ago: "{count} days ago"
+    week_ago: a week ago
+    weeks_ago: "{count} weeks ago"
+    month_ago: a month ago
+    months_ago: "{count} months ago"
+    year_ago: a year ago
+    years_ago: "{count} years ago"
+
+# Footer
+footer:
+  copyright: "All rights reserved"
+  privacy_policy: Privacy Policy
+  terms_of_service: Terms of Service
+  cookie_policy: Cookie Policy
+
+# Errors
+errors:
+  404:
+    title: Page not found
+    message: Sorry, the page you're looking for doesn't exist.
+  500:
+    title: Server error
+    message: Something went wrong. Please try again later.

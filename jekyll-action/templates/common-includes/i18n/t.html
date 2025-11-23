@@ -1,0 +1,43 @@
+{% comment %}
+  Translation Helper
+
+  Usage:
+    {% include common/i18n/t.html key="navigation.home" %}
+    {% include common/i18n/t.html key="buttons.submit" default="Submit" %}
+
+  Setup:
+    Create _data/i18n/[lang].yml files with nested translations:
+
+    # _data/i18n/en.yml
+    navigation:
+      home: Home
+      about: About Us
+      contact: Contact
+    buttons:
+      submit: Submit
+      cancel: Cancel
+
+  Requirements:
+    - Set page.lang or site.default_lang
+    - Create _data/i18n/ directory with language files
+{% endcomment %}
+
+{% assign current_lang = page.lang | default: site.lang | default: site.default_lang | default: "en" %}
+{% assign t_key = include.key %}
+{% assign t_default = include.default | default: include.key %}
+
+{% comment %} Split the key by dots to traverse nested structure {% endcomment %}
+{% assign key_parts = t_key | split: "." %}
+
+{% comment %} Get the translation data for current language {% endcomment %}
+{% assign t_data = site.data.i18n[current_lang] %}
+
+{% comment %} Traverse the nested keys {% endcomment %}
+{% for part in key_parts %}
+  {% if t_data %}
+    {% assign t_data = t_data[part] %}
+  {% endif %}
+{% endfor %}
+
+{% comment %} Output translation or default {% endcomment %}
+{% if t_data %}{{ t_data }}{% else %}{{ t_default }}{% endif %}

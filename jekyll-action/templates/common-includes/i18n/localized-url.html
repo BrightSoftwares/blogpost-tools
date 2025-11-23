@@ -1,0 +1,47 @@
+{% comment %}
+  Localized URL Generator
+
+  Usage:
+    {% include common/i18n/localized-url.html url="/about" lang="fr" %}
+    {% include common/i18n/localized-url.html url=page.url %}
+
+  Output:
+    Returns the URL with proper language prefix based on i18n_method
+
+  Configuration in _config.yml:
+    default_lang: "en"
+    i18n_method: "folder"  # folder: /fr/about, param: /about?lang=fr
+{% endcomment %}
+
+{% assign target_url = include.url | default: page.url %}
+{% assign target_lang = include.lang | default: page.lang | default: site.lang | default: site.default_lang | default: "en" %}
+{% assign i18n_method = site.i18n_method | default: "folder" %}
+{% assign default_lang = site.default_lang | default: "en" %}
+
+{% comment %} Clean the URL {% endcomment %}
+{% assign clean_url = target_url | remove_first: "/" %}
+
+{% comment %} Remove existing language prefix if present {% endcomment %}
+{% for lang in site.languages %}
+  {% assign lang_prefix = lang | append: "/" %}
+  {% if clean_url contains lang_prefix %}
+    {% assign clean_url = clean_url | remove_first: lang_prefix %}
+  {% endif %}
+{% endfor %}
+
+{% comment %} Generate localized URL {% endcomment %}
+{% if i18n_method == "folder" %}
+  {% if target_lang == default_lang and site.hide_default_lang %}
+    {% assign localized_url = "/" | append: clean_url %}
+  {% else %}
+    {% assign localized_url = "/" | append: target_lang | append: "/" | append: clean_url %}
+  {% endif %}
+{% else %}
+  {% if target_lang == default_lang %}
+    {% assign localized_url = "/" | append: clean_url %}
+  {% else %}
+    {% assign localized_url = "/" | append: clean_url | append: "?lang=" | append: target_lang %}
+  {% endif %}
+{% endif %}
+
+{{ localized_url | relative_url }}

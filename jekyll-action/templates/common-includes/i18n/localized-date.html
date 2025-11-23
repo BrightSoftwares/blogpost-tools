@@ -1,0 +1,100 @@
+{% comment %}
+  Localized Date Formatter
+
+  Usage:
+    {% include common/i18n/localized-date.html date=page.date %}
+    {% include common/i18n/localized-date.html date=page.date format="long" %}
+    {% include common/i18n/localized-date.html date="2024-01-15" format="short" lang="fr" %}
+
+  Formats:
+    - short: 15/01/2024 (locale-aware)
+    - medium: Jan 15, 2024
+    - long: January 15, 2024
+    - full: Monday, January 15, 2024
+    - relative: 3 days ago (requires JS)
+
+  Configuration:
+    Create _data/i18n/[lang].yml with date translations
+{% endcomment %}
+
+{% assign input_date = include.date | default: page.date %}
+{% assign format = include.format | default: "medium" %}
+{% assign current_lang = include.lang | default: page.lang | default: site.lang | default: site.default_lang | default: "en" %}
+
+{% comment %} Get month names from i18n data {% endcomment %}
+{% assign months_data = site.data.i18n[current_lang].dates.months %}
+{% assign months_short = site.data.i18n[current_lang].dates.months_short %}
+{% assign weekdays = site.data.i18n[current_lang].dates.weekdays %}
+
+{% comment %} Default month names {% endcomment %}
+{% unless months_data %}
+  {% if current_lang == "fr" %}
+    {% assign months_data = "janvier,février,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre" | split: "," %}
+    {% assign months_short = "janv.,févr.,mars,avr.,mai,juin,juil.,août,sept.,oct.,nov.,déc." | split: "," %}
+  {% elsif current_lang == "de" %}
+    {% assign months_data = "Januar,Februar,März,April,Mai,Juni,Juli,August,September,Oktober,November,Dezember" | split: "," %}
+    {% assign months_short = "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez." | split: "," %}
+  {% elsif current_lang == "es" %}
+    {% assign months_data = "enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre" | split: "," %}
+    {% assign months_short = "ene.,feb.,mar.,abr.,may.,jun.,jul.,ago.,sept.,oct.,nov.,dic." | split: "," %}
+  {% else %}
+    {% assign months_data = "January,February,March,April,May,June,July,August,September,October,November,December" | split: "," %}
+    {% assign months_short = "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec" | split: "," %}
+  {% endif %}
+{% endunless %}
+
+{% comment %} Parse date parts {% endcomment %}
+{% assign day = input_date | date: "%d" | plus: 0 %}
+{% assign month_num = input_date | date: "%m" | plus: 0 | minus: 1 %}
+{% assign year = input_date | date: "%Y" %}
+{% assign month_name = months_data[month_num] %}
+{% assign month_short = months_short[month_num] %}
+
+{% comment %} Format output based on format parameter {% endcomment %}
+{% case format %}
+  {% when "short" %}
+    {% if current_lang == "en" %}
+      {{ input_date | date: "%m/%d/%Y" }}
+    {% else %}
+      {{ input_date | date: "%d/%m/%Y" }}
+    {% endif %}
+
+  {% when "medium" %}
+    {% if current_lang == "en" %}
+      {{ month_short }} {{ day }}, {{ year }}
+    {% elsif current_lang == "de" %}
+      {{ day }}. {{ month_short }} {{ year }}
+    {% else %}
+      {{ day }} {{ month_short }} {{ year }}
+    {% endif %}
+
+  {% when "long" %}
+    {% if current_lang == "en" %}
+      {{ month_name }} {{ day }}, {{ year }}
+    {% elsif current_lang == "de" %}
+      {{ day }}. {{ month_name }} {{ year }}
+    {% else %}
+      {{ day }} {{ month_name }} {{ year }}
+    {% endif %}
+
+  {% when "full" %}
+    {% assign weekday = input_date | date: "%A" %}
+    {% if current_lang == "en" %}
+      {{ weekday }}, {{ month_name }} {{ day }}, {{ year }}
+    {% elsif current_lang == "de" %}
+      {{ weekday }}, {{ day }}. {{ month_name }} {{ year }}
+    {% else %}
+      {{ weekday }} {{ day }} {{ month_name }} {{ year }}
+    {% endif %}
+
+  {% when "iso" %}
+    {{ input_date | date: "%Y-%m-%d" }}
+
+  {% when "relative" %}
+    <time datetime="{{ input_date | date_to_xmlschema }}" class="relative-time">
+      {{ input_date | date: "%Y-%m-%d" }}
+    </time>
+
+  {% else %}
+    {{ input_date | date: "%B %d, %Y" }}
+{% endcase %}

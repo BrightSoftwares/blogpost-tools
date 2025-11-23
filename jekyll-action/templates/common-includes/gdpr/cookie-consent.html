@@ -1,0 +1,178 @@
+{% comment %}
+  GDPR Cookie Consent Banner
+
+  Usage:
+    {% include common/gdpr/cookie-consent.html %}
+
+  Configuration in _config.yml:
+    cookie_consent:
+      enabled: true
+      privacy_page: "/privacy"
+      button_text: "Accept"
+      message: "We use cookies to improve your experience."
+      expires_days: 365
+
+  Events:
+    - Dispatches 'cookieConsentAccepted' event when user accepts
+    - Stores consent in 'cookie-consent' cookie
+{% endcomment %}
+
+{% assign consent_config = site.cookie_consent | default: site.data.cookie_consent %}
+{% assign enabled = consent_config.enabled | default: true %}
+{% assign privacy_page = consent_config.privacy_page | default: "/privacy" %}
+{% assign button_text = consent_config.button_text | default: "Accept" %}
+{% assign message = consent_config.message | default: "We use cookies to improve your experience and analyze site traffic." %}
+{% assign expires_days = consent_config.expires_days | default: 365 %}
+
+{% if enabled %}
+<div id="cookie-consent-banner" class="cookie-consent-banner" style="display: none;">
+  <div class="cookie-consent-content">
+    <p class="cookie-consent-message">{{ message }}</p>
+    <div class="cookie-consent-actions">
+      <button id="cookie-consent-accept" class="btn btn-primary">{{ button_text }}</button>
+      <a href="{{ privacy_page | relative_url }}" class="btn btn-link">Privacy Policy</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.cookie-consent-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2c3e50;
+  color: #fff;
+  padding: 15px 20px;
+  z-index: 99999;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+}
+
+.cookie-consent-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.cookie-consent-message {
+  margin: 0;
+  flex: 1;
+  min-width: 250px;
+}
+
+.cookie-consent-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cookie-consent-banner .btn {
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.cookie-consent-banner .btn-primary {
+  background: #3498db;
+  color: #fff;
+  border: none;
+}
+
+.cookie-consent-banner .btn-primary:hover {
+  background: #2980b9;
+}
+
+.cookie-consent-banner .btn-link {
+  background: transparent;
+  color: #ecf0f1;
+  border: 1px solid #ecf0f1;
+}
+
+.cookie-consent-banner .btn-link:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+@media (max-width: 600px) {
+  .cookie-consent-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .cookie-consent-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
+
+<script>
+(function() {
+  var COOKIE_NAME = 'cookie-consent';
+  var EXPIRES_DAYS = {{ expires_days }};
+
+  function setCookie(name, value, days) {
+    var expires = '';
+    if (days) {
+      var date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = '; expires=' + date.toUTCString();
+    }
+    document.cookie = name + '=' + value + expires + '; path=/; SameSite=Lax';
+  }
+
+  function getCookie(name) {
+    var nameEQ = name + '=';
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+      var c = ca[i].trim();
+      if (c.indexOf(nameEQ) === 0) {
+        return c.substring(nameEQ.length);
+      }
+    }
+    return null;
+  }
+
+  function showBanner() {
+    var banner = document.getElementById('cookie-consent-banner');
+    if (banner) {
+      banner.style.display = 'block';
+    }
+  }
+
+  function hideBanner() {
+    var banner = document.getElementById('cookie-consent-banner');
+    if (banner) {
+      banner.style.display = 'none';
+    }
+  }
+
+  function acceptConsent() {
+    setCookie(COOKIE_NAME, 'accepted', EXPIRES_DAYS);
+    hideBanner();
+
+    // Dispatch custom event for other scripts to listen to
+    var event = new CustomEvent('cookieConsentAccepted');
+    document.dispatchEvent(event);
+  }
+
+  // Check consent status on load
+  document.addEventListener('DOMContentLoaded', function() {
+    if (getCookie(COOKIE_NAME) !== 'accepted') {
+      showBanner();
+    }
+
+    var acceptBtn = document.getElementById('cookie-consent-accept');
+    if (acceptBtn) {
+      acceptBtn.addEventListener('click', acceptConsent);
+    }
+  });
+})();
+</script>
+{% endif %}

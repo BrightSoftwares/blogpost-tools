@@ -1,0 +1,169 @@
+# French translations
+# Copy to _data/i18n/fr.yml
+
+# Language metadata
+lang:
+  code: fr
+  name: Français
+  direction: ltr
+
+# Navigation
+navigation:
+  home: Accueil
+  about: À propos
+  services: Services
+  blog: Blog
+  contact: Contact
+  products: Produits
+  cart: Panier
+  checkout: Commander
+  account: Mon compte
+  search: Rechercher
+
+# Common UI elements
+ui:
+  read_more: Lire la suite
+  load_more: Charger plus
+  view_all: Voir tout
+  back: Retour
+  next: Suivant
+  previous: Précédent
+  submit: Envoyer
+  cancel: Annuler
+  close: Fermer
+  open: Ouvrir
+  save: Enregistrer
+  edit: Modifier
+  delete: Supprimer
+  confirm: Confirmer
+  yes: Oui
+  no: Non
+  search_placeholder: Rechercher...
+  no_results: Aucun résultat trouvé
+  loading: Chargement...
+
+# Forms
+forms:
+  required: Obligatoire
+  optional: Optionnel
+  email: Adresse e-mail
+  password: Mot de passe
+  name: Nom
+  first_name: Prénom
+  last_name: Nom de famille
+  phone: Numéro de téléphone
+  message: Message
+  subject: Sujet
+  company: Entreprise
+  address: Adresse
+  city: Ville
+  country: Pays
+  postal_code: Code postal
+  validation:
+    required: Ce champ est obligatoire
+    email: Veuillez entrer une adresse e-mail valide
+    phone: Veuillez entrer un numéro de téléphone valide
+    min_length: "Doit contenir au moins {min} caractères"
+    max_length: "Ne doit pas dépasser {max} caractères"
+
+# Blog
+blog:
+  posted_on: Publié le
+  by_author: par
+  read_time: "{minutes} min de lecture"
+  categories: Catégories
+  tags: Étiquettes
+  related_posts: Articles similaires
+  comments: Commentaires
+  share: Partager cet article
+  no_posts: Aucun article pour le moment
+
+# E-commerce
+shop:
+  add_to_cart: Ajouter au panier
+  buy_now: Acheter maintenant
+  out_of_stock: Rupture de stock
+  in_stock: En stock
+  price: Prix
+  quantity: Quantité
+  subtotal: Sous-total
+  total: Total
+  shipping: Livraison
+  free_shipping: Livraison gratuite
+  tax: TVA
+  discount: Remise
+  cart_empty: Votre panier est vide
+  continue_shopping: Continuer vos achats
+  proceed_to_checkout: Passer à la caisse
+  order_summary: Récapitulatif de commande
+  payment_method: Mode de paiement
+  order_placed: Commande effectuée avec succès !
+  order_number: "Numéro de commande : {number}"
+
+# Date formatting
+dates:
+  months:
+    - janvier
+    - février
+    - mars
+    - avril
+    - mai
+    - juin
+    - juillet
+    - août
+    - septembre
+    - octobre
+    - novembre
+    - décembre
+  months_short:
+    - janv.
+    - févr.
+    - mars
+    - avr.
+    - mai
+    - juin
+    - juil.
+    - août
+    - sept.
+    - oct.
+    - nov.
+    - déc.
+  weekdays:
+    - dimanche
+    - lundi
+    - mardi
+    - mercredi
+    - jeudi
+    - vendredi
+    - samedi
+  relative:
+    now: à l'instant
+    seconds_ago: "il y a {count} secondes"
+    minute_ago: il y a une minute
+    minutes_ago: "il y a {count} minutes"
+    hour_ago: il y a une heure
+    hours_ago: "il y a {count} heures"
+    yesterday: hier
+    days_ago: "il y a {count} jours"
+    week_ago: il y a une semaine
+    weeks_ago: "il y a {count} semaines"
+    month_ago: il y a un mois
+    months_ago: "il y a {count} mois"
+    year_ago: il y a un an
+    years_ago: "il y a {count} ans"
+
+# Footer
+footer:
+  copyright: "Tous droits réservés"
+  privacy_policy: Politique de confidentialité
+  terms_of_service: Conditions d'utilisation
+  cookie_policy: Politique des cookies
+
+# Errors
+errors:
+  404:
+    title: Page non trouvée
+    message: Désolé, la page que vous recherchez n'existe pas.
+  500:
+    title: Erreur serveur
+    message: Une erreur s'est produite. Veuillez réessayer plus tard.
