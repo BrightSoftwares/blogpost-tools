@@ -1,7 +1,61 @@
-name: "Build jekyll website and upload algolia search data"
-
-description: "Build jekyll website and upload algolia search data"
-
+name: 'Jekyll Actions'
+description: 'A GitHub Action to build and publish Jekyll sites to GitHub Pages with Algolia search support'
+inputs:
+  token:
+    description: 'The GITHUB_TOKEN secret'
+    required: false
+  jekyll_env:
+    description: 'The Jekyll environment to build'
+    required: false
+  jekyll_src:
+    description: 'The Jekyll website source directory'
+    required: false
+  jekyll_build_options:
+    description: 'Additional Jekyll build arguments (see https://jekyllrb.com/docs/configuration/options/#build-command-options)'
+    required: false
+  gem_src:
+    description: 'The Jekyll Gemfile directory'
+    required: false
+  target_branch:
+    description: 'The target branch name the site gets pushed to'
+    required: false
+  target_path:
+    description: 'The relative path where the site gets pushed to'
+    required: false
+  build_only:
+    description: 'Will build the Jekyll site without publishing it'
+    required: false
+  build_dir:
+    description: 'The directory to build your project in'
+    required: false
+  keep_history:
+    description: 'Do not overwrite whatever was already published on the target branch'
+    required: false
+  pre_build_commands:
+    description: >
+      Commands to run prior to build and deploy. Useful for
+      ensuring build dependencies are up to date or installing
+      new dependencies. For example, use `apk --update add
+      imagemagick` to install ImageMagick.
+    required: false
+  bundler_version:
+    description: 'When set override the default bundler version provided.'
+    required: false
+  commit_author:
+    description: >
+      Provide an author for commits by the action.
+      The email address is automatically set to
+      [author name]@users.noreply.github.com
+    required: false
+  algolia_api_key:
+    description: 'Algolia Admin API key for uploading search data. If provided, search data will be uploaded to Algolia after build.'
+    required: false
+outputs:
+  sha:
+    description: 'Generated commit SHA1 that will be published'
 runs:
-  using: "docker"
-  image: "Dockerfile"
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  icon: 'book'
+  color: 'blue'
