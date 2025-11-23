@@ -30,6 +30,32 @@ RUN apk add --no-cache libffi-dev
 # Debug: show bundler version
 RUN bundle version
 
+# Pre-install common gems to speed up builds
+# Ruby 3.4+ stdlib gems (no longer bundled)
+RUN gem install csv logger base64 bigdecimal observer ostruct mutex_m --no-document
+
+# Jekyll core and common plugins
+RUN gem install jekyll -v 4.2.2 --no-document && \
+    gem install bundler --no-document && \
+    gem install webrick --no-document && \
+    gem install rexml --no-document
+
+# Common Jekyll plugins
+RUN gem install jekyll-feed jekyll-sitemap jekyll-seo-tag jekyll-paginate-v2 \
+    jekyll-archives jekyll-redirect-from jekyll-timeago --no-document
+
+# jekyll-last-modified-at 1.3.2 (without posix-spawn dependency issues)
+RUN gem install jekyll-last-modified-at -v 1.3.2 --no-document
+
+# Additional common gems
+RUN gem install minima kramdown kramdown-parser-gfm rouge --no-document
+
+# Image processing plugins
+RUN gem install jekyll-responsive-image jekyll-minimagick mini_magick --no-document || true
+
+# Algolia search (optional, may fail if not needed)
+RUN gem install jekyll-algolia algoliasearch --no-document || true
+
 COPY LICENSE README.md /
 
 COPY entrypoint.sh /
