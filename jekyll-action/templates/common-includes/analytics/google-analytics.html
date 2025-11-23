@@ -1,0 +1,59 @@
+{% comment %}
+  Google Analytics 4 (GA4) Integration
+
+  Usage:
+    {% include common/analytics/google-analytics.html %}
+
+  Configuration in _config.yml:
+    google_analytics: "G-XXXXXXXXXX"
+
+  Optional: Respect cookie consent
+    Set site.require_cookie_consent: true to defer loading until consent is given
+{% endcomment %}
+
+{% if site.google_analytics %}
+{% assign ga_id = site.google_analytics %}
+{% assign require_consent = site.require_cookie_consent | default: false %}
+
+{% if require_consent %}
+<!-- Google Analytics - Loaded after cookie consent -->
+<script>
+function loadGoogleAnalytics() {
+  if (typeof gtag === 'undefined') {
+    var script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://www.googletagmanager.com/gtag/js?id={{ ga_id }}';
+    document.head.appendChild(script);
+
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ ga_id }}', {
+      'anonymize_ip': true,
+      'cookie_flags': 'SameSite=None;Secure'
+    });
+    window.gtag = gtag;
+  }
+}
+
+// Check if consent was already given
+if (document.cookie.indexOf('cookie-consent=accepted') > -1) {
+  loadGoogleAnalytics();
+}
+
+// Listen for consent event
+document.addEventListener('cookieConsentAccepted', loadGoogleAnalytics);
+</script>
+{% else %}
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ ga_id }}', {
+    'anonymize_ip': true
+  });
+</script>
+{% endif %}
+{% endif %}

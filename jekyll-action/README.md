@@ -6,6 +6,8 @@ This action is based on [helaili/jekyll-action](https://github.com/helaili/jekyl
 
 ## Features
 
+- **Ruby 3.4 compatible** - Works with Ruby 3.2-3.4
+- **Pre-installed dependencies** - ImageMagick, libxml2, libffi built into Docker image
 - Build Jekyll sites with custom gems (not limited to GitHub's whitelist)
 - Automatic deployment to GitHub Pages
 - Algolia search data upload support
@@ -15,9 +17,34 @@ This action is based on [helaili/jekyll-action](https://github.com/helaili/jekyl
 - Pre-build commands execution
 - Custom bundler version support
 
-## Usage
+## Quick Start
 
-### Basic Usage
+### Using the Reusable Workflow (Recommended)
+
+The simplest way to use this action is via the reusable workflow:
+
+```yaml
+name: Jekyll Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_jekyll_build_and_deploy.yml@main
+    with:
+      build_dir: './build'
+      deploy_to_netlify: true
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+      algolia_api_key: ${{ secrets.ALGOLIA_API_KEY }}
+      netlify_auth_token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      netlify_site_id: ${{ secrets.NETLIFY_SITE_ID }}
+```
+
+### Direct Usage
 
 ```yaml
 name: Build and Deploy Jekyll Site
@@ -32,7 +59,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use cache to speed up builds
       - uses: actions/cache@v4
         with:
           path: vendor/bundle
@@ -40,66 +66,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gems-
 
-      - uses: brightsoftwares/blogpost-tools/jekyll-action@main
+      - uses: BrightSoftwares/blogpost-tools/jekyll-action@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### With Algolia Search
-
-```yaml
-- uses: brightsoftwares/blogpost-tools/jekyll-action@main
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-    algolia_api_key: ${{ secrets.ALGOLIA_API_KEY }}
-```
-
-### Build Only (No Publish)
-
-```yaml
-- uses: brightsoftwares/blogpost-tools/jekyll-action@main
-  with:
-    build_only: true
-```
-
-### Specify Source Directory
-
-```yaml
-- uses: brightsoftwares/blogpost-tools/jekyll-action@main
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-    jekyll_src: 'docs'
-```
-
-### Multi-Version Publishing
-
-```yaml
-jobs:
-  publish-current:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: brightsoftwares/blogpost-tools/jekyll-action@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          target_branch: gh-pages
-          target_path: /
-          keep_history: true
-
-  publish-v2:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: v2.0
-      - uses: brightsoftwares/blogpost-tools/jekyll-action@main
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          target_branch: gh-pages
-          target_path: v2.0
-          keep_history: true
 ```
 
 ## Inputs
@@ -127,30 +96,133 @@ jobs:
 |--------|-------------|
 | `sha` | Generated commit SHA1 that will be published |
 
-## Requirements
+---
 
-Your Jekyll site should have:
+## Standardizing Jekyll Sites
 
-1. A `Gemfile` declaring dependencies
-2. A `_config.yml` configuration file
+This section provides guidelines for standardizing multiple Jekyll sites to use the same build process.
 
-### Example Gemfile
+### Standardized Gemfile
+
+Use the templates in `templates/` directory:
+
+- **`Gemfile.standard`** - Basic Jekyll site with common plugins
+- **`Gemfile.full`** - Full-featured with image processing and admin
+
+#### Key Requirements for Ruby 3.4 Compatibility
 
 ```ruby
-source 'https://rubygems.org'
+# Required for Ruby 3.4+ (no longer bundled in stdlib)
+gem "csv"
+gem "logger"
+gem "base64"
+gem "bigdecimal"
+gem "observer"
+gem "ostruct"
 
-gem 'jekyll', '~> 4.3'
+# Core Jekyll - pin to 4.2.x for stability
+gem 'jekyll', '~> 4.2.2'
 
-group :jekyll_plugins do
-  gem 'jekyll-feed'
-  gem 'jekyll-seo-tag'
-  gem 'jekyll-algolia'  # For Algolia search
-end
+# Pin ffi to avoid native extension issues
+gem 'ffi', '= 1.16.3'
 ```
 
-### Algolia Configuration
+### Standardized Plugin Versions
 
-To use Algolia search, add to your `_config.yml`:
+| Plugin | Recommended Version |
+|--------|---------------------|
+| jekyll | ~> 4.2.2 |
+| jekyll-feed | ~> 0.16.0 |
+| jekyll-sitemap | ~> 1.4.0 |
+| jekyll-seo-tag | ~> 2.8.0 |
+| jekyll-archives | ~> 2.2.1 |
+| jekyll-paginate-v2 | ~> 3.0 |
+| jekyll-toc | ~> 0.18.0 |
+| jekyll-algolia | ~> 1.7.1 |
+| jekyll-wikilinks | ~> 0.0.8 |
+| jekyll-redirect-from | ~> 0.16.0 |
+| jekyll-last-modified-at | ~> 1.3.0 |
+| jekyll-timeago | ~> 0.13.1 |
+
+### Pre-installed in Docker Image
+
+The following are **already installed** in the Docker image - no `pre_build_commands` needed:
+
+- ImageMagick (with JPEG, PNG, WebP support)
+- ruby-dev
+- libxml2-dev, libxslt-dev (for nokogiri)
+- libffi-dev
+- build-base, git, curl
+
+---
+
+## Migration Guide
+
+### From fullbright/jekyll-action
+
+**Before:**
+```yaml
+- uses: fullbright/jekyll-action@master
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    pre_build_commands: apk --update add ruby-dev imagemagick imagemagick-dev
+```
+
+**After:**
+```yaml
+- uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    # pre_build_commands no longer needed - ImageMagick is built-in!
+```
+
+### From helaili/jekyll-action
+
+**Before:**
+```yaml
+- uses: helaili/jekyll-action@v2
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**After:**
+```yaml
+- uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Updating Gemfile for Ruby 3.4
+
+Add these gems to the top of your Gemfile:
+
+```ruby
+# Required for Ruby 3.4+
+gem "csv"
+gem "logger"
+gem "base64"
+gem "bigdecimal"
+gem "observer"
+gem "ostruct"
+```
+
+---
+
+## Workflow Templates
+
+### Simple Site
+
+See `templates/workflow-simple.yml`
+
+### Multi-language Site (en/fr)
+
+See `templates/workflow-multilang.yml`
+
+---
+
+## Algolia Search Configuration
+
+Add to your `_config.yml`:
 
 ```yaml
 algolia:
@@ -159,29 +231,43 @@ algolia:
   search_only_api_key: 'YOUR_SEARCH_KEY'
 ```
 
+Add to your Gemfile:
+
+```ruby
+gem 'jekyll-algolia', '~> 1.7.1'
+```
+
+Use in workflow:
+
+```yaml
+- uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    algolia_api_key: ${{ secrets.ALGOLIA_API_KEY }}
+```
+
+---
+
 ## Troubleshooting
 
 ### Enable Debug Mode
 
-Create a repository secret `ACTIONS_STEP_DEBUG` with value `true` and run the workflow again.
+Create a repository secret `ACTIONS_STEP_DEBUG` with value `true`.
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| `Could not locate included file` | Clone submodules before build |
+| `ffi gem build fails` | Use `gem 'ffi', '= 1.16.3'` |
+| `csv/logger not found` | Add Ruby 3.4 stdlib gems to Gemfile |
+| `ImageMagick not found` | Already built-in; remove from pre_build_commands |
 
 ### Custom Domains
 
-If using a custom domain, ensure the `CNAME` file exists in your repository root on the main branch.
+Ensure `CNAME` file exists in repository root.
 
-## Migration from fullbright/jekyll-action
-
-Replace:
-```yaml
-- uses: fullbright/jekyll-action@master
-```
-
-With:
-```yaml
-- uses: brightsoftwares/blogpost-tools/jekyll-action@main
-```
-
-All inputs remain compatible.
+---
 
 ## License
 

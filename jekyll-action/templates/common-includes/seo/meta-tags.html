@@ -1,0 +1,159 @@
+{% comment %}
+  Comprehensive SEO Meta Tags
+
+  Usage in <head>:
+    {% include common/seo/meta-tags.html %}
+
+  Configuration in _config.yml:
+    title: Site Title
+    description: Site description
+    url: https://example.com
+    author: Author Name
+    twitter:
+      username: "@twitterhandle"
+      card: summary_large_image
+    facebook:
+      app_id: "123456789"
+    logo: /assets/images/logo.png
+    default_image: /assets/images/og-default.png
+
+  Per-page frontmatter:
+    title: Page Title
+    description: Page description
+    image: /assets/images/page-image.png
+    author: Page Author
+    date: 2024-01-01
+    canonical_url: https://example.com/page
+{% endcomment %}
+
+{% assign seo_title = page.title | default: site.title %}
+{% assign seo_description = page.description | default: page.excerpt | default: site.description | strip_html | truncate: 160 %}
+{% assign seo_image = page.image | default: site.default_image | default: site.logo %}
+{% assign seo_author = page.author | default: site.author %}
+{% assign seo_url = page.canonical_url | default: page.url | absolute_url %}
+
+<!-- Primary Meta Tags -->
+<title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+<meta name="title" content="{{ seo_title }}">
+<meta name="description" content="{{ seo_description }}">
+<meta name="author" content="{{ seo_author }}">
+{% if page.keywords %}<meta name="keywords" content="{{ page.keywords | join: ', ' }}">{% endif %}
+
+<!-- Canonical URL -->
+<link rel="canonical" href="{{ seo_url }}">
+
+<!-- Robots -->
+{% if page.noindex %}<meta name="robots" content="noindex, nofollow">
+{% else %}<meta name="robots" content="index, follow">{% endif %}
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
+<meta property="og:url" content="{{ seo_url }}">
+<meta property="og:title" content="{{ seo_title }}">
+<meta property="og:description" content="{{ seo_description }}">
+{% if seo_image %}<meta property="og:image" content="{{ seo_image | absolute_url }}">{% endif %}
+<meta property="og:site_name" content="{{ site.title }}">
+{% if site.facebook.app_id %}<meta property="fb:app_id" content="{{ site.facebook.app_id }}">{% endif %}
+{% if page.layout == 'post' %}
+<meta property="article:published_time" content="{{ page.date | date_to_xmlschema }}">
+{% if page.modified_date %}<meta property="article:modified_time" content="{{ page.modified_date | date_to_xmlschema }}">{% endif %}
+<meta property="article:author" content="{{ seo_author }}">
+{% if page.categories %}<meta property="article:section" content="{{ page.categories.first }}">{% endif %}
+{% for tag in page.tags %}<meta property="article:tag" content="{{ tag }}">{% endfor %}
+{% endif %}
+
+<!-- Twitter -->
+<meta property="twitter:card" content="{{ site.twitter.card | default: 'summary_large_image' }}">
+<meta property="twitter:url" content="{{ seo_url }}">
+<meta property="twitter:title" content="{{ seo_title }}">
+<meta property="twitter:description" content="{{ seo_description }}">
+{% if seo_image %}<meta property="twitter:image" content="{{ seo_image | absolute_url }}">{% endif %}
+{% if site.twitter.username %}<meta property="twitter:site" content="{{ site.twitter.username }}">{% endif %}
+
+<!-- Language -->
+{% assign current_lang = page.lang | default: site.lang | default: site.default_lang | default: "en" %}
+<meta property="og:locale" content="{{ current_lang }}">
+<link rel="alternate" hreflang="{{ current_lang }}" href="{{ seo_url }}">
+{% if site.languages %}
+{% for lang in site.languages %}
+{% if lang != current_lang %}
+{% assign alt_url = page.url | prepend: "/" | append: lang %}
+<link rel="alternate" hreflang="{{ lang }}" href="{{ alt_url | absolute_url }}">
+{% endif %}
+{% endfor %}
+<link rel="alternate" hreflang="x-default" href="{{ seo_url }}">
+{% endif %}
+
+<!-- Structured Data / JSON-LD -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  {% if page.layout == 'post' %}
+  "@type": "BlogPosting",
+  "headline": {{ page.title | jsonify }},
+  "description": {{ seo_description | jsonify }},
+  "datePublished": "{{ page.date | date_to_xmlschema }}",
+  {% if page.modified_date %}"dateModified": "{{ page.modified_date | date_to_xmlschema }}",{% endif %}
+  "author": {
+    "@type": "Person",
+    "name": {{ seo_author | jsonify }}
+  },
+  {% if seo_image %}"image": "{{ seo_image | absolute_url }}",{% endif %}
+  "publisher": {
+    "@type": "Organization",
+    "name": {{ site.title | jsonify }},
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{ site.logo | absolute_url }}"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "{{ seo_url }}"
+  }
+  {% else %}
+  "@type": "WebSite",
+  "name": {{ site.title | jsonify }},
+  "description": {{ site.description | jsonify }},
+  "url": "{{ site.url }}",
+  {% if site.logo %}"logo": "{{ site.logo | absolute_url }}",{% endif %}
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "{{ site.url }}/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+  {% endif %}
+}
+</script>
+
+<!-- Breadcrumb Schema -->
+{% if page.breadcrumbs or page.categories %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "{{ site.url }}"
+    }
+    {% if page.categories %}
+    ,{
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ page.categories.first | jsonify }},
+      "item": "{{ site.url }}/{{ page.categories.first | slugify }}"
+    }
+    ,{
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ page.title | jsonify }},
+      "item": "{{ seo_url }}"
+    }
+    {% endif %}
+  ]
+}
+</script>
+{% endif %}

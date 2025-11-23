@@ -1,0 +1,131 @@
+{% comment %}
+  Language Switcher Component
+
+  Usage in your layout:
+    {% include common/i18n/language-switcher.html %}
+
+  Requirements:
+    - Set site.languages in _config.yml (e.g., languages: ["en", "fr", "de", "es"])
+    - Set site.default_lang (e.g., default_lang: "en")
+    - Create _i18n/[lang].yml files for each language
+
+  Supports two i18n approaches:
+    1. Folder-based: /en/page, /fr/page (set i18n_method: folder)
+    2. Parameter-based: /page?lang=fr (set i18n_method: param)
+{% endcomment %}
+
+{% assign current_lang = page.lang | default: site.lang | default: site.default_lang | default: "en" %}
+{% assign i18n_method = site.i18n_method | default: "folder" %}
+
+<div class="language-switcher">
+  <div class="dropdown">
+    <button class="btn btn-language dropdown-toggle" type="button" id="languageDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <span class="flag-icon flag-icon-{{ current_lang }}"></span>
+      <span class="lang-name">{{ site.data.languages[current_lang].name | default: current_lang | upcase }}</span>
+    </button>
+    <div class="dropdown-menu" aria-labelledby="languageDropdown">
+      {% for lang in site.languages %}
+        {% if lang != current_lang %}
+          {% if i18n_method == "folder" %}
+            {% assign lang_url = page.url | replace: "/" | append: current_lang | append: "/" | prepend: "/" | append: lang | append: "/" %}
+            {% if page.url == "/" or page.url == "/index.html" %}
+              {% assign lang_url = "/" | append: lang | append: "/" %}
+            {% endif %}
+          {% else %}
+            {% assign lang_url = page.url | append: "?lang=" | append: lang %}
+          {% endif %}
+
+          <a class="dropdown-item" href="{{ lang_url | relative_url }}">
+            <span class="flag-icon flag-icon-{{ lang }}"></span>
+            <span class="lang-name">{{ site.data.languages[lang].name | default: lang | upcase }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+.language-switcher {
+  position: relative;
+  display: inline-block;
+}
+
+.language-switcher .btn-language {
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-switcher .btn-language:hover {
+  background: #f8f9fa;
+}
+
+.language-switcher .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  min-width: 150px;
+  z-index: 1000;
+  display: none;
+}
+
+.language-switcher .dropdown-menu.show {
+  display: block;
+}
+
+.language-switcher .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  text-decoration: none;
+  color: #333;
+}
+
+.language-switcher .dropdown-item:hover {
+  background: #f8f9fa;
+}
+
+.flag-icon {
+  width: 20px;
+  height: 15px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  display: inline-block;
+}
+
+/* Flag icons - add more as needed */
+.flag-icon-en { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'%3E%3Crect width='60' height='30' fill='%23012169'/%3E%3Cpath d='M0 0l60 30M60 0L0 30' stroke='%23fff' stroke-width='6'/%3E%3Cpath d='M0 0l60 30M60 0L0 30' stroke='%23c8102e' stroke-width='4'/%3E%3Cpath d='M30 0v30M0 15h60' stroke='%23fff' stroke-width='10'/%3E%3Cpath d='M30 0v30M0 15h60' stroke='%23c8102e' stroke-width='6'/%3E%3C/svg%3E"); }
+.flag-icon-fr { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'%3E%3Crect width='1' height='2' fill='%23002395'/%3E%3Crect x='1' width='1' height='2' fill='%23fff'/%3E%3Crect x='2' width='1' height='2' fill='%23ed2939'/%3E%3C/svg%3E"); }
+.flag-icon-de { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 3'%3E%3Crect width='5' height='1' fill='%23000'/%3E%3Crect y='1' width='5' height='1' fill='%23d00'/%3E%3Crect y='2' width='5' height='1' fill='%23ffce00'/%3E%3C/svg%3E"); }
+.flag-icon-es { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'%3E%3Crect width='3' height='0.5' fill='%23c60b1e'/%3E%3Crect y='0.5' width='3' height='1' fill='%23ffc400'/%3E%3Crect y='1.5' width='3' height='0.5' fill='%23c60b1e'/%3E%3C/svg%3E"); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const dropdown = document.querySelector('.language-switcher .dropdown');
+  const toggle = dropdown.querySelector('.dropdown-toggle');
+  const menu = dropdown.querySelector('.dropdown-menu');
+
+  toggle.addEventListener('click', function(e) {
+    e.preventDefault();
+    menu.classList.toggle('show');
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!dropdown.contains(e.target)) {
+      menu.classList.remove('show');
+    }
+  });
+});
+</script>

@@ -1,0 +1,35 @@
+# Multi-language Jekyll Site Workflow
+# For sites with en/_posts and fr/_posts structure
+# Copy this to your repo's .github/workflows/ directory
+
+name: Jekyll Multi-lang Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'en/_posts/**'
+      - 'fr/_posts/**'
+      - '_config.yml'
+      - 'Gemfile'
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * *"  # Daily at 7 AM UTC
+
+jobs:
+  build-deploy:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_jekyll_build_and_deploy.yml@main
+    with:
+      build_dir: './build'
+      deploy_to_netlify: true
+      use_common_includes: true
+      runs_on: 'self-hosted'  # Use self-hosted for larger sites
+      enable_cache: true
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+      submodule_ssh_key: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
+      algolia_api_key: ${{ secrets.ALGOLIA_API_KEY }}
+      netlify_auth_token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      netlify_site_id: ${{ secrets.NETLIFY_SITE_ID }}
