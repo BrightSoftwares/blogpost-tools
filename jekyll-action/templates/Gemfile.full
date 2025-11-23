@@ -1,0 +1,81 @@
+# Full-Featured Gemfile for BrightSoftwares Jekyll Sites
+# Includes image processing, admin interface, and all plugins
+# Compatible with Ruby 3.2-3.4 and Jekyll 4.2.x
+
+source 'https://rubygems.org'
+
+# Specify Ruby version compatibility (3.2-3.4)
+ruby ">= 3.2.0", "< 3.5"
+
+# Required for Ruby 3.4+ (no longer bundled in stdlib)
+gem "csv"
+gem "logger"
+gem "base64"
+gem "bigdecimal"
+gem "observer"
+gem "ostruct"
+
+# Core Jekyll
+gem 'jekyll', '~> 4.2.2'
+
+# Pin ffi to avoid native extension issues
+gem 'ffi', '= 1.16.3'
+
+# Theme (optional - comment out if using custom theme)
+# gem "minima", "~> 2.5"
+
+# Required for Jekyll 4.x
+gem "webrick", "~> 1.7"
+gem 'rack', '~> 2.2'
+
+# For Rake tasks (image optimization, etc.)
+gem 'rake'
+gem 'fileutils'
+
+# Jekyll plugins - full suite
+group :jekyll_plugins do
+  # Content & SEO
+  gem 'jekyll-feed', '~> 0.16.0'
+  gem 'jekyll-sitemap', '~> 1.4.0'
+  gem 'jekyll-seo-tag', '~> 2.8.0'
+  gem 'jekyll-archives', '~> 2.2.1'
+  gem 'jekyll-redirect-from', '~> 0.16.0'
+  gem 'jekyll-last-modified-at', '~> 1.3.0'
+
+  # Navigation & Structure
+  gem 'jekyll-toc', '~> 0.18.0'
+  gem 'jekyll-wikilinks', '~> 0.0.8'
+  gem 'jekyll-paginate-v2', '~> 3.0'
+  gem 'jekyll-timeago', '~> 0.13.1'
+
+  # Search
+  gem 'jekyll-algolia', '~> 1.7.1'
+
+  # Image processing
+  gem 'rmagick', '~> 4.2.2'
+  gem 'jekyll-minimagick', '~> 0.0.4'
+  gem 'jekyll-responsive-image', '~> 1.6'
+  gem 'mini_magick'
+
+  # Admin interface
+  gem 'jekyll-admin', '~> 0.11.0'
+
+  # Internationalization
+  gem 'i18n', '~> 1.12.0'
+
+  # XML parsing (required by several plugins)
+  gem 'rexml', '~> 3.2.4'
+end
+
+# Image optimization (optional - for advanced image pipelines)
+# Uncomment if running on Linux/macOS with optipng, jpegoptim installed
+# gem 'image_optim'
+# gem 'image_optim_pack'
+
+# Windows and JRuby compatibility (not needed in Docker, but useful for local dev)
+platforms :mingw, :x64_mingw, :mswin, :jruby do
+  gem "tzinfo", "~> 1.2"
+  gem "tzinfo-data"
+end
+gem "wdm", "~> 0.1.1", :platforms => [:mingw, :x64_mingw, :mswin]
+gem "http_parser.rb", "~> 0.6.0", :platforms => [:jruby]

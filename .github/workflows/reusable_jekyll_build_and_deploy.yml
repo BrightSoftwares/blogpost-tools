@@ -1,0 +1,170 @@
+name: Reusable Jekyll Build and Deploy
+
+on:
+  workflow_call:
+    inputs:
+      # Jekyll build options
+      jekyll_src:
+        description: 'Jekyll source directory (leave empty for root)'
+        type: string
+        required: false
+        default: ''
+      build_dir:
+        description: 'Output directory for built site'
+        type: string
+        required: false
+        default: './build'
+      jekyll_env:
+        description: 'Jekyll environment (production, development)'
+        type: string
+        required: false
+        default: 'production'
+      target_branch:
+        description: 'Branch to push built site to (leave empty to skip git push)'
+        type: string
+        required: false
+        default: ''
+
+      # Common includes submodule
+      use_common_includes:
+        description: 'Clone BrightSoftwares/jekyll-theme-common-includes'
+        type: boolean
+        required: false
+        default: true
+      common_includes_path:
+        description: 'Path for common includes'
+        type: string
+        required: false
+        default: '_includes/common'
+
+      # Netlify deployment
+      deploy_to_netlify:
+        description: 'Deploy to Netlify after build'
+        type: boolean
+        required: false
+        default: true
+
+      # Runner configuration
+      runs_on:
+        description: 'Runner type (ubuntu-latest, self-hosted)'
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+
+      # Additional build commands
+      pre_build_commands:
+        description: 'Commands to run before Jekyll build'
+        type: string
+        required: false
+        default: ''
+
+      # Cache configuration
+      enable_cache:
+        description: 'Enable bundle caching'
+        type: boolean
+        required: false
+        default: true
+
+      # Debug mode
+      debug:
+        description: 'Enable debug output'
+        type: boolean
+        required: false
+        default: false
+
+    secrets:
+      github_token:
+        description: 'GitHub token for pushing to target branch'
+        required: false
+      submodule_ssh_key:
+        description: 'SSH key for private submodule access'
+        required: false
+      algolia_api_key:
+        description: 'Algolia Admin API key for search indexing'
+        required: false
+      netlify_auth_token:
+        description: 'Netlify authentication token'
+        required: false
+      netlify_site_id:
+        description: 'Netlify site ID'
+        required: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ${{ inputs.runs_on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone common includes submodule
+        if: ${{ inputs.use_common_includes }}
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/jekyll-theme-common-includes
+          path: ${{ inputs.common_includes_path }}
+          ssh-key: ${{ secrets.submodule_ssh_key }}
+          persist-credentials: false
+
+      - name: Cache bundle dependencies
+        if: ${{ inputs.enable_cache }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/bundle
+            .jekyll-cache
+          key: ${{ runner.os }}-jekyll-${{ hashFiles('**/Gemfile.lock', '**/Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-jekyll-
+
+      - name: Cache responsive images
+        if: ${{ inputs.enable_cache }}
+        uses: actions/cache@v4
+        with:
+          path: assets/resized
+          key: ${{ runner.os }}-images-${{ hashFiles('assets/**/*.jpg', 'assets/**/*.jpeg', 'assets/**/*.png') }}
+          restore-keys: |
+            ${{ runner.os }}-images-
+
+      - name: Debug - Show workspace contents
+        if: ${{ inputs.debug }}
+        run: |
+          echo "=== Workspace contents ==="
+          ls -la
+          echo "=== Gemfile contents ==="
+          cat Gemfile || echo "No Gemfile found"
+          echo "=== _config.yml contents ==="
+          head -50 _config.yml || echo "No _config.yml found"
+
+      - name: Build Jekyll site
+        uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+        with:
+          token: ${{ secrets.github_token }}
+          jekyll_src: ${{ inputs.jekyll_src }}
+          jekyll_env: ${{ inputs.jekyll_env }}
+          build_dir: ${{ inputs.build_dir }}
+          target_branch: ${{ inputs.target_branch }}
+          pre_build_commands: ${{ inputs.pre_build_commands }}
+          algolia_api_key: ${{ secrets.algolia_api_key }}
+          build_only: ${{ inputs.target_branch == '' }}
+
+      - name: Deploy to Netlify
+        if: ${{ inputs.deploy_to_netlify }}
+        uses: BrightSoftwares/blogpost-tools/action-netlify-deploy@main
+        with:
+          BUILD_DIRECTORY: ${{ inputs.build_dir }}
+          FUNCTIONS_DIRECTORY: ''
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.netlify_auth_token }}
+          NETLIFY_SITE_ID: ${{ secrets.netlify_site_id }}
+          NETLIFY_DEPLOY_MESSAGE: "Deploy from ${{ github.ref_name }} @ ${{ github.sha }}"
+          NETLIFY_DEPLOY_TO_PROD: true
+          BUILD_COMMAND: "echo Skipping build - already built by Jekyll action"
+          INSTALL_COMMAND: "echo Skipping install - dependencies handled by Jekyll action"
+
+      - name: Upload build artifacts
+        if: ${{ inputs.debug }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jekyll-build
+          path: ${{ inputs.build_dir }}
+          retention-days: 7
