@@ -3,6 +3,10 @@ set -e
 
 echo "Starting the Jekyll Action"
 
+# Change to GITHUB_WORKSPACE first to ensure all find commands work correctly
+cd "${GITHUB_WORKSPACE}"
+echo "::debug::Working directory is ${GITHUB_WORKSPACE}"
+
 if [ -n "${INPUT_BUNDLER_VERSION}" ]; then
   echo "Installing bundler version specified by the user."
   gem install bundler -v ${INPUT_BUNDLER_VERSION}
@@ -30,13 +34,12 @@ elif [ -n "${SRC}" ]; then
   JEKYLL_SRC=${SRC}
   echo "::debug::Source directory is set via SRC environment var"
 else
-  JEKYLL_SRC=$(find . -path '*/vendor/bundle' -prune -o -name '_config.yml' -exec dirname {} \;)
-  JEKYLL_FILES_COUNT=$(echo "$JEKYLL_SRC" | wc -l)
-  if [ "$JEKYLL_FILES_COUNT" != "1" ]; then
-    echo "::error::Found $JEKYLL_FILES_COUNT Jekyll sites from $JEKYLL_SRC! Please define which to use with input variable \"jekyll_src\""
-    exit 1
+  JEKYLL_SRC=$(find . -path '*/vendor/bundle' -prune -o -name '_config.yml' -print -quit | xargs dirname 2>/dev/null || echo ".")
+  # Remove leading ./ if present
+  JEKYLL_SRC=$(echo "$JEKYLL_SRC" | sed 's|^\./||')
+  if [ -z "$JEKYLL_SRC" ] || [ "$JEKYLL_SRC" = "." ]; then
+    JEKYLL_SRC="."
   fi
-  JEKYLL_SRC=$(echo $JEKYLL_SRC | tr -d '\n')
   echo "::debug::Source directory is found in file system"
 fi
 echo "::debug::Using \"${JEKYLL_SRC}\" as a source directory"
@@ -44,20 +47,18 @@ echo "::debug::Using \"${JEKYLL_SRC}\" as a source directory"
 if [ -n "${INPUT_GEM_SRC}" ]; then
   GEM_SRC="${INPUT_GEM_SRC}"
   echo "::debug::Gem directory is set via input parameter"
-elif [ -f "${JEKYLL_SRC}/Gemfile" ]; then
+elif [ -f "${JEKYLL_SRC}/Gemfile" ] || [ -f "./Gemfile" ]; then
   GEM_SRC="${JEKYLL_SRC}"
   echo "::debug::Gem directory is set via source directory"
 fi
 
 if [ -z "${GEM_SRC}" ]; then
-  GEM_SRC=$(find . -path '*/vendor/bundle' -prune -o -name Gemfile -exec dirname {} \;)
-  GEM_FILES_COUNT=$(echo "$GEM_SRC" | wc -l)
-  if [ "$GEM_FILES_COUNT" != "1" ]; then
-    echo "::error::Found $GEM_FILES_COUNT Gemfiles! Please define which to use with input variable \"gem_src\""
-    echo "$GEM_SRC"
-    exit 1
+  GEM_SRC=$(find . -path '*/vendor/bundle' -prune -o -name Gemfile -print -quit | xargs dirname 2>/dev/null || echo ".")
+  # Remove leading ./ if present
+  GEM_SRC=$(echo "$GEM_SRC" | sed 's|^\./||')
+  if [ -z "$GEM_SRC" ] || [ "$GEM_SRC" = "." ]; then
+    GEM_SRC="."
   fi
-  GEM_SRC=$(echo $GEM_SRC | tr -d '\n')
   echo "::debug::Gem directory is found in file system"
 fi
 echo "::debug::Using \"${GEM_SRC}\" as Gem directory"
@@ -128,7 +129,14 @@ fi
 
 echo "::debug::Local branch is ${LOCAL_BRANCH}"
 
-cd "${GITHUB_WORKSPACE}/${GEM_SRC}"
+# Construct the correct path for GEM_SRC
+if [ "$GEM_SRC" = "." ]; then
+  GEM_PATH="${GITHUB_WORKSPACE}"
+else
+  GEM_PATH="${GITHUB_WORKSPACE}/${GEM_SRC}"
+fi
+echo "::debug::Changing to gem directory: ${GEM_PATH}"
+cd "${GEM_PATH}"
 
 if [ -z "${INPUT_BUNDLER_VERSION}" ] && [ -f "Gemfile.lock" ]; then
   echo "Resolving bundler version from Gemfile.lock"
@@ -151,7 +159,15 @@ else
   echo "::debug::Jekyll debug is off"
 fi
 
-JEKYLL_ENV=${INPUT_JEKYLL_ENV} bundle exec ${BUNDLE_ARGS} jekyll build -s ${GITHUB_WORKSPACE}/${JEKYLL_SRC} -d ${TARGET_DIR} ${INPUT_JEKYLL_BUILD_OPTIONS} ${VERBOSE}
+# Construct the correct path for JEKYLL_SRC
+if [ "$JEKYLL_SRC" = "." ]; then
+  JEKYLL_PATH="${GITHUB_WORKSPACE}"
+else
+  JEKYLL_PATH="${GITHUB_WORKSPACE}/${JEKYLL_SRC}"
+fi
+echo "::debug::Jekyll source path: ${JEKYLL_PATH}"
+
+JEKYLL_ENV=${INPUT_JEKYLL_ENV} bundle exec ${BUNDLE_ARGS} jekyll build -s ${JEKYLL_PATH} -d ${TARGET_DIR} ${INPUT_JEKYLL_BUILD_OPTIONS} ${VERBOSE}
 echo "Jekyll build done"
 
 # Upload data to Algolia if the API key is provided
