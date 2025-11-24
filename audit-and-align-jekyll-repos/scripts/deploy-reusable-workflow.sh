@@ -128,17 +128,96 @@ jobs:
 EOF
 )
 
+    # Check for ImageMagick requirement (rmagick gem)
+    needs_imagemagick=false
+    gemfile=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$repo/contents/Gemfile?ref=$default_branch" 2>/dev/null)
+
+    if echo "$gemfile" | jq -e '.content' > /dev/null 2>&1; then
+        gemfile_content=$(echo "$gemfile" | jq -r '.content' | base64 -d)
+        if echo "$gemfile_content" | grep -qE "rmagick|jekyll-responsive-image"; then
+            needs_imagemagick=true
+            log_info "Detected ImageMagick requirement (rmagick/jekyll-responsive-image)"
+        fi
+    fi
+
     # Get existing workflow to preserve Algolia settings if present
     existing_workflow=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$repo/contents/.github/workflows/$workflow_file?ref=$default_branch" 2>/dev/null)
 
+    enable_algolia=false
     if echo "$existing_workflow" | jq -e '.content' > /dev/null 2>&1; then
         existing_content=$(echo "$existing_workflow" | jq -r '.content' | base64 -d)
 
         # Check if Algolia is used
         if echo "$existing_content" | grep -q "algolia"; then
-            log_info "Detected Algolia usage, enabling in reusable workflow"
+            enable_algolia=true
+            log_info "Detected Algolia usage"
+        fi
+    fi
+
+    # Generate workflow based on detected requirements
+    if [[ "$needs_imagemagick" == "true" ]]; then
+        if [[ "$enable_algolia" == "true" ]]; then
+            log_info "Generating workflow with ImageMagick and Algolia"
             workflow_content=$(cat <<'EOF'
+name: Jekyll Build with Reusable Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
+    with:
+      ruby-version: '3.4.1'
+      jekyll-version: '4.3.4'
+      runner: 'ubuntu-latest'
+      enable-algolia: true
+      pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
+    secrets:
+      ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+EOF
+)
+        else
+            log_info "Generating workflow with ImageMagick"
+            workflow_content=$(cat <<'EOF'
+name: Jekyll Build with Reusable Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
+    with:
+      ruby-version: '3.4.1'
+      jekyll-version: '4.3.4'
+      runner: 'ubuntu-latest'
+      pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
+      enable-algolia: false
+EOF
+)
+        fi
+    elif [[ "$enable_algolia" == "true" ]]; then
+        log_info "Generating workflow with Algolia"
+        workflow_content=$(cat <<'EOF'
 name: Jekyll Build with Reusable Workflow
 
 on:
@@ -164,7 +243,6 @@ jobs:
       ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
 EOF
 )
-        fi
     fi
 
     # Upload workflow file to branch
