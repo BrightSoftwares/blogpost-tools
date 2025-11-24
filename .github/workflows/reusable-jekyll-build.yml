@@ -76,7 +76,7 @@ jobs:
           bundle exec jekyll build --destination ${{ inputs.build-destination }}
 
       - name: Run Algolia indexing
-        if: ${{ inputs.enable-algolia && secrets.ALGOLIA_API_KEY != '' }}
+        if: ${{ inputs.enable-algolia }}
         env:
           ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
         run: |
