@@ -1,0 +1,1013 @@
+{
+  "analysis_date": "2025-11-23",
+  "total_repos_analyzed": 11,
+  "repos_found": 10,
+  "repos_not_found": 1,
+  "repositories": {
+    "BrightSoftwares/brightsoftwares.com.blog": {
+      "status": "NOT_FOUND",
+      "exists": false,
+      "features": null
+    },
+    "BrightSoftwares/eagles-techs.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/eagles-techs.com",
+      "site_url": "https://eagles-techs.com",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts.yml",
+            "auto-openaigenerateblogpost.yml",
+            "auto-schedule-posts.yml",
+            "featured-image-finder.yml",
+            "fix-indexation-issues.yml",
+            "generate_aliases_file.yml",
+            "github-pages.yml",
+            "keyword_suggestion.yml",
+            "keyword_suggestion_old.yml",
+            "openai-posts-generator.yml",
+            "post-summarizer.yml",
+            "rss-news-to-blogpost.yml",
+            "semantic_clustering.yml",
+            "seo-html-analysis.yml",
+            "seo_diagnotics.yml",
+            "translate_posts.yml",
+            "yt_vids_and_transcribe.yml"
+          ],
+          "total_workflows": 19
+        },
+        "i18n": {
+          "has_i18n": false,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "languages": [],
+          "language_based_posts": true,
+          "language_folders": ["_posts", "_authors/en", "_authors/fr", "_products/en", "_products/fr"]
+        },
+        "ecommerce": {
+          "has_ecommerce": true,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": true,
+          "products_folder": "_products"
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": true,
+          "seo_workflow_files": ["seo-html-analysis.yml", "seo_diagnotics.yml", "fix-indexation-issues.yml"]
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": true,
+          "featured_image_workflow": true,
+          "image_workflow_file": "featured-image-finder.yml"
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "rss_to_blogpost": true,
+          "youtube_transcription": true,
+          "keyword_generation": true,
+          "post_summarizer": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "openai-posts-generator.yml",
+            "rss-news-to-blogpost.yml",
+            "yt_vids_and_transcribe.yml",
+            "keyword_suggestion.yml",
+            "post-summarizer.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": true,
+          "netlify": false,
+          "deployment_workflow": "github-pages.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_eaglestechs_website"
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_authors", "_drafts", "_includes", "_layouts", "_posts", "_products", "_seo", "_study", "_system", "assets", "lib"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-toc",
+          "jekyll-algolia"
+        ]
+      }
+    },
+    "BrightSoftwares/ieatmyhealth.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/ieatmyhealth.com",
+      "site_url": "https://ieatmyhealth.com",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts-news.yml",
+            "auto-openaigenerateblogpost.yml",
+            "auto-schedule-posts.yml",
+            "featured-image-finder.yml",
+            "generate_aliases_file.yml",
+            "jekyll.yml",
+            "keyword_generation_old.yml",
+            "keyword_suggestion.yml",
+            "openai-generate-blogpost.yml",
+            "rss-news-to-blogpost.yml",
+            "semantic_clustering.yml",
+            "seo-html-analysis.yml",
+            "seo_diagnotics.yml",
+            "translate_posts.yml",
+            "yt_vids_and_transcribe.yml"
+          ],
+          "total_workflows": 17
+        },
+        "i18n": {
+          "has_i18n": true,
+          "i18n_folder": true,
+          "polyglot_plugin": false,
+          "multiple_languages_plugin_commented": true,
+          "languages": ["de", "en", "es", "fr"],
+          "language_files": ["de.yml", "en.yml", "es.yml", "fr.yml"]
+        },
+        "ecommerce": {
+          "has_ecommerce": true,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": true,
+          "products_folder": "_products",
+          "product_examples": ["Pearly Everlasting", "Pink wave Cup", "Tea products"]
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": true,
+          "seo_workflow_files": ["seo-html-analysis.yml", "seo_diagnotics.yml"]
+        },
+        "image_optimization": {
+          "cloudinary": true,
+          "cloudinary_url": "https://res.cloudinary.com/ieatmyhealth2/",
+          "unsplash": true,
+          "featured_image_workflow": true,
+          "image_workflow_file": "featured-image-finder.yml"
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "rss_to_blogpost": true,
+          "youtube_transcription": true,
+          "keyword_generation": true,
+          "translation_workflow": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "openai-generate-blogpost.yml",
+            "rss-news-to-blogpost.yml",
+            "yt_vids_and_transcribe.yml",
+            "keyword_suggestion.yml",
+            "translate_posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": true,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_data", "_drafts", "_i18n", "_includes", "_layouts", "_pages", "_posts", "_products", "_seo", "_system", "assets"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-algolia",
+          "jekyll-toc"
+        ],
+        "data_files": ["affiliate_links.csv", "contentful", "menus.yml", "templates"]
+      }
+    },
+    "BrightSoftwares/keke.li": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/keke.li",
+      "site_url": "",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts-news.yml",
+            "auto-openaigenerateblogpost.yml",
+            "jekyll.yml"
+          ],
+          "total_workflows": 5
+        },
+        "i18n": {
+          "has_i18n": true,
+          "i18n_folder": true,
+          "polyglot_plugin": false,
+          "languages": ["de", "en", "es", "fr"],
+          "language_files": ["de.yml", "en.yml", "es.yml", "fr.yml"]
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "youtube_transcription": false,
+          "keyword_generation": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "auto-keywordandyoutubegen-posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": false,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_drafts", "_i18n", "_layouts", "_pages", "_posts", "_seo", "_system", "assets", "forms"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-toc",
+          "jekyll-algolia"
+        ]
+      }
+    },
+    "BrightSoftwares/olympics-paris2024.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/olympics-paris2024.com",
+      "site_url": "https://olympics-paris2024.com",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal-linking-matrix.yml",
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts-news-en.yml",
+            "auto-openaigenerateblogpost.yml",
+            "auto-schedule-games-posts.yml",
+            "auto-schedule-posts.yml",
+            "featured-image-finder.yml",
+            "generate_aliases_file.yml",
+            "jekyll.yml",
+            "keyword_suggestion.yml",
+            "openai-posts-generator.yml",
+            "post-summarizer.yml",
+            "rss-news-to-blogpost.yml",
+            "semantic_clustering.yml",
+            "seo-html-analysis.yml",
+            "seo_diagnotics.yml",
+            "translate_posts.yml",
+            "yt_vids_and_transcribe.yml"
+          ],
+          "total_workflows": 19
+        },
+        "i18n": {
+          "has_i18n": true,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "language_based_posts": true,
+          "languages": ["de", "en", "es", "fr", "it", "pt"],
+          "default_lang": "en",
+          "post_folders_by_lang": ["_posts/de", "_posts/en", "_posts/es", "_posts/fr", "_posts/it", "_posts/pt"]
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": true,
+          "seo_workflow_files": ["seo-html-analysis.yml", "seo_diagnotics.yml"]
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": true,
+          "featured_image_workflow": true,
+          "image_workflow_file": "featured-image-finder.yml"
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "matrix_linking": true,
+          "matrix_workflow_file": "auto-internal-linking-matrix.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "rss_to_blogpost": true,
+          "youtube_transcription": true,
+          "keyword_generation": true,
+          "post_summarizer": true,
+          "translation_workflow": true,
+          "game_scheduling": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "openai-posts-generator.yml",
+            "rss-news-to-blogpost.yml",
+            "yt_vids_and_transcribe.yml",
+            "keyword_suggestion.yml",
+            "post-summarizer.yml",
+            "translate_posts.yml",
+            "auto-schedule-games-posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": true,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_data", "_drafts", "_gameresults", "_games", "_includes", "_layouts", "_news", "_pages", "_posts", "_seo", "_system", "_videos", "assets"]
+        },
+        "special_collections": ["news", "videos", "games", "gameresults"],
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-toc",
+          "jekyll-algolia"
+        ],
+        "data_files": ["affiliate_links.csv", "authors.yml", "menus.yml", "popular_search.yml", "services.yml", "social.yml", "translations.yml"]
+      }
+    },
+    "BrightSoftwares/foolywise.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/foolywise.com",
+      "site_url": "",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts-news.yml",
+            "auto-openaigenerateblogpost.yml",
+            "jekyll.yml"
+          ],
+          "total_workflows": 5
+        },
+        "i18n": {
+          "has_i18n": false,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "languages": []
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "youtube_transcription": false,
+          "keyword_generation": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "auto-keywordandyoutubegen-posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": false,
+          "has_layouts": false,
+          "has_assets": false,
+          "folders": ["_drafts", "_posts", "_seo", "_system"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-algolia",
+          "jekyll-toc"
+        ]
+      }
+    },
+    "sergioafanou/blog": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/sergioafanou/blog",
+      "site_url": "",
+      "theme": "Mediumish",
+      "features": {
+        "workflows": {
+          "has_workflows": false,
+          "workflow_files": [],
+          "total_workflows": 0
+        },
+        "i18n": {
+          "has_i18n": false,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "languages": []
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false,
+          "lazy_images": "disabled"
+        },
+        "internal_linking": {
+          "has_internal_linking": false,
+          "wikilinks_plugin": false
+        },
+        "post_generation": {
+          "ai_generation": false,
+          "openai_workflow": false,
+          "youtube_transcription": false,
+          "keyword_generation": false
+        },
+        "deployment": {
+          "github_pages": true,
+          "netlify": false,
+          "baseurl": "/blog"
+        },
+        "search": {
+          "algolia": false,
+          "google_analytics": "UA-46278016-1"
+        },
+        "advertising": {
+          "adsense": "disabled",
+          "disqus_comments": "demowebsite",
+          "mailchimp": true
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_includes", "_layouts", "_pages", "_posts", "_sass", "assets", "site"]
+        },
+        "plugins": [
+          "jekyll-paginate",
+          "jekyll-sitemap",
+          "jekyll-feed",
+          "jekyll-seo-tag",
+          "jekyll-archives"
+        ]
+      }
+    },
+    "Causting/causting.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/Causting/causting.com",
+      "site_url": "",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-openaigenerateblogpost.yml",
+            "jekyll.yml"
+          ],
+          "total_workflows": 4
+        },
+        "i18n": {
+          "has_i18n": false,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "languages": []
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "youtube_transcription": false,
+          "keyword_generation": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "auto-keywordandyoutubegen-posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": false,
+          "has_layouts": false,
+          "has_assets": false,
+          "folders": ["_drafts", "_posts", "_seo", "_system"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-toc",
+          "jekyll-algolia"
+        ]
+      }
+    },
+    "Causting/space-up-planet.com": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/Causting/space-up-planet.com",
+      "site_url": "",
+      "theme": "minima",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-moveandpublish-posts-news.yml",
+            "auto-openaigenerateblogpost.yml",
+            "jekyll.yml"
+          ],
+          "total_workflows": 5
+        },
+        "i18n": {
+          "has_i18n": true,
+          "i18n_folder": true,
+          "polyglot_plugin": false,
+          "languages": ["de", "en", "es", "fr"],
+          "language_files": ["de.yml", "en.yml", "es.yml", "fr.yml"]
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": true
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "youtube_transcription": false,
+          "keyword_generation": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "auto-keywordandyoutubegen-posts.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": true,
+          "algolia_index": "jekyll_website"
+        },
+        "folder_structure": {
+          "has_data": false,
+          "has_includes": false,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_drafts", "_i18n", "_layouts", "_posts", "_seo", "_system", "assets"]
+        },
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag",
+          "jekyll-archives",
+          "jekyll-wikilinks",
+          "jekyll-redirect-from",
+          "jekyll-last-modified-at",
+          "jekyll-toc",
+          "jekyll-algolia"
+        ]
+      }
+    },
+    "Hayes-Tech/hayestech-website": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/Hayes-Tech/hayestech-website",
+      "site_url": "https://hayestech.bright-softwares.com",
+      "theme": "custom",
+      "features": {
+        "workflows": {
+          "has_workflows": false,
+          "workflow_files": [],
+          "total_workflows": 0
+        },
+        "i18n": {
+          "has_i18n": false,
+          "i18n_folder": false,
+          "polyglot_plugin": false,
+          "languages": []
+        },
+        "ecommerce": {
+          "has_ecommerce": false,
+          "snipcart": false,
+          "stripe": false,
+          "woocommerce": false,
+          "shop_folder": false,
+          "products_collection": false
+        },
+        "seo": {
+          "sitemap_plugin": false,
+          "seo_tag_plugin": false,
+          "seo_workflows": false
+        },
+        "image_optimization": {
+          "cloudinary": false,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": false,
+          "wikilinks_plugin": false
+        },
+        "post_generation": {
+          "ai_generation": false,
+          "openai_workflow": false,
+          "youtube_transcription": false,
+          "keyword_generation": false
+        },
+        "deployment": {
+          "github_pages": true,
+          "netlify": false
+        },
+        "search": {
+          "algolia": false,
+          "google_analytics": false
+        },
+        "folder_structure": {
+          "has_data": true,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": false,
+          "folders": ["_data", "_includes", "_layouts", "_posts", "css", "fonts", "img", "js", "screenshots"]
+        },
+        "plugins": []
+      }
+    },
+    "BrightSoftwares/joyousbyflora-posts": {
+      "status": "FOUND",
+      "exists": true,
+      "url": "https://github.com/BrightSoftwares/joyousbyflora-posts",
+      "site_url": "",
+      "theme": "custom_biolife",
+      "features": {
+        "workflows": {
+          "has_workflows": true,
+          "workflow_files": [
+            "auto-internal_linking.yml",
+            "auto-keywordandyoutubegen-posts.yml",
+            "auto-openaigenerateblogpost.yml",
+            "google_autocomplete.yml",
+            "improve_blogpost_files.yml",
+            "jekyll.yml",
+            "keyword_suggestion.yml",
+            "rss-news-to-blogpost.yml",
+            "seo_diagnotics.yml"
+          ],
+          "total_workflows": 9
+        },
+        "i18n": {
+          "has_i18n": true,
+          "i18n_folder": true,
+          "polyglot_plugin": false,
+          "languages": ["de", "en", "es", "fr"],
+          "language_files": ["de.yml", "en.yml", "es.yml", "fr.yml"]
+        },
+        "ecommerce": {
+          "has_ecommerce": true,
+          "snipcart": false,
+          "stripe": true,
+          "stripe_products_file": "_data/stripe_products.json",
+          "woocommerce": true,
+          "woocommerce_migration": true,
+          "woocommerce_data_folder": "exported_woocommerce_data",
+          "shop_folder": false,
+          "products_collection": true,
+          "products_folder": "_products",
+          "product_layout": "product.html",
+          "cloudinary_migration": true,
+          "cloudinary_data_folder": "migrated_cloudinary_data"
+        },
+        "seo": {
+          "sitemap_plugin": true,
+          "seo_tag_plugin": true,
+          "seo_workflows": true,
+          "seo_workflow_files": ["seo_diagnotics.yml"],
+          "google_autocomplete_workflow": true
+        },
+        "image_optimization": {
+          "cloudinary": true,
+          "cloudinary_migration_data": true,
+          "unsplash": false,
+          "featured_image_workflow": false
+        },
+        "internal_linking": {
+          "has_internal_linking": true,
+          "workflow_file": "auto-internal_linking.yml",
+          "wikilinks_plugin": false
+        },
+        "post_generation": {
+          "ai_generation": true,
+          "openai_workflow": true,
+          "rss_to_blogpost": true,
+          "youtube_transcription": false,
+          "keyword_generation": true,
+          "blogpost_improvement": true,
+          "workflow_files": [
+            "auto-openaigenerateblogpost.yml",
+            "rss-news-to-blogpost.yml",
+            "keyword_suggestion.yml",
+            "improve_blogpost_files.yml"
+          ]
+        },
+        "deployment": {
+          "github_pages": false,
+          "netlify": true,
+          "jekyll_build": true,
+          "deployment_workflow": "jekyll.yml"
+        },
+        "search": {
+          "algolia": false
+        },
+        "folder_structure": {
+          "has_data": true,
+          "has_includes": true,
+          "has_layouts": true,
+          "has_assets": true,
+          "folders": ["_data", "_drafts", "_i18n", "_images", "_includes", "_layouts", "_plugins", "_posts", "_products", "_seo", "_system", "assets", "bin", "exported_woocommerce_data", "migrated_cloudinary_data", "migration", "scripts", "tests"]
+        },
+        "data_files": ["categories.yml", "comments.yml", "likes.yml", "products.yml", "stripe_products.json"],
+        "layouts": ["biolife-organic-bootstrap-html-template", "biolife.html", "category.html", "default-04.html", "default.html", "home-04-light.html", "home.html", "index.html", "post.html", "product.html"],
+        "plugins": [
+          "jekyll-feed",
+          "jekyll-sitemap",
+          "jekyll-seo-tag"
+        ]
+      }
+    }
+  },
+  "feature_summary": {
+    "workflows": {
+      "repos_with_workflows": 9,
+      "repos_without_workflows": 2,
+      "total_unique_workflow_types": [
+        "auto-internal_linking",
+        "auto-keywordandyoutubegen-posts",
+        "auto-moveandpublish-posts",
+        "auto-openaigenerateblogpost",
+        "auto-schedule-posts",
+        "featured-image-finder",
+        "fix-indexation-issues",
+        "generate_aliases_file",
+        "github-pages",
+        "jekyll",
+        "keyword_suggestion",
+        "openai-posts-generator",
+        "post-summarizer",
+        "rss-news-to-blogpost",
+        "semantic_clustering",
+        "seo-html-analysis",
+        "seo_diagnotics",
+        "translate_posts",
+        "yt_vids_and_transcribe",
+        "google_autocomplete",
+        "improve_blogpost_files",
+        "auto-internal-linking-matrix",
+        "auto-schedule-games-posts"
+      ]
+    },
+    "i18n": {
+      "repos_with_i18n": 5,
+      "repos_with_i18n_folder": ["ieatmyhealth.com", "keke.li", "space-up-planet.com", "joyousbyflora-posts"],
+      "repos_with_language_posts": ["olympics-paris2024.com", "eagles-techs.com"],
+      "common_languages": ["en", "fr", "de", "es"]
+    },
+    "ecommerce": {
+      "repos_with_ecommerce": 3,
+      "repos_with_products": ["eagles-techs.com", "ieatmyhealth.com", "joyousbyflora-posts"],
+      "repos_with_stripe": ["joyousbyflora-posts"],
+      "repos_with_woocommerce_migration": ["joyousbyflora-posts"]
+    },
+    "seo": {
+      "repos_with_sitemap_plugin": 10,
+      "repos_with_seo_tag_plugin": 10,
+      "repos_with_seo_workflows": ["eagles-techs.com", "ieatmyhealth.com", "olympics-paris2024.com", "joyousbyflora-posts"]
+    },
+    "internal_linking": {
+      "repos_with_internal_linking_workflow": 8,
+      "repos_with_wikilinks_plugin": 7
+    },
+    "ai_post_generation": {
+      "repos_with_openai_workflow": 8,
+      "repos_with_rss_to_blogpost": ["eagles-techs.com", "ieatmyhealth.com", "olympics-paris2024.com", "joyousbyflora-posts"],
+      "repos_with_youtube_transcription": ["eagles-techs.com", "ieatmyhealth.com", "olympics-paris2024.com"]
+    },
+    "search": {
+      "repos_with_algolia": 7,
+      "repos_without_algolia": ["sergioafanou/blog", "Hayes-Tech/hayestech-website", "joyousbyflora-posts"]
+    },
+    "deployment": {
+      "repos_with_github_pages": ["sergioafanou/blog", "Hayes-Tech/hayestech-website", "eagles-techs.com"],
+      "repos_with_jekyll_build": 7,
+      "repos_with_netlify": ["joyousbyflora-posts"]
+    },
+    "image_optimization": {
+      "repos_with_cloudinary": ["ieatmyhealth.com", "joyousbyflora-posts"],
+      "repos_with_unsplash": ["eagles-techs.com", "olympics-paris2024.com"],
+      "repos_with_featured_image_workflow": ["eagles-techs.com", "ieatmyhealth.com", "olympics-paris2024.com"]
+    }
+  }
+}
