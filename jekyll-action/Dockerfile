@@ -1,6 +1,6 @@
 FROM ruby:3.4.1-alpine
 
-LABEL version="2.0.2"
+LABEL version="2.1.0"
 LABEL repository="https://github.com/brightsoftwares/blogpost-tools"
 LABEL homepage="https://github.com/brightsoftwares/blogpost-tools"
 LABEL maintainer="BrightSoftwares"
@@ -35,7 +35,7 @@ RUN bundle version
 RUN gem install csv logger base64 bigdecimal observer ostruct mutex_m --no-document
 
 # Jekyll core and common plugins
-RUN gem install jekyll -v 4.2.2 --no-document && \
+RUN gem install jekyll -v 4.3.4 --no-document && \
     gem install bundler --no-document && \
     gem install webrick --no-document && \
     gem install rexml --no-document
