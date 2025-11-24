@@ -60,16 +60,16 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ inputs.ruby-version }}
-          bundler-cache: true
+          bundler-cache: false
+
+      - name: Run pre-build commands
+        if: ${{ inputs.pre-build-commands != '' }}
+        run: ${{ inputs.pre-build-commands }}
 
       - name: Install dependencies
         run: |
           gem install bundler
           bundle install
-
-      - name: Run pre-build commands
-        if: ${{ inputs.pre-build-commands != '' }}
-        run: ${{ inputs.pre-build-commands }}
 
       - name: Build Jekyll site
         run: |
