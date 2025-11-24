@@ -1,0 +1,380 @@
+# Reusable Workflow: CRM and Support System Setup
+# Sets up Dolibarr/SuiteCRM and FreeScout
+
+name: Setup CRM and Support
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_slug:
+        description: 'Product Slug'
+        required: true
+        type: string
+      crm_type:
+        description: 'CRM Type'
+        required: true
+        type: choice
+        options:
+          - 'dolibarr'
+          - 'suitecrm'
+        default: 'dolibarr'
+      setup_support:
+        description: 'Setup FreeScout (Support System)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  setup-crm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate CRM Setup Guide
+        run: |
+          mkdir -p infrastructure/${{ inputs.product_slug }}/crm
+
+          if [ "${{ inputs.crm_type }}" = "dolibarr" ]; then
+            cat > infrastructure/${{ inputs.product_slug }}/crm/DOLIBARR_SETUP.md << 'EOL'
+          # Dolibarr CRM Setup Guide for ${{ inputs.product_slug }}
+
+          ## Installation
+
+          ### 1. Download Dolibarr
+          ```bash
+          cd /var/www
+          wget https://github.com/Dolibarr/dolibarr/archive/refs/tags/latest.tar.gz
+          tar -xzf latest.tar.gz
+          mv dolibarr-* dolibarr
+          cd dolibarr
+          chmod -R 755 documents
+          ```
+
+          ### 2. Create Database
+          ```bash
+          mysql -u root -p << EOF
+          CREATE DATABASE dolibarr_${{ inputs.product_slug }};
+          CREATE USER 'dolibarr'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+          GRANT ALL PRIVILEGES ON dolibarr_${{ inputs.product_slug }}.* TO 'dolibarr'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+          ```
+
+          ### 3. Configure Web Server
+          ```nginx
+          server {
+              listen 80;
+              server_name crm.example.com;
+              root /var/www/dolibarr/htdocs;
+              index index.php;
+
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+          }
+          ```
+
+          ### 4. Complete Installation
+          - Navigate to http://crm.example.com/install
+          - Follow installation wizard
+          - Configure database connection
+          - Create admin account
+
+          ## Configuration for ${{ inputs.product_slug }}
+
+          ### Customer Pipeline Stages
+          1. **Lead** - Initial contact
+          2. **Qualified** - Verified interest
+          3. **Proposal** - Quotation sent
+          4. **Negotiation** - Discussing terms
+          5. **Won** - Customer acquired
+          6. **Lost** - Opportunity lost
+
+          ### Custom Fields
+          - **Lead Source**: Dropdown (Website, Referral, Social Media, etc.)
+          - **Plan Type**: Dropdown (Free, Starter, Professional, Enterprise)
+          - **MRR**: Number field for monthly recurring revenue
+          - **Trial End Date**: Date field
+          - **Product Interest**: Multi-select (Feature A, Feature B, etc.)
+
+          ### Email Templates
+          - Welcome email for new leads
+          - Trial reminder (3 days before end)
+          - Upgrade proposal
+          - Invoice reminder
+          - Renewal reminder
+
+          ## Integration with ${{ inputs.product_slug }}
+
+          ### API Setup
+          ```php
+          // config.php additions
+          $dolibarr_main_url_root = 'http://crm.example.com';
+          $dolibarr_main_document_root = '/var/www/dolibarr/htdocs';
+
+          // Enable API
+          $dolibarr_main_authentication = 'dolibarr';
+          $dolibarr_main_prod = 1;
+          ```
+
+          ### Webhook Integration
+          1. Install Webhook module
+          2. Configure webhook URL: https://your-app.com/webhook/dolibarr
+          3. Select triggers: New customer, New invoice, Payment received
+
+          ## Automation Workflows
+
+          ### New Customer Workflow
+          1. Customer created in app → Create contact in Dolibarr
+          2. Send welcome email
+          3. Assign to sales rep
+          4. Create onboarding tasks
+
+          ### Invoice Workflow
+          1. Subscription created → Generate invoice in Dolibarr
+          2. Send invoice to customer
+          3. Schedule payment reminder
+          4. Update subscription status on payment
+
+          ## Reports & Analytics
+          - Customer acquisition by source
+          - Monthly recurring revenue (MRR)
+          - Customer lifetime value (CLV)
+          - Churn rate
+          - Sales pipeline velocity
+
+          EOL
+          else
+            cat > infrastructure/${{ inputs.product_slug }}/crm/SUITECRM_SETUP.md << 'EOL'
+          # SuiteCRM Setup Guide for ${{ inputs.product_slug }}
+
+          ## Installation
+
+          ### 1. Download SuiteCRM
+          ```bash
+          cd /var/www
+          wget https://suitecrm.com/files/latest/SuiteCRM-latest.zip
+          unzip SuiteCRM-latest.zip
+          cd SuiteCRM
+          chmod -R 755 cache custom modules themes data upload
+          ```
+
+          ### 2. Create Database
+          ```bash
+          mysql -u root -p << EOF
+          CREATE DATABASE suitecrm_${{ inputs.product_slug }};
+          CREATE USER 'suitecrm'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+          GRANT ALL PRIVILEGES ON suitecrm_${{ inputs.product_slug }}.* TO 'suitecrm'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+          ```
+
+          ### 3. Complete Web Installation
+          - Navigate to http://crm.example.com
+          - Follow installation wizard
+          - Configure database
+          - Create admin account
+
+          ## Integration & Configuration
+          Similar to Dolibarr but with SuiteCRM-specific modules and workflows.
+
+          EOL
+          fi
+
+  setup-support:
+    if: ${{ inputs.setup_support }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate FreeScout Setup Guide
+        run: |
+          mkdir -p infrastructure/${{ inputs.product_slug }}/support
+
+          cat > infrastructure/${{ inputs.product_slug }}/support/FREESCOUT_SETUP.md << 'EOL'
+          # FreeScout Support System Setup for ${{ inputs.product_slug }}
+
+          ## Installation
+
+          ### 1. Install FreeScout
+          ```bash
+          cd /var/www
+          git clone https://github.com/freescout-helpdesk/freescout.git
+          cd freescout
+          composer install --no-dev --optimize-autoloader
+          php artisan freescout:install
+          ```
+
+          ### 2. Create Database
+          ```bash
+          mysql -u root -p << EOF
+          CREATE DATABASE freescout_${{ inputs.product_slug }};
+          CREATE USER 'freescout'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+          GRANT ALL PRIVILEGES ON freescout_${{ inputs.product_slug }}.* TO 'freescout'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+          ```
+
+          ### 3. Configure Environment
+          ```bash
+          cp .env.example .env
+          php artisan key:generate
+
+          # Edit .env file
+          APP_URL=https://support.example.com
+          DB_DATABASE=freescout_${{ inputs.product_slug }}
+          DB_USERNAME=freescout
+          DB_PASSWORD=CHANGE_THIS_PASSWORD
+          ```
+
+          ### 4. Run Migrations
+          ```bash
+          php artisan migrate --force
+          php artisan freescout:create-user
+          ```
+
+          ### 5. Setup Cron Job
+          ```bash
+          * * * * * php /var/www/freescout/artisan schedule:run >> /dev/null 2>&1
+          ```
+
+          ## Configuration for ${{ inputs.product_slug }}
+
+          ### Mailboxes
+          - **General Support**: support@example.com
+          - **Billing**: billing@example.com
+          - **Technical**: tech@example.com
+
+          ### Saved Replies (Canned Responses)
+
+          #### Welcome Response
+          ```
+          Subject: Thanks for reaching out!
+
+          Hi {{customer.first_name}},
+
+          Thank you for contacting ${{ inputs.product_slug }} support. We've received your message and will get back to you within 24 hours.
+
+          In the meantime, you might find these resources helpful:
+          - Documentation: https://docs.example.com
+          - FAQ: https://example.com/faq
+
+          Best regards,
+          ${{ inputs.product_slug }} Support Team
+          ```
+
+          #### Password Reset
+          ```
+          Subject: Password Reset Instructions
+
+          Hi {{customer.first_name}},
+
+          To reset your password:
+          1. Go to https://example.com/reset-password
+          2. Enter your email address
+          3. Check your email for the reset link
+
+          If you didn't request this, please ignore this email.
+
+          Best regards,
+          ${{ inputs.product_slug }} Support Team
+          ```
+
+          ### Workflows
+
+          #### Auto-Response
+          - **Trigger**: New conversation
+          - **Action**: Send welcome message
+          - **Delay**: Immediate
+
+          #### Follow-Up
+          - **Trigger**: No response in 3 days
+          - **Action**: Send follow-up email
+          - **Condition**: Conversation status = waiting
+
+          #### Escalation
+          - **Trigger**: No response in 24 hours
+          - **Action**: Notify supervisor
+          - **Condition**: Priority = high
+
+          ## Integration with ${{ inputs.product_slug }}
+
+          ### API Configuration
+          ```bash
+          # Generate API key in FreeScout admin panel
+          # Use in your application:
+
+          curl -X POST https://support.example.com/api/conversations \
+            -H "Authorization: Bearer YOUR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "mailboxId": 1,
+              "subject": "Support Request",
+              "customer": {
+                "email": "customer@example.com",
+                "firstName": "John"
+              },
+              "threads": [{
+                "type": "customer",
+                "body": "I need help with..."
+              }]
+            }'
+          ```
+
+          ### Webhook Integration
+          - Configure webhook URL: https://your-app.com/webhook/freescout
+          - Events: New conversation, Status changed, Note added
+
+          ## Metrics & Reports
+
+          ### Key Metrics
+          - First response time
+          - Average resolution time
+          - Customer satisfaction score (CSAT)
+          - Ticket volume by category
+          - Agent performance
+
+          ### Monthly Report Template
+          - Total tickets: X
+          - Resolved: Y
+          - Pending: Z
+          - Average response time: A hours
+          - Average resolution time: B hours
+          - CSAT score: C%
+
+          ## Best Practices
+
+          ### Response Time Goals
+          - **Critical**: < 1 hour
+          - **High**: < 4 hours
+          - **Normal**: < 24 hours
+          - **Low**: < 48 hours
+
+          ### Customer Satisfaction
+          - Send CSAT survey after resolution
+          - Follow up on negative feedback
+          - Reward high-performing agents
+
+          EOL
+
+      - name: Commit CRM/Support Configuration
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add infrastructure/${{ inputs.product_slug }}/crm
+          git add infrastructure/${{ inputs.product_slug }}/support
+          git commit -m "Add CRM and support configuration for ${{ inputs.product_slug }}" || echo "No changes to commit"
+
+      - name: Push Changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

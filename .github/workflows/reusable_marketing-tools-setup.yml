@@ -1,0 +1,423 @@
+# Reusable Workflow: Marketing Tools Setup
+# Sets up Mautic (email marketing) and Matomo (analytics)
+
+name: Setup Marketing Tools
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_slug:
+        description: 'Product Slug'
+        required: true
+        type: string
+      server_host:
+        description: 'Server Host/IP'
+        required: true
+        type: string
+      server_user:
+        description: 'SSH Username'
+        required: true
+        type: string
+      setup_mautic:
+        description: 'Setup Mautic (Email Marketing)'
+        required: false
+        type: boolean
+        default: true
+      setup_matomo:
+        description: 'Setup Matomo (Analytics)'
+        required: false
+        type: boolean
+        default: true
+      domain_mautic:
+        description: 'Mautic Domain (e.g., mail.example.com)'
+        required: false
+        type: string
+        default: ''
+      domain_matomo:
+        description: 'Matomo Domain (e.g., analytics.example.com)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  setup-mautic:
+    if: ${{ inputs.setup_mautic }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Mautic Setup Guide
+        run: |
+          mkdir -p infrastructure/${{ inputs.product_slug }}/marketing/mautic
+
+          cat > infrastructure/${{ inputs.product_slug }}/marketing/mautic/SETUP_GUIDE.md << 'EOL'
+          # Mautic Setup Guide for ${{ inputs.product_slug }}
+
+          ## Prerequisites
+          - Server: ${{ inputs.server_host }}
+          - Domain: ${{ inputs.domain_mautic || 'mail.example.com' }}
+          - PHP 8.0+
+          - MySQL 5.7+
+          - SMTP credentials
+
+          ## Installation Steps
+
+          ### 1. Download Mautic
+          ```bash
+          cd /var/www
+          wget https://github.com/mautic/mautic/releases/latest/download/mautic.zip
+          unzip mautic.zip -d mautic
+          cd mautic
+          chmod -R 755 app/cache app/logs
+          ```
+
+          ### 2. Create Database
+          ```bash
+          mysql -u root -p << EOF
+          CREATE DATABASE mautic_${{ inputs.product_slug }};
+          CREATE USER 'mautic'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+          GRANT ALL PRIVILEGES ON mautic_${{ inputs.product_slug }}.* TO 'mautic'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+          ```
+
+          ### 3. Configure Web Server (Nginx)
+          ```nginx
+          server {
+              listen 80;
+              server_name ${{ inputs.domain_mautic || 'mail.example.com' }};
+              root /var/www/mautic;
+              index index.php;
+
+              location / {
+                  try_files $uri /index.php$is_args$args;
+              }
+
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+          }
+          ```
+
+          ### 4. Complete Web Installation
+          - Navigate to http://${{ inputs.domain_mautic || 'mail.example.com' }}
+          - Follow installation wizard
+          - Enter database credentials
+          - Create admin account
+          - Configure email settings (SMTP)
+
+          ### 5. Configure Cron Jobs
+          ```bash
+          # Add to crontab
+          */5 * * * * php /var/www/mautic/bin/console mautic:segments:update
+          */5 * * * * php /var/www/mautic/bin/console mautic:campaigns:trigger
+          */15 * * * * php /var/www/mautic/bin/console mautic:campaigns:rebuild
+          0 */4 * * * php /var/www/mautic/bin/console mautic:emails:send
+          ```
+
+          ## Integration with ${{ inputs.product_slug }}
+
+          ### API Configuration
+          1. Go to Mautic Settings > Configuration > API Settings
+          2. Enable API
+          3. Create OAuth2 credentials
+          4. Note Client ID and Client Secret
+
+          ### Webhook Setup
+          1. Go to Settings > Webhooks
+          2. Create new webhook
+          3. Point to: https://your-app.com/webhook/mautic
+          4. Select events: Contact Created, Email Opened, Link Clicked
+
+          ## Email Campaigns
+
+          ### Welcome Email Campaign
+          - **Trigger**: Contact created with tag "new_user"
+          - **Wait**: 0 minutes
+          - **Action**: Send welcome email
+          - **Follow-up**: Wait 3 days, send getting started email
+
+          ### Nurture Campaign
+          - **Trigger**: Contact subscribed
+          - **Segment**: Not yet customer
+          - **Frequency**: Weekly educational emails
+          - **Goal**: Purchase or demo request
+
+          ## Monitoring
+          - Check cron job logs: `/var/log/cron.log`
+          - Monitor queue: `php bin/console mautic:queue:process`
+          - Email sending status: Mautic Dashboard > Emails
+
+          ## Backup
+          ```bash
+          # Database backup
+          mysqldump -u mautic -p mautic_${{ inputs.product_slug }} > mautic_backup_$(date +%Y%m%d).sql
+
+          # Files backup
+          tar -czf mautic_files_$(date +%Y%m%d).tar.gz /var/www/mautic
+          ```
+
+          ## Troubleshooting
+          - **Emails not sending**: Check SMTP settings, verify cron jobs running
+          - **Slow performance**: Increase PHP memory limit, optimize MySQL queries
+          - **Queue growing**: Increase email sending frequency in cron
+
+          ---
+
+          For official documentation: https://docs.mautic.org
+          EOL
+
+      - name: Generate Mautic Configuration Template
+        run: |
+          cat > infrastructure/${{ inputs.product_slug }}/marketing/mautic/config.yml << 'EOL'
+          # Mautic Configuration for ${{ inputs.product_slug }}
+
+          server:
+            host: ${{ inputs.server_host }}
+            domain: ${{ inputs.domain_mautic || 'mail.example.com' }}
+            path: /var/www/mautic
+
+          database:
+            name: mautic_${{ inputs.product_slug }}
+            user: mautic
+            password: CHANGE_THIS_PASSWORD
+
+          smtp:
+            host: SMTP_HOST
+            port: 587
+            username: SMTP_USERNAME
+            password: SMTP_PASSWORD
+            encryption: tls
+
+          api:
+            client_id: TO_BE_GENERATED
+            client_secret: TO_BE_GENERATED
+            callback_url: https://your-app.com/oauth/mautic/callback
+
+          campaigns:
+            welcome:
+              name: "Welcome Series"
+              trigger: "new_user"
+              emails:
+                - delay: 0
+                  template: "welcome_email"
+                - delay: 3d
+                  template: "getting_started"
+                - delay: 7d
+                  template: "tips_and_tricks"
+
+            nurture:
+              name: "Lead Nurture"
+              frequency: weekly
+              segment: "not_customer"
+
+          segments:
+            - name: "New Users"
+              filter: "created_date > -7 days"
+            - name: "Active Users"
+              filter: "last_activity > -30 days"
+            - name: "Inactive Users"
+              filter: "last_activity < -90 days"
+          EOL
+
+  setup-matomo:
+    if: ${{ inputs.setup_matomo }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Matomo Setup Guide
+        run: |
+          mkdir -p infrastructure/${{ inputs.product_slug }}/marketing/matomo
+
+          cat > infrastructure/${{ inputs.product_slug }}/marketing/matomo/SETUP_GUIDE.md << 'EOL'
+          # Matomo Setup Guide for ${{ inputs.product_slug }}
+
+          ## Prerequisites
+          - Server: ${{ inputs.server_host }}
+          - Domain: ${{ inputs.domain_matomo || 'analytics.example.com' }}
+          - PHP 7.4+
+          - MySQL 5.7+
+
+          ## Installation Steps
+
+          ### 1. Download Matomo
+          ```bash
+          cd /var/www
+          wget https://builds.matomo.org/matomo-latest.zip
+          unzip matomo-latest.zip
+          cd matomo
+          chmod -R 755 tmp/
+          ```
+
+          ### 2. Create Database
+          ```bash
+          mysql -u root -p << EOF
+          CREATE DATABASE matomo_${{ inputs.product_slug }};
+          CREATE USER 'matomo'@'localhost' IDENTIFIED BY 'CHANGE_THIS_PASSWORD';
+          GRANT ALL PRIVILEGES ON matomo_${{ inputs.product_slug }}.* TO 'matomo'@'localhost';
+          FLUSH PRIVILEGES;
+          EOF
+          ```
+
+          ### 3. Configure Web Server (Nginx)
+          ```nginx
+          server {
+              listen 80;
+              server_name ${{ inputs.domain_matomo || 'analytics.example.com' }};
+              root /var/www/matomo;
+              index index.php;
+
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+
+              # Security headers
+              add_header X-Frame-Options "SAMEORIGIN" always;
+              add_header X-Content-Type-Options "nosniff" always;
+          }
+          ```
+
+          ### 4. Complete Web Installation
+          - Navigate to http://${{ inputs.domain_matomo || 'analytics.example.com' }}
+          - Follow installation wizard
+          - Enter database credentials
+          - Create admin account
+          - Add first website
+
+          ### 5. Configure Tracking Code
+          Copy the JavaScript tracking code and add to your website:
+          ```html
+          <!-- Matomo -->
+          <script>
+            var _paq = window._paq = window._paq || [];
+            _paq.push(['trackPageView']);
+            _paq.push(['enableLinkTracking']);
+            (function() {
+              var u="//${{ inputs.domain_matomo || 'analytics.example.com' }}/";
+              _paq.push(['setTrackerUrl', u+'matomo.php']);
+              _paq.push(['setSiteId', '1']);
+              var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+              g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+            })();
+          </script>
+          <!-- End Matomo Code -->
+          ```
+
+          ### 6. Setup Cron for Archiving
+          ```bash
+          # Add to crontab
+          5 * * * * /usr/bin/php /var/www/matomo/console core:archive --url=http://${{ inputs.domain_matomo || 'analytics.example.com' }} > /dev/null 2>&1
+          ```
+
+          ## Integration with ${{ inputs.product_slug }}
+
+          ### API Configuration
+          1. Go to Administration > Platform > API
+          2. Create Authentication Token
+          3. Note the token for API calls
+
+          ### Custom Events Tracking
+          ```javascript
+          // Track custom events
+          _paq.push(['trackEvent', 'Category', 'Action', 'Name', Value]);
+
+          // Examples:
+          _paq.push(['trackEvent', 'Signup', 'Completed', 'Premium Plan']);
+          _paq.push(['trackEvent', 'Email', 'Sent', 'Welcome Email']);
+          ```
+
+          ## Key Metrics to Track
+
+          ### Acquisition
+          - Traffic sources
+          - Campaign performance
+          - Referral sources
+
+          ### Behavior
+          - Page views
+          - Time on site
+          - Bounce rate
+
+          ### Conversion
+          - Goal completions
+          - Conversion funnels
+          - Revenue tracking
+
+          ## Goals Setup
+
+          ### Signup Goal
+          - **Name**: User Signup
+          - **Trigger**: URL contains /signup/success
+          - **Revenue**: $0
+          - **Allow multiple conversions**: No
+
+          ### Purchase Goal
+          - **Name**: Purchase Completed
+          - **Trigger**: URL contains /purchase/complete
+          - **Revenue**: Use dynamic value
+          - **Allow multiple conversions**: Yes
+
+          ## Privacy & GDPR Compliance
+
+          ### Anonymize IPs
+          ```php
+          // In config.ini.php
+          [General]
+          force_ssl = 1
+
+          [Tracker]
+          anonymize_ip = 1
+          ```
+
+          ### Cookie Consent
+          ```javascript
+          // Require consent before tracking
+          _paq.push(['requireConsent']);
+
+          // When user gives consent:
+          _paq.push(['setConsentGiven']);
+          ```
+
+          ## Backup
+          ```bash
+          # Database backup
+          mysqldump -u matomo -p matomo_${{ inputs.product_slug }} > matomo_backup_$(date +%Y%m%d).sql
+
+          # Config backup
+          tar -czf matomo_config_$(date +%Y%m%d).tar.gz /var/www/matomo/config
+          ```
+
+          ## Performance Optimization
+          - Enable browser archiving trigger in Settings
+          - Set up database optimization
+          - Configure Redis for session storage
+          - Use CDN for Matomo.js file
+
+          ---
+
+          For official documentation: https://matomo.org/docs/
+          EOL
+
+      - name: Commit Marketing Tools Configuration
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add infrastructure/${{ inputs.product_slug }}/marketing
+          git commit -m "Add marketing tools configuration for ${{ inputs.product_slug }}" || echo "No changes to commit"
+
+      - name: Push Changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

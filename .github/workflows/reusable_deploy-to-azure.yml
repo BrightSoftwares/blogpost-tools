@@ -1,0 +1,234 @@
+name: Deploy Application to Microsoft Azure
+
+# Reusable workflow for deploying to Azure services
+# Supports: App Service, Container Instances, Functions, Static Web Apps
+# This workflow is idempotent - checks if resources exist before creating
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'Application name'
+        required: true
+        type: string
+
+      deployment_target:
+        description: 'Azure deployment target'
+        required: true
+        type: choice
+        options:
+          - 'app-service'          # Web Apps
+          - 'container-instances'  # Azure Container Instances
+          - 'functions'            # Azure Functions
+          - 'static-web-apps'      # Static websites
+
+      azure_subscription_id:
+        description: 'Azure subscription ID'
+        required: true
+        type: string
+
+      resource_group:
+        description: 'Resource group name'
+        required: true
+        type: string
+
+      location:
+        description: 'Azure region'
+        required: false
+        type: string
+        default: 'eastus'
+
+      app_type:
+        description: 'Application type'
+        required: false
+        type: choice
+        options:
+          - 'nodejs'
+          - 'python'
+          - 'dotnet'
+          - 'docker'
+        default: 'nodejs'
+
+      source_directory:
+        description: 'Source directory'
+        required: false
+        type: string
+        default: '.'
+
+      # App Service specific
+      app_service_plan:
+        description: 'App Service Plan name'
+        required: false
+        type: string
+
+      app_service_sku:
+        description: 'App Service SKU (F1 for free tier)'
+        required: false
+        type: string
+        default: 'F1'
+
+      # Azure Functions specific
+      function_app_name:
+        description: 'Function App name'
+        required: false
+        type: string
+
+      functions_runtime:
+        description: 'Functions runtime'
+        required: false
+        type: string
+        default: 'node'
+
+      # Common settings
+      use_free_tier:
+        description: 'Use free tier resources'
+        required: false
+        type: boolean
+        default: true
+
+      force_redeploy:
+        description: 'Force redeployment'
+        required: false
+        type: boolean
+        default: false
+
+    secrets:
+      AZURE_CREDENTIALS:
+        description: 'Azure service principal credentials (JSON)'
+        required: true
+
+      ENV_FILE_CONTENT:
+        description: '.env file content'
+        required: false
+
+    outputs:
+      deployment_status:
+        value: ${{ jobs.deploy.outputs.status }}
+      deployment_url:
+        value: ${{ jobs.deploy.outputs.url }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      url: ${{ steps.result.outputs.url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check Existing Deployment (Idempotency)
+        id: check_existing
+        run: |
+          EXISTING=false
+
+          case "${{ inputs.deployment_target }}" in
+            "app-service")
+              if az webapp show --name ${{ inputs.app_name }} \
+                --resource-group ${{ inputs.resource_group }} 2>/dev/null; then
+                echo "App Service exists"
+                EXISTING=true
+              fi
+              ;;
+            "functions")
+              if az functionapp show --name ${{ inputs.function_app_name || inputs.app_name }} \
+                --resource-group ${{ inputs.resource_group }} 2>/dev/null; then
+                echo "Function App exists"
+                EXISTING=true
+              fi
+              ;;
+          esac
+
+          echo "existing=$EXISTING" >> $GITHUB_OUTPUT
+          echo "should_deploy=$([ '$EXISTING' = 'true' ] && [ '${{ inputs.force_redeploy }}' != 'true' ] && echo 'false' || echo 'true')" >> $GITHUB_OUTPUT
+
+      - name: Deploy to App Service
+        if: inputs.deployment_target == 'app-service' && steps.check_existing.outputs.should_deploy == 'true'
+        run: |
+          # Create App Service Plan if needed
+          if ! az appservice plan show --name ${{ inputs.app_service_plan || inputs.app_name }}-plan \
+            --resource-group ${{ inputs.resource_group }} 2>/dev/null; then
+            az appservice plan create \
+              --name ${{ inputs.app_service_plan || inputs.app_name }}-plan \
+              --resource-group ${{ inputs.resource_group }} \
+              --sku ${{ inputs.app_service_sku }} \
+              --is-linux
+          fi
+
+          # Create Web App if needed
+          if ! az webapp show --name ${{ inputs.app_name }} \
+            --resource-group ${{ inputs.resource_group }} 2>/dev/null; then
+            az webapp create \
+              --name ${{ inputs.app_name }} \
+              --resource-group ${{ inputs.resource_group }} \
+              --plan ${{ inputs.app_service_plan || inputs.app_name }}-plan \
+              --runtime "${{ inputs.app_type }}|18-lts"
+          fi
+
+          # Deploy application
+          cd ${{ inputs.source_directory }}
+          zip -r /tmp/deploy.zip . -x ".git/*" "node_modules/*"
+
+          az webapp deployment source config-zip \
+            --resource-group ${{ inputs.resource_group }} \
+            --name ${{ inputs.app_name }} \
+            --src /tmp/deploy.zip
+
+      - name: Deploy to Azure Functions
+        if: inputs.deployment_target == 'functions' && steps.check_existing.outputs.should_deploy == 'true'
+        run: |
+          FUNC_NAME="${{ inputs.function_app_name || inputs.app_name }}"
+
+          # Create Function App if needed
+          if ! az functionapp show --name $FUNC_NAME \
+            --resource-group ${{ inputs.resource_group }} 2>/dev/null; then
+
+            # Create storage account (required for Functions)
+            STORAGE_NAME=$(echo $FUNC_NAME | tr -cd '[:alnum:]' | cut -c1-24)sa
+            az storage account create \
+              --name $STORAGE_NAME \
+              --resource-group ${{ inputs.resource_group }} \
+              --location ${{ inputs.location }} \
+              --sku Standard_LRS
+
+            # Create Function App
+            az functionapp create \
+              --name $FUNC_NAME \
+              --resource-group ${{ inputs.resource_group }} \
+              --storage-account $STORAGE_NAME \
+              --runtime ${{ inputs.functions_runtime }} \
+              --functions-version 4 \
+              --os-type Linux \
+              --consumption-plan-location ${{ inputs.location }}
+          fi
+
+          # Deploy function code
+          cd ${{ inputs.source_directory }}
+          func azure functionapp publish $FUNC_NAME --${{ inputs.app_type }}
+
+      - name: Set Deployment Result
+        id: result
+        run: |
+          echo "status=$( [ '${{ steps.check_existing.outputs.should_deploy }}' = 'false' ] && echo 'skipped' || echo 'success' )" >> $GITHUB_OUTPUT
+
+          case "${{ inputs.deployment_target }}" in
+            "app-service")
+              echo "url=https://${{ inputs.app_name }}.azurewebsites.net" >> $GITHUB_OUTPUT
+              ;;
+            "functions")
+              echo "url=https://${{ inputs.function_app_name || inputs.app_name }}.azurewebsites.net" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Create Summary
+        run: |
+          echo "# Azure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: ${{ inputs.deployment_target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.result.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.result.outputs.url }}" >> $GITHUB_STEP_SUMMARY

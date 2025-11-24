@@ -1,0 +1,437 @@
+name: Deploy Application to AWS
+
+# Reusable workflow for deploying applications to various AWS services
+# Supports: EC2, ECS, Lambda, S3 (static sites), Elastic Beanstalk
+# This workflow is idempotent - checks if resources exist before creating
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'Application name'
+        required: true
+        type: string
+
+      deployment_target:
+        description: 'AWS deployment target'
+        required: true
+        type: choice
+        options:
+          - 's3-cloudfront' # Static website
+          - 'ec2'           # EC2 instance
+          - 'ecs-fargate'   # ECS with Fargate
+          - 'lambda'        # Lambda function
+          - 'elastic-beanstalk'
+
+      aws_region:
+        description: 'AWS region'
+        required: false
+        type: string
+        default: 'us-east-1'
+
+      app_type:
+        description: 'Application type'
+        required: false
+        type: choice
+        options:
+          - 'static-site'
+          - 'nodejs'
+          - 'python'
+          - 'docker'
+        default: 'nodejs'
+
+      source_directory:
+        description: 'Source directory'
+        required: false
+        type: string
+        default: '.'
+
+      # S3/CloudFront specific
+      s3_bucket_name:
+        description: 'S3 bucket name (for static sites)'
+        required: false
+        type: string
+
+      cloudfront_distribution_id:
+        description: 'CloudFront distribution ID'
+        required: false
+        type: string
+
+      # EC2 specific
+      ec2_instance_id:
+        description: 'EC2 instance ID'
+        required: false
+        type: string
+
+      ec2_key_name:
+        description: 'EC2 SSH key pair name'
+        required: false
+        type: string
+
+      # ECS specific
+      ecs_cluster_name:
+        description: 'ECS cluster name'
+        required: false
+        type: string
+
+      ecs_service_name:
+        description: 'ECS service name'
+        required: false
+        type: string
+
+      ecr_repository:
+        description: 'ECR repository name'
+        required: false
+        type: string
+
+      # Lambda specific
+      lambda_function_name:
+        description: 'Lambda function name'
+        required: false
+        type: string
+
+      lambda_runtime:
+        description: 'Lambda runtime'
+        required: false
+        type: string
+        default: 'nodejs18.x'
+
+      # Common settings
+      use_free_tier:
+        description: 'Use free tier resources only'
+        required: false
+        type: boolean
+        default: true
+
+      force_redeploy:
+        description: 'Force redeployment'
+        required: false
+        type: boolean
+        default: false
+
+      create_resources:
+        description: 'Create AWS resources if they dont exist'
+        required: false
+        type: boolean
+        default: true
+
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        description: 'AWS Access Key ID'
+        required: true
+
+      AWS_SECRET_ACCESS_KEY:
+        description: 'AWS Secret Access Key'
+        required: true
+
+      EC2_SSH_KEY:
+        description: 'EC2 SSH private key'
+        required: false
+
+      ENV_FILE_CONTENT:
+        description: '.env file content'
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status'
+        value: ${{ jobs.deploy.outputs.status }}
+
+      deployment_url:
+        description: 'Application URL'
+        value: ${{ jobs.deploy.outputs.url }}
+
+      resource_arn:
+        description: 'AWS resource ARN'
+        value: ${{ jobs.deploy.outputs.arn }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      url: ${{ steps.result.outputs.url }}
+      arn: ${{ steps.result.outputs.arn }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Check Existing Deployment (Idempotency)
+        id: check_existing
+        run: |
+          echo "Checking for existing deployment..."
+          EXISTING=false
+
+          case "${{ inputs.deployment_target }}" in
+            "s3-cloudfront")
+              # Check if S3 bucket exists
+              if aws s3 ls s3://${{ inputs.s3_bucket_name }} 2>/dev/null; then
+                echo "S3 bucket exists: ${{ inputs.s3_bucket_name }}"
+                EXISTING=true
+              fi
+              ;;
+
+            "ec2")
+              # Check if EC2 instance exists and running
+              if [ -n "${{ inputs.ec2_instance_id }}" ]; then
+                STATE=$(aws ec2 describe-instances \
+                  --instance-ids ${{ inputs.ec2_instance_id }} \
+                  --query 'Reservations[0].Instances[0].State.Name' \
+                  --output text 2>/dev/null || echo "not-found")
+
+                if [ "$STATE" = "running" ]; then
+                  echo "EC2 instance running: ${{ inputs.ec2_instance_id }}"
+                  EXISTING=true
+                fi
+              fi
+              ;;
+
+            "ecs-fargate")
+              # Check if ECS service exists
+              if aws ecs describe-services \
+                --cluster ${{ inputs.ecs_cluster_name }} \
+                --services ${{ inputs.ecs_service_name }} \
+                --query 'services[0].status' \
+                --output text 2>/dev/null | grep -q "ACTIVE"; then
+                echo "ECS service exists and active"
+                EXISTING=true
+              fi
+              ;;
+
+            "lambda")
+              # Check if Lambda function exists
+              if aws lambda get-function \
+                --function-name ${{ inputs.lambda_function_name }} \
+                2>/dev/null > /dev/null; then
+                echo "Lambda function exists: ${{ inputs.lambda_function_name }}"
+                EXISTING=true
+              fi
+              ;;
+          esac
+
+          echo "existing=$EXISTING" >> $GITHUB_OUTPUT
+
+          if [ "$EXISTING" = "true" ] && [ "${{ inputs.force_redeploy }}" != "true" ]; then
+            echo "::notice::Resource already exists. Use force_redeploy=true to redeploy"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ===== S3 + CloudFront Deployment =====
+      - name: Deploy to S3 (Static Site)
+        if: inputs.deployment_target == 's3-cloudfront' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          # Build static site if needed
+          if [ -f "package.json" ]; then
+            npm ci
+            npm run build
+          fi
+
+          # Create S3 bucket if it doesn't exist
+          if ! aws s3 ls s3://${{ inputs.s3_bucket_name }} 2>/dev/null; then
+            echo "Creating S3 bucket..."
+            aws s3 mb s3://${{ inputs.s3_bucket_name }} --region ${{ inputs.aws_region }}
+
+            # Enable static website hosting
+            aws s3 website s3://${{ inputs.s3_bucket_name }} \
+              --index-document index.html \
+              --error-document error.html
+
+            # Set bucket policy for public read
+            cat > /tmp/bucket-policy.json << EOF
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Sid": "PublicReadGetObject",
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": "s3:GetObject",
+              "Resource": "arn:aws:s3:::${{ inputs.s3_bucket_name }}/*"
+            }]
+          }
+          EOF
+            aws s3api put-bucket-policy \
+              --bucket ${{ inputs.s3_bucket_name }} \
+              --policy file:///tmp/bucket-policy.json
+          fi
+
+          # Sync files to S3
+          BUILD_DIR="build"
+          [ -d "dist" ] && BUILD_DIR="dist"
+          [ -d "out" ] && BUILD_DIR="out"
+          [ -d "public" ] && BUILD_DIR="public"
+
+          aws s3 sync $BUILD_DIR s3://${{ inputs.s3_bucket_name }} \
+            --delete \
+            --cache-control "public, max-age=31536000"
+
+          # Invalidate CloudFront if distribution ID provided
+          if [ -n "${{ inputs.cloudfront_distribution_id }}" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id ${{ inputs.cloudfront_distribution_id }} \
+              --paths "/*"
+          fi
+
+      # ===== Lambda Deployment =====
+      - name: Deploy to Lambda
+        if: inputs.deployment_target == 'lambda' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          # Package Lambda function
+          zip -r /tmp/function.zip . -x "*.git*" "node_modules/*" "tests/*"
+
+          # Install production dependencies
+          if [ -f "package.json" ]; then
+            npm ci --production
+            zip -r /tmp/function.zip node_modules
+          fi
+
+          # Create or update Lambda function
+          if aws lambda get-function --function-name ${{ inputs.lambda_function_name }} 2>/dev/null; then
+            echo "Updating existing Lambda function..."
+            aws lambda update-function-code \
+              --function-name ${{ inputs.lambda_function_name }} \
+              --zip-file fileb:///tmp/function.zip
+          else
+            echo "Creating new Lambda function..."
+            aws lambda create-function \
+              --function-name ${{ inputs.lambda_function_name }} \
+              --runtime ${{ inputs.lambda_runtime }} \
+              --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/lambda-execution-role \
+              --handler index.handler \
+              --zip-file fileb:///tmp/function.zip \
+              --timeout 30 \
+              --memory-size 128
+          fi
+
+          # Set environment variables if provided
+          if [ -n "${{ secrets.ENV_FILE_CONTENT }}" ]; then
+            ENV_VARS=$(echo "${{ secrets.ENV_FILE_CONTENT }}" | jq -R -s 'split("\n") | map(select(length > 0) | split("=")) | map({(.[0]): .[1]}) | add')
+            aws lambda update-function-configuration \
+              --function-name ${{ inputs.lambda_function_name }} \
+              --environment "Variables=$ENV_VARS"
+          fi
+
+      # ===== ECS Fargate Deployment =====
+      - name: Deploy to ECS Fargate
+        if: inputs.deployment_target == 'ecs-fargate' && steps.check_existing.outputs.should_deploy == 'true'
+        run: |
+          # Login to ECR
+          aws ecr get-login-password --region ${{ inputs.aws_region }} | \
+            docker login --username AWS --password-stdin \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.aws_region }}.amazonaws.com
+
+          # Build and push Docker image
+          docker build -t ${{ inputs.ecr_repository }}:latest ${{ inputs.source_directory }}
+          docker tag ${{ inputs.ecr_repository }}:latest \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.aws_region }}.amazonaws.com/${{ inputs.ecr_repository }}:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.aws_region }}.amazonaws.com/${{ inputs.ecr_repository }}:latest
+
+          # Update ECS service
+          aws ecs update-service \
+            --cluster ${{ inputs.ecs_cluster_name }} \
+            --service ${{ inputs.ecs_service_name }} \
+            --force-new-deployment
+
+      # ===== EC2 Deployment =====
+      - name: Deploy to EC2
+        if: inputs.deployment_target == 'ec2' && steps.check_existing.outputs.should_deploy == 'true'
+        run: |
+          # Setup SSH key
+          echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/ec2_key.pem
+          chmod 600 /tmp/ec2_key.pem
+
+          # Get EC2 public IP
+          EC2_IP=$(aws ec2 describe-instances \
+            --instance-ids ${{ inputs.ec2_instance_id }} \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+
+          # Create deployment package
+          tar -czf /tmp/app.tar.gz -C ${{ inputs.source_directory }} .
+
+          # Upload to EC2
+          scp -i /tmp/ec2_key.pem -o StrictHostKeyChecking=no \
+            /tmp/app.tar.gz ec2-user@$EC2_IP:/tmp/
+
+          # Deploy on EC2
+          ssh -i /tmp/ec2_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP << 'ENDSSH'
+            sudo mkdir -p /var/www/${{ inputs.app_name }}
+            sudo tar -xzf /tmp/app.tar.gz -C /var/www/${{ inputs.app_name }}
+            cd /var/www/${{ inputs.app_name }}
+
+            # Install dependencies and start app based on type
+            case "${{ inputs.app_type }}" in
+              "nodejs")
+                npm ci --production
+                pm2 restart ${{ inputs.app_name }} || pm2 start index.js --name ${{ inputs.app_name }}
+                ;;
+              "python")
+                pip install -r requirements.txt
+                supervisorctl restart ${{ inputs.app_name }}
+                ;;
+            esac
+          ENDSSH
+
+          rm /tmp/ec2_key.pem
+
+      - name: Set Deployment Result
+        id: result
+        run: |
+          if [ "${{ steps.check_existing.outputs.should_deploy }}" = "false" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+          # Set URL based on deployment target
+          case "${{ inputs.deployment_target }}" in
+            "s3-cloudfront")
+              if [ -n "${{ inputs.cloudfront_distribution_id }}" ]; then
+                DOMAIN=$(aws cloudfront get-distribution \
+                  --id ${{ inputs.cloudfront_distribution_id }} \
+                  --query 'Distribution.DomainName' --output text)
+                echo "url=https://$DOMAIN" >> $GITHUB_OUTPUT
+              else
+                echo "url=http://${{ inputs.s3_bucket_name }}.s3-website-${{ inputs.aws_region }}.amazonaws.com" >> $GITHUB_OUTPUT
+              fi
+              ;;
+            "lambda")
+              ARN=$(aws lambda get-function --function-name ${{ inputs.lambda_function_name }} \
+                --query 'Configuration.FunctionArn' --output text)
+              echo "arn=$ARN" >> $GITHUB_OUTPUT
+              echo "url=Lambda function deployed (configure API Gateway for HTTP endpoint)" >> $GITHUB_OUTPUT
+              ;;
+            "ec2")
+              IP=$(aws ec2 describe-instances --instance-ids ${{ inputs.ec2_instance_id }} \
+                --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+              echo "url=http://$IP" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Create Deployment Summary
+        run: |
+          echo "# AWS Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: ${{ inputs.deployment_target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ inputs.aws_region }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.result.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ steps.result.outputs.url }}" ]; then
+            echo "- **URL**: ${{ steps.result.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ inputs.use_free_tier }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "💰 **Using Free Tier Resources**" >> $GITHUB_STEP_SUMMARY
+          fi

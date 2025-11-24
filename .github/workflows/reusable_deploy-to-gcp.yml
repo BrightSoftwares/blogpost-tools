@@ -1,0 +1,565 @@
+name: Deploy Application to Google Cloud Platform
+
+# Reusable workflow for deploying to GCP services
+# Supports: Cloud Run, App Engine, Cloud Functions, GCE, Cloud Storage
+# This workflow is idempotent - checks if resources exist before creating
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: 'Application name'
+        required: true
+        type: string
+
+      deployment_target:
+        description: 'GCP deployment target'
+        required: true
+        type: choice
+        options:
+          - 'cloud-run'       # Serverless containers
+          - 'app-engine'      # Platform as a Service
+          - 'cloud-functions' # Serverless functions
+          - 'gce'             # Compute Engine VM
+          - 'cloud-storage'   # Static website
+
+      gcp_project_id:
+        description: 'GCP Project ID'
+        required: true
+        type: string
+
+      gcp_region:
+        description: 'GCP region'
+        required: false
+        type: string
+        default: 'us-central1'
+
+      app_type:
+        description: 'Application type'
+        required: false
+        type: choice
+        options:
+          - 'nodejs'
+          - 'python'
+          - 'go'
+          - 'docker'
+          - 'static-site'
+        default: 'nodejs'
+
+      source_directory:
+        description: 'Source directory'
+        required: false
+        type: string
+        default: '.'
+
+      # Cloud Run specific
+      cloudrun_service_name:
+        description: 'Cloud Run service name'
+        required: false
+        type: string
+
+      cloudrun_min_instances:
+        description: 'Min instances (0 for free tier)'
+        required: false
+        type: number
+        default: 0
+
+      cloudrun_max_instances:
+        description: 'Max instances'
+        required: false
+        type: number
+        default: 10
+
+      cloudrun_cpu:
+        description: 'CPU allocation'
+        required: false
+        type: string
+        default: '1'
+
+      cloudrun_memory:
+        description: 'Memory allocation'
+        required: false
+        type: string
+        default: '512Mi'
+
+      allow_unauthenticated:
+        description: 'Allow unauthenticated access'
+        required: false
+        type: boolean
+        default: true
+
+      # App Engine specific
+      appengine_service:
+        description: 'App Engine service name'
+        required: false
+        type: string
+        default: 'default'
+
+      # Cloud Functions specific
+      function_name:
+        description: 'Cloud Function name'
+        required: false
+        type: string
+
+      function_runtime:
+        description: 'Function runtime'
+        required: false
+        type: string
+        default: 'nodejs18'
+
+      function_entry_point:
+        description: 'Function entry point'
+        required: false
+        type: string
+        default: 'handler'
+
+      function_trigger_http:
+        description: 'HTTP trigger'
+        required: false
+        type: boolean
+        default: true
+
+      # GCE specific
+      gce_instance_name:
+        description: 'GCE instance name'
+        required: false
+        type: string
+
+      gce_machine_type:
+        description: 'GCE machine type'
+        required: false
+        type: string
+        default: 'e2-micro' # Free tier eligible
+
+      gce_zone:
+        description: 'GCE zone'
+        required: false
+        type: string
+        default: 'us-central1-a'
+
+      # Cloud Storage specific
+      storage_bucket_name:
+        description: 'Cloud Storage bucket name'
+        required: false
+        type: string
+
+      # Common settings
+      use_free_tier:
+        description: 'Use free tier resources only'
+        required: false
+        type: boolean
+        default: true
+
+      force_redeploy:
+        description: 'Force redeployment'
+        required: false
+        type: boolean
+        default: false
+
+      create_resources:
+        description: 'Create GCP resources if they dont exist'
+        required: false
+        type: boolean
+        default: true
+
+    secrets:
+      GCP_SERVICE_ACCOUNT_KEY:
+        description: 'GCP Service Account JSON key'
+        required: true
+
+      GCE_SSH_KEY:
+        description: 'GCE SSH private key'
+        required: false
+
+      ENV_FILE_CONTENT:
+        description: '.env file content'
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status'
+        value: ${{ jobs.deploy.outputs.status }}
+
+      deployment_url:
+        description: 'Application URL'
+        value: ${{ jobs.deploy.outputs.url }}
+
+      service_name:
+        description: 'GCP service name'
+        value: ${{ jobs.deploy.outputs.service_name }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      url: ${{ steps.result.outputs.url }}
+      service_name: ${{ steps.result.outputs.service_name }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.gcp_project_id }}
+
+      - name: Check Existing Deployment (Idempotency)
+        id: check_existing
+        run: |
+          echo "Checking for existing deployment..."
+          EXISTING=false
+
+          case "${{ inputs.deployment_target }}" in
+            "cloud-run")
+              # Check if Cloud Run service exists
+              if gcloud run services describe ${{ inputs.cloudrun_service_name || inputs.app_name }} \
+                --region ${{ inputs.gcp_region }} \
+                --project ${{ inputs.gcp_project_id }} \
+                --format="value(status.url)" 2>/dev/null; then
+                echo "Cloud Run service exists"
+                EXISTING=true
+              fi
+              ;;
+
+            "app-engine")
+              # Check if App Engine service exists
+              if gcloud app services describe ${{ inputs.appengine_service }} \
+                --project ${{ inputs.gcp_project_id }} 2>/dev/null | grep -q "id:"; then
+                echo "App Engine service exists"
+                EXISTING=true
+              fi
+              ;;
+
+            "cloud-functions")
+              # Check if Cloud Function exists
+              if gcloud functions describe ${{ inputs.function_name || inputs.app_name }} \
+                --region ${{ inputs.gcp_region }} \
+                --project ${{ inputs.gcp_project_id }} 2>/dev/null; then
+                echo "Cloud Function exists"
+                EXISTING=true
+              fi
+              ;;
+
+            "gce")
+              # Check if GCE instance exists and running
+              STATUS=$(gcloud compute instances describe ${{ inputs.gce_instance_name || inputs.app_name }} \
+                --zone ${{ inputs.gce_zone }} \
+                --project ${{ inputs.gcp_project_id }} \
+                --format="value(status)" 2>/dev/null || echo "NOT_FOUND")
+
+              if [ "$STATUS" = "RUNNING" ]; then
+                echo "GCE instance running"
+                EXISTING=true
+              fi
+              ;;
+
+            "cloud-storage")
+              # Check if bucket exists
+              if gsutil ls gs://${{ inputs.storage_bucket_name }} 2>/dev/null; then
+                echo "Cloud Storage bucket exists"
+                EXISTING=true
+              fi
+              ;;
+          esac
+
+          echo "existing=$EXISTING" >> $GITHUB_OUTPUT
+
+          if [ "$EXISTING" = "true" ] && [ "${{ inputs.force_redeploy }}" != "true" ]; then
+            echo "::notice::Resource already exists. Use force_redeploy=true to redeploy"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ===== Cloud Run Deployment =====
+      - name: Deploy to Cloud Run
+        if: inputs.deployment_target == 'cloud-run' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          SERVICE_NAME="${{ inputs.cloudrun_service_name || inputs.app_name }}"
+
+          # Build container image
+          gcloud builds submit \
+            --tag gcr.io/${{ inputs.gcp_project_id }}/$SERVICE_NAME \
+            --project ${{ inputs.gcp_project_id }}
+
+          # Deploy to Cloud Run
+          gcloud run deploy $SERVICE_NAME \
+            --image gcr.io/${{ inputs.gcp_project_id }}/$SERVICE_NAME \
+            --region ${{ inputs.gcp_region }} \
+            --project ${{ inputs.gcp_project_id }} \
+            --platform managed \
+            --min-instances ${{ inputs.cloudrun_min_instances }} \
+            --max-instances ${{ inputs.cloudrun_max_instances }} \
+            --cpu ${{ inputs.cloudrun_cpu }} \
+            --memory ${{ inputs.cloudrun_memory }} \
+            $( [ "${{ inputs.allow_unauthenticated }}" = "true" ] && echo "--allow-unauthenticated" || echo "--no-allow-unauthenticated" )
+
+          # Set environment variables if provided
+          if [ -n "${{ secrets.ENV_FILE_CONTENT }}" ]; then
+            # Parse .env file and set as environment variables
+            ENV_VARS=$(echo "${{ secrets.ENV_FILE_CONTENT }}" | \
+              grep -v '^#' | grep -v '^$' | \
+              awk -F= '{printf "%s=%s,", $1, $2}' | sed 's/,$//')
+
+            gcloud run services update $SERVICE_NAME \
+              --region ${{ inputs.gcp_region }} \
+              --project ${{ inputs.gcp_project_id }} \
+              --set-env-vars="$ENV_VARS"
+          fi
+
+      # ===== App Engine Deployment =====
+      - name: Deploy to App Engine
+        if: inputs.deployment_target == 'app-engine' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          # Create app.yaml if it doesn't exist
+          if [ ! -f "app.yaml" ]; then
+            cat > app.yaml << EOF
+          runtime: ${{ inputs.app_type }}18
+          service: ${{ inputs.appengine_service }}
+          instance_class: F1  # Free tier
+
+          automatic_scaling:
+            min_instances: 0
+            max_instances: 1
+
+          env_variables:
+            NODE_ENV: production
+          EOF
+          fi
+
+          # Deploy to App Engine
+          gcloud app deploy app.yaml \
+            --project ${{ inputs.gcp_project_id }} \
+            --quiet \
+            --no-promote  # Don't immediately route traffic
+
+      # ===== Cloud Functions Deployment =====
+      - name: Deploy to Cloud Functions
+        if: inputs.deployment_target == 'cloud-functions' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          FUNCTION_NAME="${{ inputs.function_name || inputs.app_name }}"
+
+          # Deploy Cloud Function
+          gcloud functions deploy $FUNCTION_NAME \
+            --runtime ${{ inputs.function_runtime }} \
+            --region ${{ inputs.gcp_region }} \
+            --project ${{ inputs.gcp_project_id }} \
+            --entry-point ${{ inputs.function_entry_point }} \
+            --source . \
+            $( [ "${{ inputs.function_trigger_http }}" = "true" ] && echo "--trigger-http" ) \
+            $( [ "${{ inputs.allow_unauthenticated }}" = "true" ] && echo "--allow-unauthenticated" || echo "--no-allow-unauthenticated" ) \
+            --max-instances ${{ inputs.cloudrun_max_instances }} \
+            --memory ${{ inputs.cloudrun_memory }}
+
+          # Set environment variables if provided
+          if [ -n "${{ secrets.ENV_FILE_CONTENT }}" ]; then
+            ENV_FILE="/tmp/env.yaml"
+            echo "${{ secrets.ENV_FILE_CONTENT }}" | \
+              grep -v '^#' | grep -v '^$' | \
+              awk -F= '{printf "  %s: \"%s\"\n", $1, $2}' > $ENV_FILE
+
+            gcloud functions deploy $FUNCTION_NAME \
+              --region ${{ inputs.gcp_region }} \
+              --project ${{ inputs.gcp_project_id }} \
+              --update-env-vars-file=$ENV_FILE
+          fi
+
+      # ===== GCE Deployment =====
+      - name: Deploy to Compute Engine
+        if: inputs.deployment_target == 'gce' && steps.check_existing.outputs.should_deploy == 'true'
+        run: |
+          INSTANCE_NAME="${{ inputs.gce_instance_name || inputs.app_name }}"
+
+          # Create instance if it doesn't exist
+          if ! gcloud compute instances describe $INSTANCE_NAME \
+            --zone ${{ inputs.gce_zone }} \
+            --project ${{ inputs.gcp_project_id }} 2>/dev/null; then
+
+            echo "Creating GCE instance..."
+            gcloud compute instances create $INSTANCE_NAME \
+              --zone ${{ inputs.gcp_zone }} \
+              --project ${{ inputs.gcp_project_id }} \
+              --machine-type ${{ inputs.gce_machine_type }} \
+              --image-family debian-11 \
+              --image-project debian-cloud \
+              --boot-disk-size 10GB \
+              --boot-disk-type pd-standard \
+              --tags http-server,https-server
+
+            # Wait for instance to start
+            sleep 30
+          fi
+
+          # Get instance IP
+          INSTANCE_IP=$(gcloud compute instances describe $INSTANCE_NAME \
+            --zone ${{ inputs.gce_zone }} \
+            --project ${{ inputs.gcp_project_id }} \
+            --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
+
+          # Create deployment package
+          tar -czf /tmp/app.tar.gz -C ${{ inputs.source_directory }} .
+
+          # Upload and deploy
+          gcloud compute scp /tmp/app.tar.gz $INSTANCE_NAME:/tmp/ \
+            --zone ${{ inputs.gce_zone }} \
+            --project ${{ inputs.gcp_project_id }}
+
+          gcloud compute ssh $INSTANCE_NAME \
+            --zone ${{ inputs.gce_zone }} \
+            --project ${{ inputs.gcp_project_id }} \
+            --command "
+              sudo mkdir -p /var/www/${{ inputs.app_name }}
+              sudo tar -xzf /tmp/app.tar.gz -C /var/www/${{ inputs.app_name }}
+              cd /var/www/${{ inputs.app_name }}
+
+              # Install dependencies based on app type
+              case '${{ inputs.app_type }}' in
+                'nodejs')
+                  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                  sudo apt-get install -y nodejs
+                  npm ci --production
+                  ;;
+                'python')
+                  sudo apt-get update
+                  sudo apt-get install -y python3-pip
+                  pip3 install -r requirements.txt
+                  ;;
+              esac
+            "
+
+      # ===== Cloud Storage Deployment =====
+      - name: Deploy to Cloud Storage
+        if: inputs.deployment_target == 'cloud-storage' && steps.check_existing.outputs.should_deploy == 'true'
+        working-directory: ${{ inputs.source_directory }}
+        run: |
+          BUCKET_NAME="${{ inputs.storage_bucket_name }}"
+
+          # Create bucket if it doesn't exist
+          if ! gsutil ls gs://$BUCKET_NAME 2>/dev/null; then
+            echo "Creating Cloud Storage bucket..."
+            gsutil mb -p ${{ inputs.gcp_project_id }} \
+              -l ${{ inputs.gcp_region }} \
+              -b on \
+              gs://$BUCKET_NAME
+
+            # Configure for static website hosting
+            gsutil web set -m index.html -e 404.html gs://$BUCKET_NAME
+
+            # Make bucket public
+            gsutil iam ch allUsers:objectViewer gs://$BUCKET_NAME
+          fi
+
+          # Build static site if needed
+          if [ -f "package.json" ]; then
+            npm ci
+            npm run build
+          fi
+
+          # Determine build directory
+          BUILD_DIR="build"
+          [ -d "dist" ] && BUILD_DIR="dist"
+          [ -d "out" ] && BUILD_DIR="out"
+          [ -d "public" ] && BUILD_DIR="public"
+
+          # Upload to Cloud Storage
+          gsutil -m rsync -r -d $BUILD_DIR gs://$BUCKET_NAME
+
+          # Set cache control
+          gsutil -m setmeta -h "Cache-Control:public, max-age=31536000" \
+            gs://$BUCKET_NAME/**
+
+      - name: Set Deployment Result
+        id: result
+        run: |
+          if [ "${{ steps.check_existing.outputs.should_deploy }}" = "false" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+          # Set URL based on deployment target
+          case "${{ inputs.deployment_target }}" in
+            "cloud-run")
+              URL=$(gcloud run services describe ${{ inputs.cloudrun_service_name || inputs.app_name }} \
+                --region ${{ inputs.gcp_region }} \
+                --project ${{ inputs.gcp_project_id }} \
+                --format="value(status.url)")
+              echo "url=$URL" >> $GITHUB_OUTPUT
+              echo "service_name=${{ inputs.cloudrun_service_name || inputs.app_name }}" >> $GITHUB_OUTPUT
+              ;;
+
+            "app-engine")
+              echo "url=https://${{ inputs.gcp_project_id }}.appspot.com" >> $GITHUB_OUTPUT
+              echo "service_name=${{ inputs.appengine_service }}" >> $GITHUB_OUTPUT
+              ;;
+
+            "cloud-functions")
+              URL=$(gcloud functions describe ${{ inputs.function_name || inputs.app_name }} \
+                --region ${{ inputs.gcp_region }} \
+                --project ${{ inputs.gcp_project_id }} \
+                --format="value(httpsTrigger.url)")
+              echo "url=$URL" >> $GITHUB_OUTPUT
+              echo "service_name=${{ inputs.function_name || inputs.app_name }}" >> $GITHUB_OUTPUT
+              ;;
+
+            "gce")
+              IP=$(gcloud compute instances describe ${{ inputs.gce_instance_name || inputs.app_name }} \
+                --zone ${{ inputs.gce_zone }} \
+                --project ${{ inputs.gcp_project_id }} \
+                --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
+              echo "url=http://$IP" >> $GITHUB_OUTPUT
+              ;;
+
+            "cloud-storage")
+              echo "url=https://storage.googleapis.com/${{ inputs.storage_bucket_name }}/index.html" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Create Deployment Summary
+        run: |
+          echo "# GCP Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: ${{ inputs.deployment_target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project**: ${{ inputs.gcp_project_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ inputs.gcp_region }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.result.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ steps.result.outputs.url }}" ]; then
+            echo "- **URL**: ${{ steps.result.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ inputs.use_free_tier }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "💰 **Using Free Tier Resources**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Monthly free tier limits:" >> $GITHUB_STEP_SUMMARY
+            case "${{ inputs.deployment_target }}" in
+              "cloud-run")
+                echo "- 2 million requests" >> $GITHUB_STEP_SUMMARY
+                echo "- 360,000 GB-seconds memory" >> $GITHUB_STEP_SUMMARY
+                echo "- 180,000 vCPU-seconds" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "app-engine")
+                echo "- 28 instance hours per day" >> $GITHUB_STEP_SUMMARY
+                echo "- 1 GB outbound data" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "cloud-functions")
+                echo "- 2 million invocations" >> $GITHUB_STEP_SUMMARY
+                echo "- 400,000 GB-seconds compute" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "gce")
+                echo "- 1 e2-micro instance" >> $GITHUB_STEP_SUMMARY
+                echo "- 30 GB storage" >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+          fi
