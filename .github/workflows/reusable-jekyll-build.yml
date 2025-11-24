@@ -1,0 +1,106 @@
+name: Reusable Jekyll Build
+
+on:
+  workflow_call:
+    inputs:
+      ruby-version:
+        description: 'Ruby version to use'
+        required: false
+        type: string
+        default: '3.4.1'
+      jekyll-version:
+        description: 'Jekyll version'
+        required: false
+        type: string
+        default: '4.3.4'
+      pre-build-commands:
+        description: 'Commands to run before Jekyll build'
+        required: false
+        type: string
+        default: ''
+      build-destination:
+        description: 'Jekyll build destination directory'
+        required: false
+        type: string
+        default: './build'
+      enable-algolia:
+        description: 'Run Jekyll Algolia indexing'
+        required: false
+        type: boolean
+        default: false
+      runner:
+        description: 'Runner to use (ubuntu-latest or self-hosted)'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+    secrets:
+      ALGOLIA_API_KEY:
+        description: 'Algolia API key for indexing'
+        required: false
+    outputs:
+      build-status:
+        description: 'Build completion status'
+        value: ${{ jobs.build.outputs.status }}
+      build-time:
+        description: 'Build duration in seconds'
+        value: ${{ jobs.build.outputs.duration }}
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    outputs:
+      status: ${{ steps.build-complete.outputs.status }}
+      duration: ${{ steps.build-complete.outputs.duration }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Run pre-build commands
+        if: ${{ inputs.pre-build-commands != '' }}
+        run: ${{ inputs.pre-build-commands }}
+
+      - name: Build Jekyll site
+        run: |
+          bundle exec jekyll build --destination ${{ inputs.build-destination }}
+
+      - name: Run Algolia indexing
+        if: ${{ inputs.enable-algolia && secrets.ALGOLIA_API_KEY != '' }}
+        env:
+          ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+        run: |
+          bundle exec jekyll algolia
+
+      - name: Record build completion
+        id: build-complete
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "duration=$SECONDS" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jekyll-build
+          path: ${{ inputs.build-destination }}
+          retention-days: 7
+
+      - name: Build summary
+        run: |
+          echo "### Jekyll Build Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Ruby: ${{ inputs.ruby-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Jekyll: ${{ inputs.jekyll-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Destination: ${{ inputs.build-destination }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Algolia: ${{ inputs.enable-algolia }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build time: ${SECONDS}s" >> $GITHUB_STEP_SUMMARY

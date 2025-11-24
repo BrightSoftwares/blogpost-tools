@@ -1,0 +1,20 @@
+name: Build Jekyll Site
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
+    with:
+      ruby-version: '3.4.1'
+      jekyll-version: '4.3.4'
+      build-destination: './build'
+      enable-algolia: true
+      runner: 'ubuntu-latest'
+    secrets:
+      ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
