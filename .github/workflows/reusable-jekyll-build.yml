@@ -37,6 +37,9 @@ on:
       ALGOLIA_API_KEY:
         description: 'Algolia API key for indexing'
         required: false
+      SUBMODULE_SSH_PRIVATE_KEY:
+        description: 'SSH private key for accessing submodules'
+        required: false
     outputs:
       build-status:
         description: 'Build completion status'
@@ -55,8 +58,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Checkout submodules
+        if: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY != '' }}
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
+          repository: BrightSoftwares/jekyll-theme-common-includes
+          path: _includes/common
+          ssh-key: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
+          persist-credentials: false
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
