@@ -1,0 +1,15 @@
+title: WikiLinks Example Site
+description: Demonstration of Jekyll WikiLinks v2 plugin
+baseurl: ""
+url: ""
+
+# Build settings
+markdown: kramdown
+plugins:
+  - jekyll-feed
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
