@@ -1,0 +1,490 @@
+# Reusable Workflow: New Product Infrastructure Setup
+# This workflow sets up all infrastructure required for a new product launch
+# Based on Simplexity product infrastructure analysis
+
+name: New Product Infrastructure Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_name:
+        description: 'Product Name (e.g., Simplexity)'
+        required: true
+        type: string
+      product_slug:
+        description: 'Product Slug (e.g., simplexity)'
+        required: true
+        type: string
+      domain_name:
+        description: 'Domain Name (e.g., simplexity.com)'
+        required: false
+        type: string
+        default: ''
+      hosting_provider:
+        description: 'Hosting Provider'
+        required: false
+        type: choice
+        options:
+          - 'cpanel'
+          - 'netlify'
+          - 'vercel'
+          - 'aws'
+          - 'digitalocean'
+        default: 'cpanel'
+      tech_stack:
+        description: 'Technology Stack'
+        required: false
+        type: choice
+        options:
+          - 'laravel-vue'
+          - 'nextjs'
+          - 'jekyll'
+          - 'wordpress'
+          - 'django'
+        default: 'laravel-vue'
+      setup_marketing_tools:
+        description: 'Setup Marketing Tools (Mautic, Matomo)'
+        required: false
+        type: boolean
+        default: true
+      setup_crm:
+        description: 'Setup CRM (Dolibarr/SuiteCRM)'
+        required: false
+        type: boolean
+        default: true
+      setup_support:
+        description: 'Setup Support System (FreeScout)'
+        required: false
+        type: boolean
+        default: true
+      setup_automation:
+        description: 'Setup Automation (n8n)'
+        required: false
+        type: boolean
+        default: true
+      setup_social_media:
+        description: 'Generate Social Media Registration Checklist'
+        required: false
+        type: boolean
+        default: true
+      budget_tier:
+        description: 'Budget Tier'
+        required: false
+        type: choice
+        options:
+          - 'minimal' # < $50/month
+          - 'standard' # $50-200/month
+          - 'premium' # > $200/month
+        default: 'minimal'
+
+env:
+  PRODUCT_NAME: ${{ inputs.product_name }}
+  PRODUCT_SLUG: ${{ inputs.product_slug }}
+  DOMAIN_NAME: ${{ inputs.domain_name || format('{0}.com', inputs.product_slug) }}
+
+jobs:
+  setup-infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create Product Infrastructure Directory
+        run: |
+          mkdir -p infrastructure/${{ env.PRODUCT_SLUG }}
+          mkdir -p infrastructure/${{ env.PRODUCT_SLUG }}/docs
+          mkdir -p infrastructure/${{ env.PRODUCT_SLUG }}/scripts
+          mkdir -p infrastructure/${{ env.PRODUCT_SLUG }}/configs
+
+      - name: Generate Infrastructure Documentation
+        run: |
+          cat > infrastructure/${{ env.PRODUCT_SLUG }}/README.md << 'EOL'
+          # ${{ env.PRODUCT_NAME }} - Infrastructure Documentation
+
+          > **Generated**: $(date +"%Y-%m-%d")
+          > **Domain**: ${{ env.DOMAIN_NAME }}
+          > **Hosting**: ${{ inputs.hosting_provider }}
+          > **Tech Stack**: ${{ inputs.tech_stack }}
+          > **Budget Tier**: ${{ inputs.budget_tier }}
+
+          ---
+
+          ## Overview
+
+          This document outlines the complete infrastructure setup for **${{ env.PRODUCT_NAME }}**.
+
+          ## Infrastructure Components
+
+          ### Core Services
+          - **Hosting Provider**: ${{ inputs.hosting_provider }}
+          - **Technology Stack**: ${{ inputs.tech_stack }}
+          - **Domain**: ${{ env.DOMAIN_NAME }}
+
+          ### Marketing & Analytics
+          ${{ inputs.setup_marketing_tools && '- **Email Marketing**: Mautic (self-hosted)' || '- Email Marketing: Not configured' }}
+          ${{ inputs.setup_marketing_tools && '- **Analytics**: Matomo (self-hosted)' || '- Analytics: Not configured' }}
+
+          ### Customer Management
+          ${{ inputs.setup_crm && '- **CRM**: Dolibarr/SuiteCRM' || '- CRM: Not configured' }}
+          ${{ inputs.setup_support && '- **Support**: FreeScout' || '- Support: Not configured' }}
+
+          ### Automation
+          ${{ inputs.setup_automation && '- **Automation Platform**: n8n (self-hosted)' || '- Automation: Not configured' }}
+
+          ## Setup Checklist
+
+          ### Phase 1: Domain & Hosting (Week 1)
+          - [ ] Purchase domain: ${{ env.DOMAIN_NAME }}
+          - [ ] Setup DNS records
+          - [ ] Configure SSL certificate
+          - [ ] Setup hosting environment
+          - [ ] Configure firewall and security
+
+          ### Phase 2: Core Application (Week 1-2)
+          - [ ] Setup version control (GitHub/GitLab)
+          - [ ] Configure CI/CD pipeline
+          - [ ] Deploy base application
+          - [ ] Setup database
+          - [ ] Configure email service (SMTP)
+
+          ### Phase 3: Marketing Tools (Week 2)
+          ${{ inputs.setup_marketing_tools && '- [ ] Install and configure Mautic' || '' }}
+          ${{ inputs.setup_marketing_tools && '- [ ] Setup Matomo analytics' || '' }}
+          ${{ inputs.setup_marketing_tools && '- [ ] Configure email campaigns' || '' }}
+          ${{ inputs.setup_marketing_tools && '- [ ] Create landing pages' || '' }}
+
+          ### Phase 4: Customer Management (Week 2-3)
+          ${{ inputs.setup_crm && '- [ ] Install and configure CRM' || '' }}
+          ${{ inputs.setup_support && '- [ ] Setup support system (FreeScout)' || '' }}
+          ${{ inputs.setup_crm && '- [ ] Configure customer pipelines' || '' }}
+          ${{ inputs.setup_support && '- [ ] Create support templates' || '' }}
+
+          ### Phase 5: Automation (Week 3)
+          ${{ inputs.setup_automation && '- [ ] Install n8n automation platform' || '' }}
+          ${{ inputs.setup_automation && '- [ ] Create core workflows' || '' }}
+          ${{ inputs.setup_automation && '- [ ] Setup integrations (CRM, Email, etc.)' || '' }}
+          ${{ inputs.setup_automation && '- [ ] Test automation workflows' || '' }}
+
+          ### Phase 6: Social Media (Week 3-4)
+          ${{ inputs.setup_social_media && '- [ ] Register social media handles (see checklist)' || '' }}
+          ${{ inputs.setup_social_media && '- [ ] Setup social media management tool' || '' }}
+          ${{ inputs.setup_social_media && '- [ ] Create initial content calendar' || '' }}
+          ${{ inputs.setup_social_media && '- [ ] Design brand assets for all platforms' || '' }}
+
+          ## Cost Breakdown (${{ inputs.budget_tier }} tier)
+
+          ### Monthly Costs
+          EOL
+
+          # Add budget tier specific costs
+          if [ "${{ inputs.budget_tier }}" = "minimal" ]; then
+            cat >> infrastructure/${{ env.PRODUCT_SLUG }}/README.md << 'EOL'
+          - Domain & Hosting: €5/month
+          - Email Marketing (Mautic): ~$50/month (shared server)
+          - Analytics (Matomo): ~$30/month (shared server)
+          - Automation (n8n): ~$40/month (shared server)
+          - CRM: ~$50/month (shared server)
+          - **Total: ~$175/month**
+          EOL
+          elif [ "${{ inputs.budget_tier }}" = "standard" ]; then
+            cat >> infrastructure/${{ env.PRODUCT_SLUG }}/README.md << 'EOL'
+          - Domain & Hosting: €15/month
+          - Email Marketing (Mautic): ~$80/month (dedicated)
+          - Analytics (Matomo): ~$50/month
+          - Automation (n8n): ~$60/month
+          - CRM: ~$80/month
+          - Video Hosting (Vimeo Pro): $20/month
+          - **Total: ~$305/month**
+          EOL
+          else
+            cat >> infrastructure/${{ env.PRODUCT_SLUG }}/README.md << 'EOL'
+          - Domain & Hosting: €50/month (cloud-based)
+          - Email Marketing: ~$150/month (enterprise)
+          - Analytics: ~$100/month
+          - Automation: ~$100/month
+          - CRM: ~$150/month
+          - Video Hosting: $50/month
+          - Additional Services: ~$100/month
+          - **Total: ~$700/month**
+          EOL
+          fi
+
+          cat >> infrastructure/${{ env.PRODUCT_SLUG }}/README.md << 'EOL'
+
+          ## Monitoring & Maintenance
+
+          ### Daily
+          - Check application logs for errors
+          - Monitor server resources
+          - Review support tickets
+
+          ### Weekly
+          - Review analytics dashboard
+          - Check backup status
+          - Update security patches
+
+          ### Monthly
+          - Review and optimize costs
+          - Analyze user feedback
+          - Plan infrastructure scaling
+
+          ## Security Checklist
+
+          - [ ] SSL/TLS certificate configured
+          - [ ] Firewall rules configured
+          - [ ] Database backups automated
+          - [ ] Access logs enabled
+          - [ ] Two-factor authentication enabled
+          - [ ] Security headers configured
+          - [ ] DDoS protection enabled
+          - [ ] Regular security audits scheduled
+
+          ## Scaling Strategy
+
+          ### Current Capacity
+          - Users: 0-1,000
+          - Requests/month: 0-100K
+          - Storage: 10GB
+
+          ### Scaling Triggers
+          - **Users > 1,000**: Upgrade hosting tier
+          - **Requests > 100K/month**: Add CDN (Cloudflare)
+          - **Storage > 80% full**: Increase storage
+          - **Response time > 3s**: Optimize database/add caching
+
+          ### Future Infrastructure
+          - Migration to cloud (AWS/GCP)
+          - Kubernetes for container orchestration
+          - Separate database server
+          - Redis caching layer
+          - Load balancer for high availability
+
+          ---
+
+          *For detailed setup guides, see the `/docs` directory.*
+          EOL
+
+      - name: Generate Social Media Registration Checklist
+        if: ${{ inputs.setup_social_media }}
+        run: |
+          cat > infrastructure/${{ env.PRODUCT_SLUG }}/docs/social-media-registration.md << 'EOL'
+          # ${{ env.PRODUCT_NAME }} - Social Media Registration Checklist
+
+          ## Platform Registration Priority
+
+          ### Priority 1: Essential Platforms (Week 1)
+          - [ ] **Domain**: Register ${{ env.DOMAIN_NAME }}
+          - [ ] **Email**: Setup professional email (@${{ env.DOMAIN_NAME }})
+          - [ ] **LinkedIn Company Page**: linkedin.com/company/${{ env.PRODUCT_SLUG }}
+          - [ ] **X (Twitter)**: @${{ env.PRODUCT_SLUG }}
+          - [ ] **Facebook Business Page**: @${{ env.PRODUCT_SLUG }}
+
+          ### Priority 2: Content Platforms (Week 2)
+          - [ ] **Instagram Business**: @${{ env.PRODUCT_SLUG }}
+          - [ ] **YouTube Channel**: youtube.com/@${{ env.PRODUCT_SLUG }}
+          - [ ] **Medium Publication**: @${{ env.PRODUCT_SLUG }}
+          - [ ] **Dev.to Account**: @${{ env.PRODUCT_SLUG }}
+
+          ### Priority 3: Community Platforms (Week 3)
+          - [ ] **Discord Server**: discord.gg/${{ env.PRODUCT_SLUG }}
+          - [ ] **Slack Workspace**: ${{ env.PRODUCT_SLUG }}.slack.com
+          - [ ] **Reddit Account**: u/${{ env.PRODUCT_SLUG }}
+          - [ ] **Telegram Channel**: @${{ env.PRODUCT_SLUG }}
+
+          ### Priority 4: Additional Platforms (Week 4)
+          - [ ] **Hashnode Blog**: ${{ env.PRODUCT_SLUG }}.hashnode.dev
+          - [ ] **Threads Account**: @${{ env.PRODUCT_SLUG }}
+          - [ ] **WhatsApp Business**: Setup business account
+          - [ ] **Vimeo**: vimeo.com/${{ env.PRODUCT_SLUG }}
+
+          ## Registration Details
+
+          ### Standard Information Needed
+          - **Company Name**: ${{ env.PRODUCT_NAME }}
+          - **Email**: support@${{ env.DOMAIN_NAME }}
+          - **Website**: https://${{ env.DOMAIN_NAME }}
+          - **Logo**: 512x512px PNG with transparent background
+          - **Cover Image**: Platform-specific dimensions
+          - **Bio/Description**: See company info doc
+          - **Category**: Software Company / AI Automation
+          - **Contact Phone**: [To be added]
+          - **Business Address**: [To be added]
+
+          ## Brand Assets Required
+
+          ### Logo Variations
+          - [ ] Primary Logo (Color) - SVG, PNG (1024px, 512px, 256px)
+          - [ ] Logo Monochrome (Black on Transparent)
+          - [ ] Logo Monochrome (White on Transparent)
+          - [ ] Favicon (16px, 24px, 32px)
+
+          ### Cover Images
+          - [ ] LinkedIn Cover (1128x191px)
+          - [ ] Facebook Cover (820x312px)
+          - [ ] Twitter Header (1500x500px)
+          - [ ] YouTube Banner (2560x1440px)
+
+          ### Profile Images
+          - [ ] Square Logo (512x512px)
+          - [ ] App Icon Set (various sizes)
+
+          ## Content Templates
+
+          ### Standard Bio (Short)
+          AI-driven automation systems for growing businesses | Where Complexity Becomes Simple | Visit: ${{ env.DOMAIN_NAME }}
+
+          ### Standard Bio (Long)
+          ${{ env.PRODUCT_NAME }} transforms operational chaos into intelligent clarity for growing businesses through AI-driven automation. We make sophisticated technology feel effortless.
+
+          Learn more: https://${{ env.DOMAIN_NAME }}
+
+          ## Social Media Management Setup
+
+          - [ ] Choose management platform (Hootsuite/Buffer/Later)
+          - [ ] Connect all registered accounts
+          - [ ] Setup posting schedule templates
+          - [ ] Create content categories
+          - [ ] Configure analytics tracking
+          - [ ] Plan first month of posts
+
+          ## Verification & Security
+
+          - [ ] Enable two-factor authentication on all accounts
+          - [ ] Setup admin/team member access
+          - [ ] Document all login credentials securely
+          - [ ] Create backup email accounts
+          - [ ] Setup brand verification (where applicable)
+
+          ---
+
+          **Note**: Update this checklist as platforms are registered. Store credentials securely in password manager.
+          EOL
+
+      - name: Generate Deployment Scripts Template
+        run: |
+          cat > infrastructure/${{ env.PRODUCT_SLUG }}/scripts/deploy.sh << 'EOL'
+          #!/bin/bash
+          # Deployment script for ${{ env.PRODUCT_NAME }}
+          # Usage: ./deploy.sh [staging|production]
+
+          set -e
+
+          ENVIRONMENT=${1:-staging}
+          PRODUCT_NAME="${{ env.PRODUCT_NAME }}"
+          PRODUCT_SLUG="${{ env.PRODUCT_SLUG }}"
+
+          echo "========================================="
+          echo "Deploying $PRODUCT_NAME to $ENVIRONMENT"
+          echo "========================================="
+
+          # Add deployment logic here based on tech stack
+          case "${{ inputs.tech_stack }}" in
+            "laravel-vue")
+              echo "Building Laravel + Vue.js application..."
+              composer install --optimize-autoloader --no-dev
+              npm ci && npm run build
+              php artisan config:cache
+              php artisan route:cache
+              php artisan view:cache
+              php artisan migrate --force
+              ;;
+            "nextjs")
+              echo "Building Next.js application..."
+              npm ci && npm run build
+              ;;
+            "jekyll")
+              echo "Building Jekyll site..."
+              bundle install
+              bundle exec jekyll build
+              ;;
+            *)
+              echo "Unknown tech stack: ${{ inputs.tech_stack }}"
+              exit 1
+              ;;
+          esac
+
+          echo "Deployment to $ENVIRONMENT completed successfully!"
+          EOL
+
+          chmod +x infrastructure/${{ env.PRODUCT_SLUG }}/scripts/deploy.sh
+
+      - name: Generate Cost Tracking Sheet Template
+        run: |
+          cat > infrastructure/${{ env.PRODUCT_SLUG }}/docs/cost-tracking.md << 'EOL'
+          # ${{ env.PRODUCT_NAME }} - Cost Tracking
+
+          ## Monthly Recurring Costs
+
+          | Service | Provider | Cost | Status | Renewal Date |
+          |---------|----------|------|--------|--------------|
+          | Domain | - | €5 | - | - |
+          | Hosting | ${{ inputs.hosting_provider }} | - | - | - |
+          | Email Marketing | Mautic | ~$50 | - | - |
+          | Analytics | Matomo | ~$30 | - | - |
+          | Automation | n8n | ~$40 | - | - |
+          | CRM | Dolibarr | ~$50 | - | - |
+          | Support | FreeScout | ~$0 | - | - |
+          | Video Hosting | Vimeo | $20 | - | - |
+          | SSL Certificate | Let's Encrypt | $0 | - | - |
+
+          ## One-Time Costs
+
+          | Item | Cost | Date | Notes |
+          |------|------|------|-------|
+          | Domain Registration | - | - | - |
+          | Logo Design | - | - | - |
+          | Initial Setup | - | - | - |
+
+          ## Cost Optimization Notes
+
+          - Review monthly costs quarterly
+          - Consolidate services where possible
+          - Monitor usage to optimize tier levels
+          - Consider annual billing for discounts
+
+          ## Budget Alerts
+
+          - [ ] Setup billing alerts at 80% of budget
+          - [ ] Review unexpected cost increases
+          - [ ] Document all cost changes
+          EOL
+
+      - name: Create Infrastructure Summary
+        run: |
+          echo "# ${{ env.PRODUCT_NAME }} Infrastructure Setup Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Generated Files" >> $GITHUB_STEP_SUMMARY
+          echo "- Infrastructure documentation: \`infrastructure/${{ env.PRODUCT_SLUG }}/README.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Social media checklist: \`infrastructure/${{ env.PRODUCT_SLUG }}/docs/social-media-registration.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment script: \`infrastructure/${{ env.PRODUCT_SLUG }}/scripts/deploy.sh\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Cost tracking: \`infrastructure/${{ env.PRODUCT_SLUG }}/docs/cost-tracking.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review generated documentation" >> $GITHUB_STEP_SUMMARY
+          echo "2. Purchase domain: ${{ env.DOMAIN_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "3. Setup hosting on ${{ inputs.hosting_provider }}" >> $GITHUB_STEP_SUMMARY
+          echo "4. Follow the phase-by-phase setup checklist" >> $GITHUB_STEP_SUMMARY
+          echo "5. Register social media handles" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Product**: ${{ env.PRODUCT_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Slug**: ${{ env.PRODUCT_SLUG }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: ${{ env.DOMAIN_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hosting**: ${{ inputs.hosting_provider }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tech Stack**: ${{ inputs.tech_stack }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Budget Tier**: ${{ inputs.budget_tier }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit Infrastructure Files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add infrastructure/${{ env.PRODUCT_SLUG }}
+          git add docs/BRIGHT_SOFTWARES_COMPANY_INFO.md
+          git commit -m "Add infrastructure setup for ${{ env.PRODUCT_NAME }}" || echo "No changes to commit"
+
+      - name: Push Changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}

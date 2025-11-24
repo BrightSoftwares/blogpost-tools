@@ -55,7 +55,7 @@ outputs:
     description: 'Generated commit SHA1 that will be published'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: 'docker://fullbright/jekyll-action:latest'
 branding:
   icon: 'book'
   color: 'blue'
