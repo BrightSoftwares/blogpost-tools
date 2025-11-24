@@ -125,6 +125,7 @@ jobs:
       jekyll-version: '4.3.4'
       runner: 'ubuntu-latest'
       enable-algolia: false
+      enable-submodules: false
     secrets:
       SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
 EOF
@@ -158,98 +159,70 @@ EOF
         fi
     fi
 
-    # Generate workflow based on detected requirements
-    if [[ "$needs_imagemagick" == "true" ]]; then
-        if [[ "$enable_algolia" == "true" ]]; then
-            log_info "Generating workflow with ImageMagick and Algolia"
-            workflow_content=$(cat <<'EOF'
-name: Jekyll Build with Reusable Workflow
+    # Check for submodules
+    needs_submodules=false
+    gitmodules=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$repo/contents/.gitmodules?ref=$default_branch" 2>/dev/null)
 
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
-jobs:
-  build:
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
-    with:
-      ruby-version: '3.4.1'
-      jekyll-version: '4.3.4'
-      runner: 'ubuntu-latest'
-      enable-algolia: true
-      pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
-    secrets:
-      ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
-      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
-EOF
-)
-        else
-            log_info "Generating workflow with ImageMagick"
-            workflow_content=$(cat <<'EOF'
-name: Jekyll Build with Reusable Workflow
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
-jobs:
-  build:
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
-    with:
-      ruby-version: '3.4.1'
-      jekyll-version: '4.3.4'
-      runner: 'ubuntu-latest'
-      pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
-      enable-algolia: false
-    secrets:
-      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
-EOF
-)
-        fi
-    elif [[ "$enable_algolia" == "true" ]]; then
-        log_info "Generating workflow with Algolia"
-        workflow_content=$(cat <<'EOF'
-name: Jekyll Build with Reusable Workflow
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
-jobs:
-  build:
-    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
-    with:
-      ruby-version: '3.4.1'
-      jekyll-version: '4.3.4'
-      runner: 'ubuntu-latest'
-      enable-algolia: true
-    secrets:
-      ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
-      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
-EOF
-)
+    if echo "$gitmodules" | jq -e '.content' > /dev/null 2>&1; then
+        needs_submodules=true
+        log_info "Detected submodules (.gitmodules present)"
     fi
+
+    # Generate workflow based on detected requirements
+    log_features=""
+    [[ "$needs_imagemagick" == "true" ]] && log_features="$log_features ImageMagick"
+    [[ "$enable_algolia" == "true" ]] && log_features="$log_features Algolia"
+    [[ "$needs_submodules" == "true" ]] && log_features="$log_features Submodules"
+    [[ -n "$log_features" ]] && log_info "Generating workflow with:$log_features"
+
+    # Build pre-build commands
+    prebuild_cmd=""
+    if [[ "$needs_imagemagick" == "true" ]]; then
+        prebuild_cmd="sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev"
+    fi
+
+    # Generate workflow dynamically
+    workflow_content="name: Jekyll Build with Reusable Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-jekyll-build.yml@main
+    with:
+      ruby-version: '3.4.1'
+      jekyll-version: '4.3.4'
+      runner: 'ubuntu-latest'
+      enable-algolia: $enable_algolia
+      enable-submodules: $needs_submodules"
+
+    # Add pre-build commands if needed
+    if [[ -n "$prebuild_cmd" ]]; then
+        workflow_content="$workflow_content
+      pre-build-commands: '$prebuild_cmd'"
+    fi
+
+    # Add secrets section
+    workflow_content="$workflow_content
+    secrets:"
+
+    if [[ "$enable_algolia" == "true" ]]; then
+        workflow_content="$workflow_content
+      ALGOLIA_API_KEY: \${{ secrets.ALGOLIA_API_KEY }}"
+    fi
+
+    workflow_content="$workflow_content
+      SUBMODULE_SSH_PRIVATE_KEY: \${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}"
 
     # Upload workflow file to branch
     log_info "Uploading workflow file to branch..."
