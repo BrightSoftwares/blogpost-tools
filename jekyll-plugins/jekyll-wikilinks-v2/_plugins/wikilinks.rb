@@ -13,32 +13,19 @@
 
 module Jekyll
   module WikiLinks
-    # Converter for WikiLinks syntax in Markdown files
-    class Converter < Jekyll::Converter
-      safe true
-      priority :low
-
-      def matches(ext)
-        ext =~ /^\.md$/i
-      end
-
-      def output_ext(ext)
-        ".html"
-      end
-
-      def convert(content)
+    class << self
+      def process_wikilinks(content, site)
         return content unless content.include?('[[')
 
-        # Process WikiLinks
         content.gsub(/\[\[([^\]]+)\]\]/) do |match|
           link_text = ::Regexp.last_match(1)
-          process_wikilink(link_text)
+          process_wikilink(link_text, site)
         end
       end
 
       private
 
-      def process_wikilink(link_text)
+      def process_wikilink(link_text, site)
         # Handle alias syntax: [[Page Name|Display Text]]
         if link_text.include?('|')
           page_name, display_text = link_text.split('|', 2).map(&:strip)
@@ -47,13 +34,24 @@ module Jekyll
           display_text = page_name
         end
 
+        # Handle anchor links: [[Page Name#anchor|Display Text]]
+        anchor = nil
+        if page_name.include?('#')
+          page_name, anchor = page_name.split('#', 2)
+          page_name = page_name.strip
+          anchor = anchor.strip
+        end
+
         # Handle direct path links: [[/path/to/page]]
         if page_name.start_with?('/')
           url = page_name
         else
           # Find matching page or post
-          url = find_page_url(page_name)
+          url = find_page_url(page_name, site)
         end
+
+        # Append anchor if present
+        url = "#{url}##{anchor}" if url && anchor
 
         if url
           "[#{display_text}](#{url})"
@@ -63,18 +61,17 @@ module Jekyll
         end
       end
 
-      def find_page_url(page_name)
-        site = @config['site']
+      def find_page_url(page_name, site)
         return nil unless site
 
         # Normalize page name for matching
         normalized_name = normalize_name(page_name)
 
-        # Search in pages
+        # Search in pages (by title and slug)
         page = find_in_collection(site.pages, normalized_name)
         return page.url if page
 
-        # Search in posts
+        # Search in posts (by title and slug)
         post = find_in_collection(site.posts.docs, normalized_name)
         return post.url if post
 
@@ -91,26 +88,28 @@ module Jekyll
 
       def find_in_collection(collection, normalized_name)
         collection.find do |item|
+          # Match by title
           item_title = item.data['title']
-          next unless item_title
+          return item if item_title && normalize_name(item_title) == normalized_name
 
-          normalize_name(item_title) == normalized_name
+          # Match by slug (filename without extension)
+          if item.respond_to?(:basename_without_ext)
+            slug = item.basename_without_ext
+            return item if normalize_name(slug) == normalized_name
+          end
+
+          # Match by relative path (for posts like "2022-09-14-post-name")
+          if item.respond_to?(:relative_path)
+            path_slug = File.basename(item.relative_path, '.*')
+            return item if normalize_name(path_slug) == normalized_name
+          end
+
+          false
         end
       end
 
       def normalize_name(name)
         name.downcase.strip.gsub(/\s+/, ' ')
-      end
-    end
-
-    # Generator to inject site reference into converter config
-    class Generator < Jekyll::Generator
-      safe true
-      priority :highest
-
-      def generate(site)
-        # Make site available to converter
-        site.config['site'] = site
       end
     end
 
@@ -123,7 +122,7 @@ module Jekyll
         display = display_text || page_name
 
         site = @context.registers[:site]
-        url = find_page_url_filter(site, page_name)
+        url = WikiLinks.send(:find_page_url, page_name, site)
 
         if url
           "<a href=\"#{url}\">#{display}</a>"
@@ -131,36 +130,13 @@ module Jekyll
           "<span class=\"wikilink-broken\" title=\"Page not found: #{page_name}\">#{display}</span>"
         end
       end
-
-      private
-
-      def find_page_url_filter(site, page_name)
-        return nil unless site
-
-        normalized_name = normalize_name_filter(page_name)
-
-        # Search in pages
-        page = site.pages.find do |p|
-          title = p.data['title']
-          title && normalize_name_filter(title) == normalized_name
-        end
-        return page.url if page
-
-        # Search in posts
-        post = site.posts.docs.find do |p|
-          title = p.data['title']
-          title && normalize_name_filter(title) == normalized_name
-        end
-        return post.url if post
-
-        nil
-      end
-
-      def normalize_name_filter(name)
-        name.downcase.strip.gsub(/\s+/, ' ')
-      end
     end
   end
+end
+
+# Register hooks to process WikiLinks before markdown conversion
+Jekyll::Hooks.register [:pages, :posts, :documents], :pre_render do |doc|
+  doc.content = Jekyll::WikiLinks.process_wikilinks(doc.content, doc.site)
 end
 
 Liquid::Template.register_filter(Jekyll::WikiLinks::Filters)
