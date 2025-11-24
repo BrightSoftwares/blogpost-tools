@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: 'ubuntu-latest'
+      enable-submodules:
+        description: 'Enable submodule checkout with SSH key'
+        required: false
+        type: boolean
+        default: false
     secrets:
       ALGOLIA_API_KEY:
         description: 'Algolia API key for indexing'
@@ -60,7 +65,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout submodules
-        if: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY != '' }}
+        if: ${{ inputs.enable-submodules }}
         uses: actions/checkout@v4
         with:
           repository: BrightSoftwares/jekyll-theme-common-includes

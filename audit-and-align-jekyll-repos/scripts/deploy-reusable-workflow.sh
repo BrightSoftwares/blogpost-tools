@@ -125,6 +125,8 @@ jobs:
       jekyll-version: '4.3.4'
       runner: 'ubuntu-latest'
       enable-algolia: false
+    secrets:
+      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
 EOF
 )
 
@@ -185,6 +187,7 @@ jobs:
       pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
     secrets:
       ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
 EOF
 )
         else
@@ -212,6 +215,8 @@ jobs:
       runner: 'ubuntu-latest'
       pre-build-commands: 'sudo apt-get update && sudo apt-get install -y imagemagick libmagickwand-dev'
       enable-algolia: false
+    secrets:
+      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
 EOF
 )
         fi
@@ -241,6 +246,7 @@ jobs:
       enable-algolia: true
     secrets:
       ALGOLIA_API_KEY: ${{ secrets.ALGOLIA_API_KEY }}
+      SUBMODULE_SSH_PRIVATE_KEY: ${{ secrets.SUBMODULE_SSH_PRIVATE_KEY }}
 EOF
 )
     fi
