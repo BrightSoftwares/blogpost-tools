@@ -1,0 +1,844 @@
+[
+  {
+    "repo": "BrightSoftwares/automatic-app-landing-page",
+    "total_runs": 0,
+    "workflows": []
+  },
+  {
+    "repo": "BrightSoftwares/corporate-website",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 3,
+        "success": 1,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 18,
+        "success": 17,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Build and deploy Jekyll site to GitHub Pages",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 30,
+        "success": 24,
+        "failure": 6,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Find a feature image for blogposts",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "total": 18,
+        "success": 17,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 2,
+        "failure": 5,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 18,
+        "success": 17,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/eagles-techs.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 0,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Find a feature image for blogposts",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 24,
+        "success": 8,
+        "failure": 16,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "RSS News to Blogpost",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Translate posts",
+        "path": ".github/workflows/translate_posts.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/foolywise.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 5,
+        "success": 0,
+        "failure": 5,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 24,
+        "success": 22,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 41,
+        "success": 16,
+        "failure": 25,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 23,
+        "success": 22,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/hosting_frontend",
+    "total_runs": 0,
+    "workflows": []
+  },
+  {
+    "repo": "BrightSoftwares/ieatmyhealth.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 1,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 12,
+        "success": 11,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Find a feature image for blogposts",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "total": 12,
+        "success": 10,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 2,
+        "failure": 5,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 29,
+        "success": 11,
+        "failure": 18,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 12,
+        "success": 11,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "RSS News to Blogpost",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 0,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Translate posts",
+        "path": ".github/workflows/translate_posts.yml",
+        "total": 12,
+        "success": 11,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 1,
+        "success": 1,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/joyousbyflora-posts",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Improve the files that are posted (lean, retrieve CCs, ...)",
+        "path": ".github/workflows/improve_blogpost_files.yml",
+        "total": 25,
+        "success": 24,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 36,
+        "success": 21,
+        "failure": 15,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 12,
+        "success": 11,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "RSS News to Blogpost",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/keke.li",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 29,
+        "success": 27,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 33,
+        "success": 13,
+        "failure": 20,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 28,
+        "success": 27,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/modabyflora-corporate",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 5,
+        "success": 0,
+        "failure": 5,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 16,
+        "success": 15,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Generate keyword suggestions on a weekly basis",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 6,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 45,
+        "success": 28,
+        "failure": 16,
+        "cancelled": 1,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 15,
+        "success": 14,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "RSS News to Blogpost",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Translate posts",
+        "path": ".github/workflows/translate_posts.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/olympics-paris2024.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 1,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking (Matrix)",
+        "path": ".github/workflows/auto-internal-linking-matrix.yml",
+        "total": 14,
+        "success": 13,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Find a feature image for blogposts",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "total": 14,
+        "success": 13,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 5,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 21,
+        "success": 11,
+        "failure": 10,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 14,
+        "success": 12,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "OpenAi posts generator",
+        "path": ".github/workflows/openai-posts-generator.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Translate posts",
+        "path": ".github/workflows/translate_posts.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "Causting/causting.com",
+    "total_runs": 93,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 30,
+        "success": 30,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 53,
+        "success": 22,
+        "failure": 31,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "Causting/space-up-planet.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 0,
+        "failure": 7,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 22,
+        "success": 22,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 42,
+        "success": 12,
+        "failure": 30,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 22,
+        "success": 22,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  },
+  {
+    "repo": "Hayes-Tech/hayestech-website",
+    "total_runs": 0,
+    "workflows": []
+  },
+  {
+    "repo": "sergioafanou/latexcv",
+    "total_runs": 0,
+    "workflows": []
+  },
+  {
+    "repo": "sergioafanou/smart-cv",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 0,
+        "failure": 7,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 16,
+        "success": 4,
+        "failure": 12,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 16,
+        "success": 16,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Build and deploy Jekyll site to GitHub Pages",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 52,
+        "success": 13,
+        "failure": 39,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 5,
+        "failure": 2,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "cancelled": 0,
+        "runs_on": "unknown"
+      }
+    ]
+  }
+]

@@ -1,0 +1,500 @@
+[
+  {
+    "repo": "BrightSoftwares/corporate-website",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 2,
+        "failure": 5,
+        "failure_rate": 71
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 3,
+        "success": 1,
+        "failure": 2,
+        "failure_rate": 66
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "failure_rate": 33
+      },
+      {
+        "name": "Build and deploy Jekyll site to GitHub Pages",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 30,
+        "success": 24,
+        "failure": 6,
+        "failure_rate": 20
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/eagles-techs.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 0,
+        "failure": 2,
+        "failure_rate": 100
+      },
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 24,
+        "success": 8,
+        "failure": 16,
+        "failure_rate": 66
+      },
+      {
+        "name": "Translate posts",
+        "path": ".github/workflows/translate_posts.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "failure_rate": 7
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "failure_rate": 7
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/foolywise.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 5,
+        "success": 0,
+        "failure": 5,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 41,
+        "success": 16,
+        "failure": 25,
+        "failure_rate": 60
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 24,
+        "success": 22,
+        "failure": 2,
+        "failure_rate": 8
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 23,
+        "success": 22,
+        "failure": 1,
+        "failure_rate": 4
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "failure_rate": 0
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/ieatmyhealth.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 0,
+        "failure": 2,
+        "failure_rate": 100
+      },
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 2,
+        "failure": 5,
+        "failure_rate": 71
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 29,
+        "success": 11,
+        "failure": 18,
+        "failure_rate": 62
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 1,
+        "failure": 1,
+        "failure_rate": 50
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/joyousbyflora-posts",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 36,
+        "success": 21,
+        "failure": 15,
+        "failure_rate": 41
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 12,
+        "success": 11,
+        "failure": 1,
+        "failure_rate": 8
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 13,
+        "success": 12,
+        "failure": 1,
+        "failure_rate": 7
+      },
+      {
+        "name": "Improve the files that are posted (lean, retrieve CCs, ...)",
+        "path": ".github/workflows/improve_blogpost_files.yml",
+        "total": 25,
+        "success": 24,
+        "failure": 1,
+        "failure_rate": 4
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/keke.li",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "failure_rate": 100
+      },
+      {
+        "name": "GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 33,
+        "success": 13,
+        "failure": 20,
+        "failure_rate": 60
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 29,
+        "success": 27,
+        "failure": 2,
+        "failure_rate": 6
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 28,
+        "success": 27,
+        "failure": 1,
+        "failure_rate": 3
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "failure_rate": 0
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/modabyflora-corporate",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 5,
+        "success": 0,
+        "failure": 5,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 45,
+        "success": 28,
+        "failure": 16,
+        "failure_rate": 35
+      },
+      {
+        "name": "Youtube videos and transcribe",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "failure_rate": 33
+      },
+      {
+        "name": "RSS News to Blogpost",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "total": 3,
+        "success": 2,
+        "failure": 1,
+        "failure_rate": 33
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 6,
+        "failure": 1,
+        "failure_rate": 14
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/olympics-paris2024.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 9,
+        "success": 0,
+        "failure": 9,
+        "failure_rate": 100
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 2,
+        "success": 1,
+        "failure": 1,
+        "failure_rate": 50
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 21,
+        "success": 11,
+        "failure": 10,
+        "failure_rate": 47
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 5,
+        "failure": 2,
+        "failure_rate": 28
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 14,
+        "success": 12,
+        "failure": 2,
+        "failure_rate": 14
+      }
+    ]
+  },
+  {
+    "repo": "Causting/causting.com",
+    "total_runs": 93,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 3,
+        "success": 0,
+        "failure": 3,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 53,
+        "success": 22,
+        "failure": 31,
+        "failure_rate": 58
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "failure_rate": 0
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 30,
+        "success": 30,
+        "failure": 0,
+        "failure_rate": 0
+      }
+    ]
+  },
+  {
+    "repo": "Causting/space-up-planet.com",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 0,
+        "failure": 7,
+        "failure_rate": 100
+      },
+      {
+        "name": "Jekyll GitHub Pages publication",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 42,
+        "success": 12,
+        "failure": 30,
+        "failure_rate": 71
+      },
+      {
+        "name": "Open AI - Auto Generate Blog posts",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "total": 22,
+        "success": 22,
+        "failure": 0,
+        "failure_rate": 0
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/jekyll.yml",
+        "total": 7,
+        "success": 7,
+        "failure": 0,
+        "failure_rate": 0
+      },
+      {
+        "name": "Auto Internal Linking",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "total": 22,
+        "success": 22,
+        "failure": 0,
+        "failure_rate": 0
+      }
+    ]
+  },
+  {
+    "repo": "sergioafanou/smart-cv",
+    "total_runs": 100,
+    "workflows": [
+      {
+        "name": ".github/workflows/github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 0,
+        "failure": 7,
+        "failure_rate": 100
+      },
+      {
+        "name": "Build and deploy Jekyll site to GitHub Pages",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 52,
+        "success": 13,
+        "failure": 39,
+        "failure_rate": 75
+      },
+      {
+        "name": "Analyse jekyll generated html",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "total": 16,
+        "success": 4,
+        "failure": 12,
+        "failure_rate": 75
+      },
+      {
+        "name": "Jekyll Build with Reusable Workflow",
+        "path": ".github/workflows/github-pages.yml",
+        "total": 7,
+        "success": 5,
+        "failure": 2,
+        "failure_rate": 28
+      },
+      {
+        "name": "SEO Diagnostics",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "total": 2,
+        "success": 2,
+        "failure": 0,
+        "failure_rate": 0
+      }
+    ]
+  }
+]

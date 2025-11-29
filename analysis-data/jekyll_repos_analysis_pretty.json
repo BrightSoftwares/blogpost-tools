@@ -1,0 +1,774 @@
+[
+  {
+    "repo": "BrightSoftwares/automatic-app-landing-page",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": false,
+    "workflows": []
+  },
+  {
+    "repo": "BrightSoftwares/corporate-website",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/auto-internal_linking.yml?token=AAF476C5RVCMN5H73EIV4XDJFDK5Y"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476DPSYHFCKIHKNYS7KTJFDK5Y"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/auto-moveandpublish-posts-news.yml?token=AAF476EDQPQRZI6ZZTXZ5K3JFDK5Y"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476DRNUSVFJDE57G6TPLJFDK5Y"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/auto-schedule-posts.yml?token=AAF476HBVIRRPWCQYFEJR7LJFDK5Y"
+      },
+      {
+        "name": "featured-image-finder.yml",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/featured-image-finder.yml?token=AAF476HBGWD65HUDY45LDXLJFDK5Y"
+      },
+      {
+        "name": "generate_aliases_file.yml",
+        "path": ".github/workflows/generate_aliases_file.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/generate_aliases_file.yml?token=AAF476FMZW7UJSN2XUIOD3TJFDK5Y"
+      },
+      {
+        "name": "github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/github-pages.yml?token=AAF476GPOT2TNA42A5FDQ3LJFDK5Y"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/keyword_suggestion.yml?token=AAF476EHXJ633FHHJJTHIOLJFDK5Y"
+      },
+      {
+        "name": "openai-posts-generator.yml",
+        "path": ".github/workflows/openai-posts-generator.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/openai-posts-generator.yml?token=AAF476DWJFMAZM33BDIOZILJFDK5Y"
+      },
+      {
+        "name": "post-summarizer.yml",
+        "path": ".github/workflows/post-summarizer.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/post-summarizer.yml?token=AAF476DYDZCIOMBPFYT3UMTJFDK5Y"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/rss-news-to-blogpost.yml?token=AAF476GKPFWLRY5US6VNRXDJFDK5Y"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/semantic_clustering.yml?token=AAF476ANQUMUFQYGK4QC4NDJFDK5Y"
+      },
+      {
+        "name": "seo-html-analysis.yml",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/seo-html-analysis.yml?token=AAF476DIVZOKUI5ZRIEVOB3JFDK5Y"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/seo_diagnotics.yml?token=AAF476BZOSLDG3F6ZINRHODJFDK5Y"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/corporate-website/master/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476FTZG4NZW3QVNNPM3DJFDK5Y"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/eagles-techs.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476E5G4U4I3J3GXNBS3TJFDK6G"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476GMWEE2OQN3VFY5T2DJFDK6G"
+      },
+      {
+        "name": "auto-moveandpublish-posts.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/auto-moveandpublish-posts.yml?token=AAF476BHJ55JKIWISWRX74DJFDK6G"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476C4WS3UNVYNH67M5ADJFDK6G"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/auto-schedule-posts.yml?token=AAF476DLB3ZR7HUDK2CMLE3JFDK6G"
+      },
+      {
+        "name": "featured-image-finder.yml",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/featured-image-finder.yml?token=AAF476BAHWQ3TNNO4RTWPPDJFDK6G"
+      },
+      {
+        "name": "fix-indexation-issues.yml",
+        "path": ".github/workflows/fix-indexation-issues.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/fix-indexation-issues.yml?token=AAF476AYJCHLIPMJGQTG75LJFDK6G"
+      },
+      {
+        "name": "generate_aliases_file.yml",
+        "path": ".github/workflows/generate_aliases_file.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/generate_aliases_file.yml?token=AAF476CPCEYEKJBCNJKBVILJFDK6G"
+      },
+      {
+        "name": "github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/github-pages.yml?token=AAF476HVQLSWH2FVO7K7ZDTJFDK6G"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/keyword_suggestion.yml?token=AAF476AXIF5HJYUUJDCGC4LJFDK6G"
+      },
+      {
+        "name": "keyword_suggestion_old.yml",
+        "path": ".github/workflows/keyword_suggestion_old.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/keyword_suggestion_old.yml?token=AAF476HS7YY4QGEWBS4DUALJFDK6G"
+      },
+      {
+        "name": "openai-posts-generator.yml",
+        "path": ".github/workflows/openai-posts-generator.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/openai-posts-generator.yml?token=AAF476GC5G5UPAGAMOASOI3JFDK6G"
+      },
+      {
+        "name": "post-summarizer.yml",
+        "path": ".github/workflows/post-summarizer.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/post-summarizer.yml?token=AAF476BULNVSVHKQESIWYMLJFDK6G"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/rss-news-to-blogpost.yml?token=AAF476GVVJ4VONZCNUFXBKLJFDK6G"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/semantic_clustering.yml?token=AAF476CGQ26KHBPG7P4WTKLJFDK6G"
+      },
+      {
+        "name": "seo-html-analysis.yml",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/seo-html-analysis.yml?token=AAF476AJ646FUXXJGXVXZLLJFDK6G"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/seo_diagnotics.yml?token=AAF476GWE3ALDA54XFQOTO3JFDK6G"
+      },
+      {
+        "name": "translate_posts.yml",
+        "path": ".github/workflows/translate_posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/translate_posts.yml?token=AAF476HHLWDNDJEBKNWISATJFDK6G"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/eagles-techs.com/main/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476HEZWKJKNQX2TBVB6LJFDK6G"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/foolywise.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/foolywise.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476DRKHNVZA4CIXUYGXDJFDK6Q"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/foolywise.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476AXVEUDVPSFGTFIOM3JFDK6Q"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/foolywise.com/main/.github/workflows/auto-moveandpublish-posts-news.yml?token=AAF476BYYJZSFIZRGYW7BWLJFDK6Q"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/foolywise.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476DBZY6VTTW6D5AJZF3JFDK6Q"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/foolywise.com/main/.github/workflows/jekyll.yml?token=AAF476BFPW4X4H65AT446SLJFDK6Q"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/hosting_frontend",
+    "default_branch": "gh-pages",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": []
+  },
+  {
+    "repo": "BrightSoftwares/ieatmyhealth.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476HAV46QFP3ETZQS6RLJFDK7C"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476CODKFECI5TRURJW7TJFDK7C"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/auto-moveandpublish-posts-news.yml?token=AAF476AA7JL64DTD3ARQ7W3JFDK7C"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476EIWSD4VKBHS3I7EPDJFDK7C"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/auto-schedule-posts.yml?token=AAF476DA4NS2ZKIILFYB3RTJFDK7C"
+      },
+      {
+        "name": "featured-image-finder.yml",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/featured-image-finder.yml?token=AAF476GLHFSQBQ27JJT734DJFDK7C"
+      },
+      {
+        "name": "generate_aliases_file.yml",
+        "path": ".github/workflows/generate_aliases_file.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/generate_aliases_file.yml?token=AAF476DCIJD2I5PEUGDS7H3JFDK7C"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/jekyll.yml?token=AAF476EFD325YSWCENWRBFLJFDK7C"
+      },
+      {
+        "name": "keyword_generation_old.yml",
+        "path": ".github/workflows/keyword_generation_old.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/keyword_generation_old.yml?token=AAF476EHBRBYWMIF33XHM4DJFDK7C"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/keyword_suggestion.yml?token=AAF476GS5DEX5NRSKTT6UCTJFDK7C"
+      },
+      {
+        "name": "openai-generate-blogpost.yml",
+        "path": ".github/workflows/openai-generate-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/openai-generate-blogpost.yml?token=AAF476EEBN4NCFHQTZ6TRJDJFDK7C"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/rss-news-to-blogpost.yml?token=AAF476CO2S3Z4SH3K6DJZO3JFDK7C"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/semantic_clustering.yml?token=AAF476B7VNDZQUZYANUWHG3JFDK7C"
+      },
+      {
+        "name": "seo-html-analysis.yml",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/seo-html-analysis.yml?token=AAF476CTZICZUQCJZ3GLEGDJFDK7C"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/seo_diagnotics.yml?token=AAF476BZLIDFZD32XRYOD23JFDK7C"
+      },
+      {
+        "name": "translate_posts.yml",
+        "path": ".github/workflows/translate_posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/translate_posts.yml?token=AAF476CAFL3IQM6Z3GNBS5LJFDK7C"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/ieatmyhealth.com/main/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476CHP4AXKOWX66NWSOTJFDK7C"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/joyousbyflora-posts",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/auto-internal_linking.yml?token=AAF476CBNA7TGS4QGJOPTJLJFDK7M"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476GTFJ4V4PUCJUT56GTJFDK7M"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476HBC7CEAWKLYXCD2ATJFDK7M"
+      },
+      {
+        "name": "google_autocomplete.yml",
+        "path": ".github/workflows/google_autocomplete.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/google_autocomplete.yml?token=AAF476D4VVL53DICARGSL5LJFDK7M"
+      },
+      {
+        "name": "improve_blogpost_files.yml",
+        "path": ".github/workflows/improve_blogpost_files.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/improve_blogpost_files.yml?token=AAF476BDCP7DXZKRPKRJNTLJFDK7M"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/jekyll.yml?token=AAF476EVHZQYPLKFNSBCL53JFDK7M"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/keyword_suggestion.yml?token=AAF476F5AL45IWH2HO62XY3JFDK7M"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/rss-news-to-blogpost.yml?token=AAF476GT7MIPHQLFPPH37HLJFDK7M"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/joyousbyflora-posts/main/.github/workflows/seo_diagnotics.yml?token=AAF476CNBUOXQSMILTH3A53JFDK7M"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/keke.li",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/keke.li/main/.github/workflows/auto-internal_linking.yml?token=AAF476GCYGE4NY7GSONIBR3JFDK7S"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/keke.li/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476EFGBRUMWXL5BQYKG3JFDK7S"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/keke.li/main/.github/workflows/auto-moveandpublish-posts-news.yml?token=AAF476EPGAIDSMENNXH5ZSTJFDK7S"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/keke.li/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476AQCHDUH627BX2XYHTJFDK7S"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/keke.li/main/.github/workflows/jekyll.yml?token=AAF476HFH65B2KVWJ5FHRDLJFDK7S"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/modabyflora-corporate",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-internal_linking.yml?token=AAF476CKW6GI5E47BUIEF3TJFDLAE"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476BYYQZRELMTMP5XXY3JFDLAE"
+      },
+      {
+        "name": "auto-moveandpublish-posts-en.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-en.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-moveandpublish-posts-en.yml?token=AAF476AN5JZX525KWU5YJSDJFDLAE"
+      },
+      {
+        "name": "auto-moveandpublish-posts-fr.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-fr.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-moveandpublish-posts-fr.yml?token=AAF476GCANZ2IDHFKXHGT7DJFDLAE"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476AXD7RHGZSNEW2WAKTJFDLAE"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/auto-schedule-posts.yml?token=AAF476GEDWL3IU5HMX373PDJFDLAE"
+      },
+      {
+        "name": "featured-image-finder.yml",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/featured-image-finder.yml?token=AAF476GFDOP5UOPAXDTWKT3JFDLAE"
+      },
+      {
+        "name": "generate_aliases_file.yml",
+        "path": ".github/workflows/generate_aliases_file.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/generate_aliases_file.yml?token=AAF476ESKBTQS5BWCKKOCWLJFDLAE"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/jekyll.yml?token=AAF476FYK74NGNDSQFES4TTJFDLAE"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/keyword_suggestion.yml?token=AAF476HA6ZR4VRI4MJDQGFDJFDLAE"
+      },
+      {
+        "name": "post-summarizer.yml",
+        "path": ".github/workflows/post-summarizer.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/post-summarizer.yml?token=AAF476DN6YCQRPIXOAMBXALJFDLAE"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/rss-news-to-blogpost.yml?token=AAF476D77ALKNQRV4YKITT3JFDLAE"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/semantic_clustering.yml?token=AAF476BFJDOED75LTXNOGBLJFDLAE"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/seo_diagnotics.yml?token=AAF476HILKESMWGZJAWAJ23JFDLAE"
+      },
+      {
+        "name": "translate_posts.yml",
+        "path": ".github/workflows/translate_posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/translate_posts.yml?token=AAF476CNUU3KCHJFSY4TLRLJFDLAE"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/modabyflora-corporate/master/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476DPXBVGYFO4AVV33CDJFDLAE"
+      }
+    ]
+  },
+  {
+    "repo": "BrightSoftwares/olympics-paris2024.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal-linking-matrix.yml",
+        "path": ".github/workflows/auto-internal-linking-matrix.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-internal-linking-matrix.yml?token=AAF476CYDUJNUU2FV3DYDEDJFDLAS"
+      },
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476BL6GMLRSYKMCJHNKDJFDLAS"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476B22TSFBEYOHWLQIZ3JFDLAS"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news-en.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news-en.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-moveandpublish-posts-news-en.yml?token=AAF476FYKQGNVOGFPOQR6NLJFDLAS"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476CKQ5DGXO4DIEJTHOLJFDLAS"
+      },
+      {
+        "name": "auto-schedule-games-posts.yml",
+        "path": ".github/workflows/auto-schedule-games-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-schedule-games-posts.yml?token=AAF476AOUKJK4KWFAK4FYEDJFDLAS"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/auto-schedule-posts.yml?token=AAF476FMYVX7RYHE4C5NZNLJFDLAS"
+      },
+      {
+        "name": "featured-image-finder.yml",
+        "path": ".github/workflows/featured-image-finder.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/featured-image-finder.yml?token=AAF476HMMDNGGED77KLLUFTJFDLAS"
+      },
+      {
+        "name": "generate_aliases_file.yml",
+        "path": ".github/workflows/generate_aliases_file.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/generate_aliases_file.yml?token=AAF476ED25CANBUU6MAZ7T3JFDLAS"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/jekyll.yml?token=AAF476AF7A7NHBNFIMCGY63JFDLAS"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/keyword_suggestion.yml?token=AAF476CRVJL4PNBNAZTQUJ3JFDLAS"
+      },
+      {
+        "name": "openai-posts-generator.yml",
+        "path": ".github/workflows/openai-posts-generator.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/openai-posts-generator.yml?token=AAF476AQFRYNVASNTNPDV3TJFDLAS"
+      },
+      {
+        "name": "post-summarizer.yml",
+        "path": ".github/workflows/post-summarizer.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/post-summarizer.yml?token=AAF476CNKNHD3H2IXW76PRTJFDLAS"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/rss-news-to-blogpost.yml?token=AAF476FBQRBCBHB6QFN4PJDJFDLAS"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/semantic_clustering.yml?token=AAF476GRLAD3AHNU2P3RRQLJFDLAS"
+      },
+      {
+        "name": "seo-html-analysis.yml",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/seo-html-analysis.yml?token=AAF476GYPCSOK7WDUGTIVOTJFDLAS"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/seo_diagnotics.yml?token=AAF476DKBIL5YXQULJYOJ3DJFDLAS"
+      },
+      {
+        "name": "translate_posts.yml",
+        "path": ".github/workflows/translate_posts.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/translate_posts.yml?token=AAF476D44ZXIJBFTZIB6UBTJFDLAS"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/BrightSoftwares/olympics-paris2024.com/main/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476GYX3Q3Q6BE4OQISKDJFDLAS"
+      }
+    ]
+  },
+  {
+    "repo": "Causting/causting.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/causting.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476AIMDE2HZEI2XI5AXLJFDLBQ"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/causting.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476D3EY2SEPONLZGWFIDJFDLBQ"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/causting.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476CK4QFCBTBUXM23OE3JFDLBQ"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/causting.com/main/.github/workflows/jekyll.yml?token=AAF476DCQSSUT2M4RRFAJHDJFDLBQ"
+      }
+    ]
+  },
+  {
+    "repo": "Causting/space-up-planet.com",
+    "default_branch": "main",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/space-up-planet.com/main/.github/workflows/auto-internal_linking.yml?token=AAF476G6QGXZPZ255FQ2VQTJFDLBS"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/space-up-planet.com/main/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476DG5PHQCIBIY2CWHADJFDLBS"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/space-up-planet.com/main/.github/workflows/auto-moveandpublish-posts-news.yml?token=AAF476A3YWS7YXIXG2QIHVLJFDLBS"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/space-up-planet.com/main/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476C3XOK2BOUKSLEVPK3JFDLBS"
+      },
+      {
+        "name": "jekyll.yml",
+        "path": ".github/workflows/jekyll.yml",
+        "download_url": "https://raw.githubusercontent.com/Causting/space-up-planet.com/main/.github/workflows/jekyll.yml?token=AAF476GPRG7CTPBIX65NT4DJFDLBS"
+      }
+    ]
+  },
+  {
+    "repo": "Hayes-Tech/hayestech-website",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": false,
+    "workflows": []
+  },
+  {
+    "repo": "sergioafanou/latexcv",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": false,
+    "workflows": [
+      {
+        "name": "blank.yml",
+        "path": ".github/workflows/blank.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/latexcv/master/.github/workflows/blank.yml"
+      },
+      {
+        "name": "generate-my-cv.yml",
+        "path": ".github/workflows/generate-my-cv.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/latexcv/master/.github/workflows/generate-my-cv.yml"
+      }
+    ]
+  },
+  {
+    "repo": "sergioafanou/smart-cv",
+    "default_branch": "master",
+    "has_config_yml": true,
+    "has_jekyll_gemfile": true,
+    "workflows": [
+      {
+        "name": "auto-internal_linking.yml",
+        "path": ".github/workflows/auto-internal_linking.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/auto-internal_linking.yml?token=AAF476H2IQLA5WRDYA3II43JFDLCG"
+      },
+      {
+        "name": "auto-keywordandyoutubegen-posts.yml",
+        "path": ".github/workflows/auto-keywordandyoutubegen-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/auto-keywordandyoutubegen-posts.yml?token=AAF476GITW6J6J4U4WBU2MTJFDLCG"
+      },
+      {
+        "name": "auto-moveandpublish-posts-news-en.yml",
+        "path": ".github/workflows/auto-moveandpublish-posts-news-en.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/auto-moveandpublish-posts-news-en.yml?token=AAF476BZPRQCH7FIPX3NW6DJFDLCG"
+      },
+      {
+        "name": "auto-openaigenerateblogpost.yml",
+        "path": ".github/workflows/auto-openaigenerateblogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/auto-openaigenerateblogpost.yml?token=AAF476GQ3F5JE25DFAAUQBTJFDLCG"
+      },
+      {
+        "name": "auto-schedule-posts.yml",
+        "path": ".github/workflows/auto-schedule-posts.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/auto-schedule-posts.yml?token=AAF476C5KMG55GITXPEGEXLJFDLCG"
+      },
+      {
+        "name": "github-pages.yml",
+        "path": ".github/workflows/github-pages.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/github-pages.yml?token=AAF476BUEROVY46EAGOVBYTJFDLCG"
+      },
+      {
+        "name": "keyword_suggestion.yml",
+        "path": ".github/workflows/keyword_suggestion.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/keyword_suggestion.yml?token=AAF476FUKIM5UHGLA6AFVVTJFDLCG"
+      },
+      {
+        "name": "post-paraphraser.yml",
+        "path": ".github/workflows/post-paraphraser.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/post-paraphraser.yml?token=AAF476HYMDYH77MHUKEEL73JFDLCG"
+      },
+      {
+        "name": "post-summarizer.yml",
+        "path": ".github/workflows/post-summarizer.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/post-summarizer.yml?token=AAF476AEMH4MO5FNEAFBTJDJFDLCG"
+      },
+      {
+        "name": "rss-news-to-blogpost.yml",
+        "path": ".github/workflows/rss-news-to-blogpost.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/rss-news-to-blogpost.yml?token=AAF476DDJ2YPZNXCFD6VXVDJFDLCG"
+      },
+      {
+        "name": "semantic_clustering.yml",
+        "path": ".github/workflows/semantic_clustering.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/semantic_clustering.yml?token=AAF476AQTYYKACPNDJ5BJ23JFDLCG"
+      },
+      {
+        "name": "seo-html-analysis.yml",
+        "path": ".github/workflows/seo-html-analysis.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/seo-html-analysis.yml?token=AAF476BYYYF55RTUFDNM2ILJFDLCG"
+      },
+      {
+        "name": "seo_diagnotics.yml",
+        "path": ".github/workflows/seo_diagnotics.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/seo_diagnotics.yml?token=AAF476DQUTUZY2LY2NDUBFLJFDLCG"
+      },
+      {
+        "name": "yt_vids_and_transcribe.yml",
+        "path": ".github/workflows/yt_vids_and_transcribe.yml",
+        "download_url": "https://raw.githubusercontent.com/sergioafanou/smart-cv/master/.github/workflows/yt_vids_and_transcribe.yml?token=AAF476BQC3235OXS7TUEWNTJFDLCG"
+      }
+    ]
+  }
+]
