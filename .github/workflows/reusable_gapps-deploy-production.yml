@@ -1,0 +1,226 @@
+name: 🚀 Deploy Google Apps Script to Production
+
+on:
+  workflow_call:
+    inputs:
+      script_id:
+        description: 'Google Apps Script ID'
+        required: true
+        type: string
+      project_id:
+        description: 'Google Cloud Project ID'
+        required: true
+        type: string
+      prod_deployment_id:
+        description: 'Production deployment ID'
+        required: true
+        type: string
+      dev_branch:
+        description: 'Development branch name'
+        required: false
+        type: string
+        default: 'dev'
+      production_branch:
+        description: 'Production branch name'
+        required: false
+        type: string
+        default: 'main'
+      build_command_prod:
+        description: 'Build command for production'
+        required: false
+        type: string
+        default: 'npm run wp-build-prd'
+      node_version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+      version_file:
+        description: 'Path to version file'
+        required: false
+        type: string
+        default: '.version'
+      config_file:
+        description: 'Path to deployment-config.json'
+        required: false
+        type: string
+        default: 'deployment-config.json'
+      version_override:
+        description: 'Override version (leave empty for auto)'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip tests (not recommended)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      CLASP_JSON_TOKEN:
+        description: 'CLASP authentication token'
+        required: true
+    outputs:
+      deployment_id:
+        description: 'Deployment ID'
+        value: ${{ jobs.deploy-production.outputs.deployment_id }}
+      deployment_url:
+        description: 'Deployment URL'
+        value: ${{ jobs.deploy-production.outputs.deployment_url }}
+      version:
+        description: 'Deployed version'
+        value: ${{ jobs.deploy-production.outputs.version }}
+
+jobs:
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      deployment_url: ${{ steps.build-url.outputs.url }}
+      version: ${{ steps.determine-version.outputs.version }}
+    environment:
+      name: production
+      url: ${{ steps.build-url.outputs.url }}
+
+    steps:
+      - name: 📥 Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Checkout blogpost-tools for scripts
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          sparse-checkout: |
+            gapps-clasp-deploy
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install --ignore-scripts
+
+      - name: 🔐 Authenticate with Google Apps Script
+        env:
+          CLASP_TOKEN: ${{ secrets.CLASP_JSON_TOKEN }}
+        run: |
+          echo "$CLASP_TOKEN" > ~/.clasprc.json
+
+      - name: 🏗️ Build project (production mode)
+        run: ${{ inputs.build_command_prod }}
+
+      - name: 📋 Determine version
+        id: determine-version
+        run: |
+          # Copy scripts locally
+          mkdir -p scripts
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/version-manager.js ./scripts/
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/deploy-helper.js ./scripts/
+
+          if [ -n "${{ inputs.version_override }}" ]; then
+            VERSION="${{ inputs.version_override }}"
+            node scripts/version-manager.js set "$VERSION"
+            echo "Using override version: $VERSION"
+          else
+            CURRENT_VERSION=$(node scripts/version-manager.js get-current)
+            VERSION=$(node scripts/version-manager.js get-next)
+            node scripts/version-manager.js set "$VERSION"
+            echo "Auto-bumped from $CURRENT_VERSION to $VERSION"
+          fi
+
+          DESCRIPTION=$(node scripts/version-manager.js description "$VERSION")
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+
+          echo "📌 Production version: $VERSION"
+          echo "📝 Description: $DESCRIPTION"
+
+      - name: 🚀 Deploy to Production
+        id: deploy
+        run: |
+          echo "🚀 Deploying to production environment..."
+
+          # Ensure deployment config exists and is updated
+          if [ ! -f "${{ inputs.config_file }}" ]; then
+            echo "Creating deployment config from template..."
+            cp .blogpost-tools/gapps-clasp-deploy/templates/deployment-config.json.template ${{ inputs.config_file }}
+          fi
+
+          # Update config with production deployment ID
+          jq --arg sid "${{ inputs.script_id }}" \
+             --arg pid "${{ inputs.project_id }}" \
+             --arg did "${{ inputs.prod_deployment_id }}" \
+             '.scriptId = $sid | .projectId = $pid | .environments.production.deploymentId = $did' \
+             ${{ inputs.config_file }} > tmp.json && mv tmp.json ${{ inputs.config_file }}
+
+          # Run deployment
+          node scripts/deploy-helper.js production "${{ steps.determine-version.outputs.description }}"
+
+          PROD_DEPLOYMENT_ID=$(node scripts/deploy-helper.js get-deployment-id production)
+          echo "deployment_id=$PROD_DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+
+          if [ -n "$PROD_DEPLOYMENT_ID" ]; then
+            echo "✅ Production deployment successful!"
+            echo "🔗 Production Deployment ID: $PROD_DEPLOYMENT_ID"
+          fi
+
+      - name: 🔗 Build deployment URL
+        id: build-url
+        run: |
+          if [ -n "${{ steps.deploy.outputs.deployment_id }}" ]; then
+            URL="https://script.google.com/macros/s/${{ steps.deploy.outputs.deployment_id }}/exec"
+            echo "url=$URL" >> $GITHUB_OUTPUT
+            echo "🔗 Production URL: $URL"
+          fi
+
+      - name: 🏷️ Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.determine-version.outputs.version }}" -m "${{ steps.determine-version.outputs.description }}"
+          git push origin "v${{ steps.determine-version.outputs.version }}"
+
+      - name: 📝 Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.determine-version.outputs.version }}';
+            const description = '${{ steps.determine-version.outputs.description }}';
+
+            try {
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: `v${version}`,
+                name: `Release v${version}`,
+                body: `## 🚀 Production Release v${version}\n\n` +
+                      `**Description:** ${description}\n\n` +
+                      `**Deployment URL:** ${{ steps.build-url.outputs.url }}\n\n` +
+                      `**Commit:** ${context.sha}\n\n` +
+                      `### Changes\n` +
+                      `This release was automatically created by the CI/CD pipeline.`,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`✅ Created release v${version}`);
+            } catch (error) {
+              console.error('Error creating release:', error);
+            }
+
+      - name: 💬 Post deployment summary
+        run: |
+          echo "## 🎉 Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.determine-version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.build-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Description:** ${{ steps.determine-version.outputs.description }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ All checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment: Successful" >> $GITHUB_STEP_SUMMARY

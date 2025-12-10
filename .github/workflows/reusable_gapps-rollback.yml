@@ -1,0 +1,135 @@
+name: 🔄 Rollback Google Apps Script Deployment
+
+on:
+  workflow_call:
+    inputs:
+      script_id:
+        description: 'Google Apps Script ID'
+        required: true
+        type: string
+      project_id:
+        description: 'Google Cloud Project ID'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to rollback (dev or production)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+      config_file:
+        description: 'Path to deployment-config.json'
+        required: false
+        type: string
+        default: 'deployment-config.json'
+      create_issue:
+        description: 'Create tracking issue'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      CLASP_JSON_TOKEN:
+        description: 'CLASP authentication token'
+        required: true
+
+jobs:
+  rollback:
+    name: 🔄 Execute Rollback
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: 📥 Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Checkout blogpost-tools for scripts
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          sparse-checkout: |
+            gapps-clasp-deploy
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install --ignore-scripts
+
+      - name: 🔐 Authenticate with Google Apps Script
+        env:
+          CLASP_TOKEN: ${{ secrets.CLASP_JSON_TOKEN }}
+        run: |
+          echo "$CLASP_TOKEN" > ~/.clasprc.json
+
+      - name: 🔄 Perform rollback
+        id: rollback
+        run: |
+          echo "🔄 Rolling back ${{ inputs.environment }} environment..."
+
+          # Copy scripts locally
+          mkdir -p scripts
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/deploy-helper.js ./scripts/
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/version-manager.js ./scripts/
+
+          # Run rollback
+          node scripts/deploy-helper.js rollback ${{ inputs.environment }}
+
+          echo "rollback_complete=true" >> $GITHUB_OUTPUT
+
+      - name: ✅ Verify rollback
+        if: steps.rollback.outputs.rollback_complete == 'true'
+        run: |
+          echo "## ✅ Rollback Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Successfully rolled back to previous deployment" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📝 Create tracking issue
+        if: inputs.create_issue && steps.rollback.outputs.rollback_complete == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const env = '${{ inputs.environment }}';
+            const reason = '${{ inputs.reason }}';
+            const actor = '${{ github.actor }}';
+
+            const title = `🔄 ${env.charAt(0).toUpperCase() + env.slice(1)} Rollback - ${new Date().toISOString().split('T')[0]}`;
+            const body = `## Rollback Performed\n\n` +
+                        `**Environment:** ${env}\n` +
+                        `**Initiated by:** @${actor}\n` +
+                        `**Timestamp:** ${new Date().toISOString()}\n` +
+                        `**Reason:** ${reason}\n\n` +
+                        `**Status:** ✅ Rollback completed successfully\n\n` +
+                        `### Required Actions\n` +
+                        `- [ ] Investigate the issue\n` +
+                        `- [ ] Create fix\n` +
+                        `- [ ] Test thoroughly\n` +
+                        `- [ ] Deploy fix\n`;
+
+            const labels = env === 'production'
+              ? ['rollback', 'production', 'critical', 'automated']
+              : ['rollback', 'dev', 'automated'];
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: labels
+            });

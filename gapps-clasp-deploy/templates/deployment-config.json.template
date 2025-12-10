@@ -1,0 +1,20 @@
+{
+  "scriptId": "1HA_Cgf1Ecg8HF_eHGCu7y5EBQMegMmFmdZ5vDgKX8ryg_ip3EEDKtQvw",
+  "projectId": "17056330803",
+  "environments": {
+    "dev": {
+      "name": "Development",
+      "deploymentId": null,
+      "description": "Development environment - deploys on push to dev branch",
+      "webAppUrlProperty": "WEB_APP_URL_DEV",
+      "versionStrategy": "HEAD"
+    },
+    "production": {
+      "name": "Production",
+      "deploymentId": "AKfycbw8HDyNgIdDWtbJZHGug3l74jJYTTJy5qMDGalUnRr-qU7qpD2h089Jm-EnFUYnkfao",
+      "description": "Production environment - deploys on merge to main",
+      "webAppUrlProperty": "WEB_APP_URL_PROD",
+      "versionStrategy": "versioned"
+    }
+  }
+}

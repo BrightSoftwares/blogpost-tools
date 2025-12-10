@@ -1,0 +1,187 @@
+name: 🚀 Deploy Google Apps Script to Development
+
+on:
+  workflow_call:
+    inputs:
+      script_id:
+        description: 'Google Apps Script ID'
+        required: true
+        type: string
+      project_id:
+        description: 'Google Cloud Project ID'
+        required: true
+        type: string
+      dev_deployment_id:
+        description: 'Dev deployment ID (leave empty to auto-create)'
+        required: false
+        type: string
+      dev_branch:
+        description: 'Development branch name'
+        required: false
+        type: string
+        default: 'dev'
+      production_branch:
+        description: 'Production branch name'
+        required: false
+        type: string
+        default: 'main'
+      build_command_dev:
+        description: 'Build command for development'
+        required: false
+        type: string
+        default: 'npm run wp-build-dev'
+      node_version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+      version_file:
+        description: 'Path to version file'
+        required: false
+        type: string
+        default: '.version'
+      config_file:
+        description: 'Path to deployment-config.json'
+        required: false
+        type: string
+        default: 'deployment-config.json'
+      skip_tests:
+        description: 'Skip tests (not recommended)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      CLASP_JSON_TOKEN:
+        description: 'CLASP authentication token'
+        required: true
+    outputs:
+      deployment_id:
+        description: 'Deployment ID'
+        value: ${{ jobs.deploy-dev.outputs.deployment_id }}
+      deployment_url:
+        description: 'Deployment URL'
+        value: ${{ jobs.deploy-dev.outputs.deployment_url }}
+      version:
+        description: 'Deployed version'
+        value: ${{ jobs.deploy-dev.outputs.version }}
+
+jobs:
+  deploy-dev:
+    name: 🚀 Deploy to Dev
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      deployment_url: ${{ steps.build-url.outputs.url }}
+      version: ${{ steps.version.outputs.version }}
+    environment:
+      name: development
+      url: ${{ steps.build-url.outputs.url }}
+
+    steps:
+      - name: 📥 Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Checkout blogpost-tools for scripts
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          sparse-checkout: |
+            gapps-clasp-deploy
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install --ignore-scripts
+
+      - name: 🔐 Authenticate with Google Apps Script
+        env:
+          CLASP_TOKEN: ${{ secrets.CLASP_JSON_TOKEN }}
+        run: |
+          echo "$CLASP_TOKEN" > ~/.clasprc.json
+
+      - name: 🏗️ Build project
+        run: ${{ inputs.build_command_dev }}
+
+      - name: 📋 Get version info
+        id: version
+        uses: ./.blogpost-tools/.github/actions/gapps-clasp-deploy/version-manager
+        with:
+          command: 'get-current'
+          version_file: ${{ inputs.version_file }}
+
+      - name: 📋 Get deployment description
+        id: description
+        uses: ./.blogpost-tools/.github/actions/gapps-clasp-deploy/version-manager
+        with:
+          command: 'description'
+          version: ${{ steps.version.outputs.version }}
+          version_file: ${{ inputs.version_file }}
+
+      - name: 🚀 Deploy to Dev
+        id: deploy
+        run: |
+          echo "🚀 Deploying to development environment..."
+
+          # Copy scripts locally for deployment
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/deploy-helper.js ./scripts/
+          cp .blogpost-tools/gapps-clasp-deploy/scripts/version-manager.js ./scripts/
+
+          # Ensure deployment config exists and is updated
+          if [ ! -f "${{ inputs.config_file }}" ]; then
+            echo "Creating deployment config from template..."
+            cp .blogpost-tools/gapps-clasp-deploy/templates/deployment-config.json.template ${{ inputs.config_file }}
+            # Update with actual values
+            jq --arg sid "${{ inputs.script_id }}" \
+               --arg pid "${{ inputs.project_id }}" \
+               '.scriptId = $sid | .projectId = $pid' \
+               ${{ inputs.config_file }} > tmp.json && mv tmp.json ${{ inputs.config_file }}
+          fi
+
+          # Update dev deployment ID if provided
+          if [ -n "${{ inputs.dev_deployment_id }}" ]; then
+            jq '.environments.dev.deploymentId = "${{ inputs.dev_deployment_id }}"' \
+               ${{ inputs.config_file }} > tmp.json && mv tmp.json ${{ inputs.config_file }}
+          fi
+
+          # Run deployment
+          node scripts/deploy-helper.js dev "${{ steps.description.outputs.description }}"
+
+          # Get deployment ID
+          DEV_DEPLOYMENT_ID=$(node scripts/deploy-helper.js get-deployment-id dev)
+          echo "deployment_id=$DEV_DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+
+          if [ -n "$DEV_DEPLOYMENT_ID" ]; then
+            echo "✅ Deployment successful!"
+            echo "🔗 Dev Deployment ID: $DEV_DEPLOYMENT_ID"
+          fi
+
+      - name: 🔗 Build deployment URL
+        id: build-url
+        run: |
+          if [ -n "${{ steps.deploy.outputs.deployment_id }}" ]; then
+            URL="https://script.google.com/macros/s/${{ steps.deploy.outputs.deployment_id }}/dev"
+            echo "url=$URL" >> $GITHUB_OUTPUT
+            echo "🔗 Dev URL: $URL"
+          fi
+
+      - name: 💬 Post deployment summary
+        run: |
+          echo "## 🚀 Development Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.build-url.outputs.url }}" ]; then
+            echo "**URL:** ${{ steps.build-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Description:** ${{ steps.description.outputs.description }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment successful" >> $GITHUB_STEP_SUMMARY

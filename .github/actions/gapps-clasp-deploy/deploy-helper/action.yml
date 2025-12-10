@@ -1,0 +1,123 @@
+name: 'GAPPS Deploy Helper'
+description: 'Environment-specific deployment helper for Google Apps Script'
+author: 'BrightSoftwares'
+
+inputs:
+  command:
+    description: 'Command to run (dev, production, rollback, history, get-deployment-id)'
+    required: true
+  environment:
+    description: 'Environment name (dev or production)'
+    required: false
+  deployment_message:
+    description: 'Custom deployment message'
+    required: false
+  config_file:
+    description: 'Path to deployment-config.json'
+    required: false
+    default: 'deployment-config.json'
+  history_file:
+    description: 'Path to deployment history file'
+    required: false
+    default: '.deployment-history.json'
+
+outputs:
+  deployment_id:
+    description: 'Deployment ID from command'
+    value: ${{ steps.deploy.outputs.deployment_id }}
+  success:
+    description: 'Whether deployment was successful'
+    value: ${{ steps.deploy.outputs.success }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [ ! -f "${{ inputs.config_file }}" ]; then
+          echo "Error: Config file not found at ${{ inputs.config_file }}"
+          exit 1
+        fi
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Copy deploy helper script
+      shell: bash
+      run: |
+        if [ ! -f "${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts/deploy-helper.js" ]; then
+          echo "Error: deploy-helper.js not found in expected location"
+          exit 1
+        fi
+        cp ${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts/deploy-helper.js ./deploy-helper-temp.js
+        cp ${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts/version-manager.js ./version-manager-temp.js
+        chmod +x ./deploy-helper-temp.js
+        chmod +x ./version-manager-temp.js
+
+    - name: Run deploy helper
+      id: deploy
+      shell: bash
+      run: |
+        # Update script to use local paths
+        sed -i 's|path.join(__dirname, '\''..'\''|path.join(process.cwd()|g' ./deploy-helper-temp.js
+        sed -i 's|path.join(__dirname, '\''version-manager.js'\'')|path.join(process.cwd(), '\''version-manager-temp.js'\'')|g' ./deploy-helper-temp.js
+
+        # Run command
+        case "${{ inputs.command }}" in
+          "dev"|"development")
+            MSG="${{ inputs.deployment_message }}"
+            if [ -n "$MSG" ]; then
+              node ./deploy-helper-temp.js dev "$MSG"
+            else
+              node ./deploy-helper-temp.js dev
+            fi
+            echo "success=true" >> $GITHUB_OUTPUT
+            ;;
+          "prod"|"production")
+            MSG="${{ inputs.deployment_message }}"
+            if [ -n "$MSG" ]; then
+              node ./deploy-helper-temp.js production "$MSG"
+            else
+              node ./deploy-helper-temp.js production
+            fi
+            echo "success=true" >> $GITHUB_OUTPUT
+            ;;
+          "rollback")
+            ENV="${{ inputs.environment }}"
+            if [ -z "$ENV" ]; then
+              ENV="production"
+            fi
+            node ./deploy-helper-temp.js rollback "$ENV"
+            echo "success=true" >> $GITHUB_OUTPUT
+            ;;
+          "history")
+            ENV="${{ inputs.environment }}"
+            if [ -z "$ENV" ]; then
+              ENV="production"
+            fi
+            node ./deploy-helper-temp.js history "$ENV"
+            ;;
+          "get-deployment-id")
+            ENV="${{ inputs.environment }}"
+            if [ -z "$ENV" ]; then
+              echo "Error: environment input required for get-deployment-id command"
+              exit 1
+            fi
+            ID=$(node ./deploy-helper-temp.js get-deployment-id "$ENV")
+            echo "deployment_id=$ID" >> $GITHUB_OUTPUT
+            ;;
+          *)
+            echo "Error: Unknown command ${{ inputs.command }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: |
+        rm -f ./deploy-helper-temp.js
+        rm -f ./version-manager-temp.js

@@ -1,0 +1,108 @@
+name: 'GAPPS Version Manager'
+description: 'Semantic version management for Google Apps Script deployments'
+author: 'BrightSoftwares'
+
+inputs:
+  command:
+    description: 'Command to run (get-current, get-next, set, bump, description, info)'
+    required: true
+  version:
+    description: 'Version to set (only for set command)'
+    required: false
+  version_file:
+    description: 'Path to version file'
+    required: false
+    default: '.version'
+  json_output:
+    description: 'Output as JSON (for get-next command)'
+    required: false
+    default: 'false'
+
+outputs:
+  version:
+    description: 'Version output from command'
+    value: ${{ steps.version.outputs.version }}
+  bump_type:
+    description: 'Type of version bump (major, minor, patch)'
+    value: ${{ steps.version.outputs.bump_type }}
+  description:
+    description: 'Deployment description'
+    value: ${{ steps.version.outputs.description }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Copy version manager script
+      shell: bash
+      run: |
+        mkdir -p ${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts
+        if [ ! -f "${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts/version-manager.js" ]; then
+          echo "Error: version-manager.js not found in expected location"
+          exit 1
+        fi
+        cp ${{ github.action_path }}/../../../../gapps-clasp-deploy/scripts/version-manager.js ./version-manager-temp.js
+        chmod +x ./version-manager-temp.js
+
+    - name: Run version manager
+      id: version
+      shell: bash
+      run: |
+        # Set version file path
+        export VERSION_FILE="${{ inputs.version_file }}"
+
+        # Run command
+        case "${{ inputs.command }}" in
+          "get-current")
+            VERSION=$(node ./version-manager-temp.js get-current)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            ;;
+          "get-next")
+            if [ "${{ inputs.json_output }}" = "true" ]; then
+              OUTPUT=$(node ./version-manager-temp.js get-next --json)
+              echo "$OUTPUT" | jq -r '.next' > /tmp/version.txt
+              echo "$OUTPUT" | jq -r '.bumpType' > /tmp/bump_type.txt
+              VERSION=$(cat /tmp/version.txt)
+              BUMP_TYPE=$(cat /tmp/bump_type.txt)
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+            else
+              VERSION=$(node ./version-manager-temp.js get-next)
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+            fi
+            ;;
+          "set")
+            if [ -z "${{ inputs.version }}" ]; then
+              echo "Error: version input required for set command"
+              exit 1
+            fi
+            node ./version-manager-temp.js set "${{ inputs.version }}"
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            ;;
+          "bump")
+            OUTPUT=$(node ./version-manager-temp.js bump)
+            VERSION=$(echo "$OUTPUT" | grep "to" | awk '{print $4}')
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            ;;
+          "description")
+            DESC=$(node ./version-manager-temp.js description ${{ inputs.version }})
+            echo "description=$DESC" >> $GITHUB_OUTPUT
+            ;;
+          "info")
+            node ./version-manager-temp.js info
+            ;;
+          *)
+            echo "Error: Unknown command ${{ inputs.command }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: |
+        rm -f ./version-manager-temp.js
