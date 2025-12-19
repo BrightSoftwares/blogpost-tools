@@ -73,9 +73,9 @@ on:
         default: false
 
     secrets:
-      github_token:
-        description: 'GitHub token for pushing to target branch'
-        required: false
+      # github_token:
+      #   description: 'GitHub token for pushing to target branch'
+      #   required: false
       submodule_ssh_key:
         description: 'SSH key for private submodule access'
         required: false
