@@ -54,21 +54,43 @@ function formatVersion({ major, minor, patch }) {
 
 /**
  * Get commit messages since last tag or all commits
+ * Excludes merge commits to get the actual work commits for version bumping
  * @returns {string[]} Array of commit messages
  */
 function getCommitMessages() {
   try {
-    // Try to get commits since last tag
+    // Try to get commits since last tag, excluding merge commits
+    // --no-merges: excludes merge commits so we analyze the actual work commits
+    // --first-parent: follows only the first parent (main branch history)
     let commits;
     try {
       const lastTag = execSync('git describe --tags --abbrev=0 2>/dev/null', { encoding: 'utf8' }).trim();
-      commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s"`, { encoding: 'utf8' });
+      // Use --no-merges to skip merge commits and get actual work commits
+      commits = execSync(`git log ${lastTag}..HEAD --no-merges --pretty=format:"%s"`, { encoding: 'utf8' });
+
+      // If no commits found (only merge commits), try getting commits from the merge
+      if (!commits.trim()) {
+        // Get the merge commit's parents and analyze those commits
+        try {
+          commits = execSync(`git log ${lastTag}..HEAD --pretty=format:"%s" --first-parent`, { encoding: 'utf8' });
+        } catch {
+          commits = '';
+        }
+      }
     } catch {
-      // No tags found, get recent commits
-      commits = execSync('git log -10 --pretty=format:"%s"', { encoding: 'utf8' });
+      // No tags found, get recent commits excluding merges
+      commits = execSync('git log -10 --no-merges --pretty=format:"%s"', { encoding: 'utf8' });
     }
 
-    return commits.split('\n').filter(msg => msg.trim());
+    const commitList = commits.split('\n').filter(msg => msg.trim());
+
+    // Debug: log what commits we're analyzing
+    console.log(`Found ${commitList.length} commits for version analysis`);
+    if (commitList.length > 0 && commitList.length <= 5) {
+      console.log('Commits:', commitList);
+    }
+
+    return commitList;
   } catch (error) {
     console.error('Error getting commit messages:', error);
     return [];
