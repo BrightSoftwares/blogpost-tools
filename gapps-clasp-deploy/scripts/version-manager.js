@@ -22,10 +22,20 @@ const VERSION_FILE = path.join(__dirname, '..', '.version');
  */
 function getCurrentVersion() {
   try {
+    // Debug output goes to stderr so it doesn't interfere with stdout capture
+    console.error(`[DEBUG] VERSION_FILE path: ${VERSION_FILE}`);
+    console.error(`[DEBUG] VERSION_FILE exists: ${fs.existsSync(VERSION_FILE)}`);
+
     if (fs.existsSync(VERSION_FILE)) {
-      return fs.readFileSync(VERSION_FILE, 'utf8').trim();
+      const rawContent = fs.readFileSync(VERSION_FILE, 'utf8');
+      console.error(`[DEBUG] Raw version file content: "${rawContent}"`);
+      console.error(`[DEBUG] Raw content length: ${rawContent.length}`);
+      const version = rawContent.trim();
+      console.error(`[DEBUG] Trimmed version: "${version}"`);
+      return version;
     }
     // Default starting version
+    console.error('[DEBUG] Version file not found, using default: 0.1.0');
     return '0.1.0';
   } catch (error) {
     console.error('Error reading version file:', error);
@@ -84,10 +94,10 @@ function getCommitMessages() {
 
     const commitList = commits.split('\n').filter(msg => msg.trim());
 
-    // Debug: log what commits we're analyzing
-    console.log(`Found ${commitList.length} commits for version analysis`);
+    // Debug: log what commits we're analyzing (use stderr to avoid interfering with stdout)
+    console.error(`[DEBUG] Found ${commitList.length} commits for version analysis`);
     if (commitList.length > 0 && commitList.length <= 5) {
-      console.log('Commits:', commitList);
+      console.error('[DEBUG] Commits:', commitList);
     }
 
     return commitList;
@@ -193,14 +203,26 @@ function getNextVersion() {
  */
 function setVersion(version) {
   try {
+    // Debug: log raw version input (use stderr to avoid interfering with stdout)
+    console.error(`[DEBUG] setVersion called with: "${version}"`);
+    console.error(`[DEBUG] Version type: ${typeof version}`);
+    console.error(`[DEBUG] Version length: ${version ? version.length : 'null/undefined'}`);
+    console.error(`[DEBUG] Version char codes: ${version ? [...version].map(c => c.charCodeAt(0)).join(',') : 'null'}`);
+
+    // Clean the version string - remove any whitespace, newlines, quotes
+    const cleanVersion = version ? version.toString().trim().replace(/['"]/g, '') : '';
+    console.error(`[DEBUG] Cleaned version: "${cleanVersion}"`);
+
     // Validate version format
-    if (!/^\d+\.\d+\.\d+$/.test(version)) {
-      throw new Error('Invalid version format. Use semantic versioning (e.g., 1.0.0)');
+    if (!/^\d+\.\d+\.\d+$/.test(cleanVersion)) {
+      console.error(`[ERROR] Version validation failed for: "${cleanVersion}"`);
+      console.error(`[ERROR] Expected format: X.Y.Z where X, Y, Z are numbers`);
+      throw new Error(`Invalid version format: "${cleanVersion}". Use semantic versioning (e.g., 1.0.0)`);
     }
 
-    fs.writeFileSync(VERSION_FILE, version, 'utf8');
-    console.log(`Version set to: ${version}`);
-    return version;
+    fs.writeFileSync(VERSION_FILE, cleanVersion, 'utf8');
+    console.error(`[DEBUG] Version set to: ${cleanVersion}`);
+    return cleanVersion;
   } catch (error) {
     console.error('Error setting version:', error);
     process.exit(1);
