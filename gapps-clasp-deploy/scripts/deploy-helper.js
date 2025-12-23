@@ -83,16 +83,36 @@ function createDeployment(description) {
   try {
     console.log(`Creating new deployment: ${description}`);
     const output = execCommand(`npx clasp deploy -d "${description}"`, true);
+    console.log('Clasp deploy output:', output);
 
-    // Extract deployment ID from output
-    // Format: "Created version X." or deployment ID in output
-    const match = output.match(/- (AKfyc[a-zA-Z0-9_-]+)/);
+    // Try multiple regex patterns to extract deployment ID
+    // Pattern 1: "- AKfyc..." format (older clasp versions)
+    let match = output.match(/- (AKfyc[a-zA-Z0-9_-]+)/);
+
+    // Pattern 2: "Deployment ID: AKfyc..." or similar
+    if (!match) {
+      match = output.match(/(?:Deployment ID|deploymentId|id)[:\s]+(AKfyc[a-zA-Z0-9_-]+)/i);
+    }
+
+    // Pattern 3: Just find any AKfyc ID in the output
+    if (!match) {
+      match = output.match(/(AKfyc[a-zA-Z0-9_-]+)/);
+    }
+
+    // Pattern 4: Look for @deploymentId format
+    if (!match) {
+      match = output.match(/@(AKfyc[a-zA-Z0-9_-]+)/);
+    }
+
     if (match) {
       const deploymentId = match[1];
       console.log(`✅ New deployment created: ${deploymentId}`);
       return deploymentId;
     }
 
+    // If we still can't find it, show what we got and throw
+    console.error('Could not find deployment ID in clasp output.');
+    console.error('Full output was:', output);
     throw new Error('Could not extract deployment ID from clasp output');
   } catch (error) {
     console.error('Error creating deployment:', error);
@@ -134,6 +154,9 @@ function deployToEnvironment(environment, customDescription = null) {
 
   console.log(`\n🚀 Deploying to ${env.name} environment\n`);
 
+  // Debug: Show environment config
+  console.log('Environment config:', JSON.stringify(env, null, 2));
+
   // Get version info
   const versionManager = path.join(__dirname, 'version-manager.js');
   const version = execSync(`node "${versionManager}" get-current`, { encoding: 'utf8' }).trim();
@@ -159,26 +182,48 @@ function deployToEnvironment(environment, customDescription = null) {
         console.log(`Updated config with new ${environment} deployment ID`);
       }
     } else {
-      // Create versioned deployment for production
-      const versionedDesc = `v${version} - ${description}`;
-      const newId = createDeployment(versionedDesc);
+      // Production: Update existing deployment with new version (don't create new deployment)
+      // Note: description from version-manager.js already includes version, so don't duplicate it
+      const versionedDesc = description;
 
-      // Also update the main production deployment
       if (env.deploymentId) {
+        // Update existing production deployment with new version
+        // This creates a new version and attaches it to the existing deployment ID
+        console.log(`Updating production deployment ${env.deploymentId} with new version...`);
         deployToId(env.deploymentId, versionedDesc);
-      }
 
-      // Store the new versioned deployment ID for potential rollback
-      const deploymentHistory = loadDeploymentHistory();
-      deploymentHistory.push({
-        version: version,
-        deploymentId: newId,
-        timestamp: new Date().toISOString(),
-        description: description,
-        environment: environment
-      });
-      saveDeploymentHistory(deploymentHistory);
-      console.log(`✅ Saved deployment ${newId} to history for potential rollback`);
+        // Store deployment info in history for potential rollback
+        const deploymentHistory = loadDeploymentHistory();
+        deploymentHistory.push({
+          version: version,
+          deploymentId: env.deploymentId,
+          timestamp: new Date().toISOString(),
+          description: description,
+          environment: environment
+        });
+        saveDeploymentHistory(deploymentHistory);
+        console.log(`✅ Saved deployment to history for potential rollback`);
+      } else {
+        // No existing deployment ID - create new deployment
+        console.log('No existing production deployment ID found, creating new deployment...');
+        const newId = createDeployment(versionedDesc);
+
+        // Update config with the new deployment ID
+        config.environments[environment].deploymentId = newId;
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+        console.log(`Updated config with new ${environment} deployment ID: ${newId}`);
+
+        // Store in history
+        const deploymentHistory = loadDeploymentHistory();
+        deploymentHistory.push({
+          version: version,
+          deploymentId: newId,
+          timestamp: new Date().toISOString(),
+          description: description,
+          environment: environment
+        });
+        saveDeploymentHistory(deploymentHistory);
+      }
     }
 
     console.log(`\n✅ Successfully deployed to ${env.name}`);
