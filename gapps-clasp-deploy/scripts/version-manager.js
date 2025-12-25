@@ -180,14 +180,79 @@ function incrementVersion(currentVersion, bumpType) {
 }
 
 /**
+ * Check if a git tag already exists
+ * @param {string} version - Version to check (without 'v' prefix)
+ * @returns {boolean} True if tag exists
+ */
+function tagExists(version) {
+  try {
+    const tagName = `v${version}`;
+    execSync(`git rev-parse ${tagName} 2>/dev/null`, { encoding: 'utf8' });
+    console.error(`[DEBUG] Tag ${tagName} already exists`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get all existing version tags
+ * @returns {string[]} Array of existing version numbers (without 'v' prefix)
+ */
+function getExistingTags() {
+  try {
+    const output = execSync('git tag -l "v*"', { encoding: 'utf8' });
+    return output.split('\n')
+      .filter(tag => tag.trim())
+      .map(tag => tag.replace(/^v/, ''))
+      .filter(v => /^\d+\.\d+\.\d+$/.test(v));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Find next available version that doesn't have an existing tag
+ * @param {string} baseVersion - Starting version to check
+ * @param {string} bumpType - Type of bump being performed
+ * @returns {string} Next available version
+ */
+function findNextAvailableVersion(baseVersion, bumpType) {
+  let version = baseVersion;
+  let attempts = 0;
+  const maxAttempts = 100; // Safety limit
+
+  while (tagExists(version) && attempts < maxAttempts) {
+    console.error(`[DEBUG] Version ${version} tag exists, incrementing...`);
+    // Keep incrementing patch version until we find an available one
+    version = incrementVersion(version, 'patch');
+    attempts++;
+  }
+
+  if (attempts >= maxAttempts) {
+    console.error(`[ERROR] Could not find available version after ${maxAttempts} attempts`);
+  }
+
+  return version;
+}
+
+/**
  * Get next version based on commit messages
+ * Also checks for existing tags and skips to next available version
  * @returns {object} Next version info
  */
 function getNextVersion() {
   const currentVersion = getCurrentVersion();
   const commits = getCommitMessages();
   const bumpType = determineBumpType(commits);
-  const nextVersion = incrementVersion(currentVersion, bumpType);
+  let nextVersion = incrementVersion(currentVersion, bumpType);
+
+  // Check if tag already exists and find next available
+  if (tagExists(nextVersion)) {
+    console.error(`[DEBUG] Tag v${nextVersion} already exists, finding next available...`);
+    nextVersion = findNextAvailableVersion(nextVersion, bumpType);
+    console.error(`[DEBUG] Using version: ${nextVersion}`);
+  }
 
   return {
     current: currentVersion,
