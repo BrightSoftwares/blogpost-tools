@@ -187,6 +187,25 @@ jobs:
           git tag -a "v${{ steps.determine-version.outputs.version }}" -m "${{ steps.determine-version.outputs.description }}"
           git push origin "v${{ steps.determine-version.outputs.version }}"
 
+      - name: 💃 Commit changed files
+        run: |
+          # date > generated.txt
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          echo "There are $CHANGES_EXIST changes to commit"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "There are no changes to commit"
+          else
+            echo "Committing changes"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi
+          
+
+
       - name: 📝 Create GitHub Release
         uses: actions/github-script@v7
         with:
