@@ -162,6 +162,36 @@ pip install pathlib
 
 ---
 
+## Important: .gitkeep Files for Empty Folders
+
+**Git doesn't track empty directories.** To preserve folder structure in your repository, you MUST add `.gitkeep` files to all empty folders.
+
+**Why this matters:**
+- Empty workflow folders (_drafts subfolders) won't appear in GitHub unless they contain a file
+- Missing folders break the content workflow
+- Other developers cloning the repo won't have the complete structure
+
+**Quick fix command:**
+```bash
+# Add .gitkeep to all empty folders in your Jekyll blog
+find _drafts -type d -empty -exec touch {}/.gitkeep \;
+find _seo -type d -empty -exec touch {}/.gitkeep \;
+find _pages -type d -empty -exec touch {}/.gitkeep \;
+find _products -type d -empty -exec touch {}/.gitkeep \;
+
+# Add and commit
+git add .
+git commit -m "feat: Add .gitkeep files to preserve folder structure"
+```
+
+**When to use:**
+- After creating new blog repository
+- After adding new language folders
+- When setting up workflow folders (_drafts/en/200_*, 300_*, etc.)
+- Before first commit to ensure complete folder structure
+
+---
+
 ## Integration with Jekyll Blogs
 
 These tools are designed for Jekyll blogs following this structure:
@@ -215,21 +245,27 @@ See `.github/workflows/` in individual blog repositories for automated workflows
 git clone https://github.com/sergioafanou/beaconharbor.afanou.com.git
 cd beaconharbor.afanou.com
 
-# 2. Sync products to Stripe
+# 2. Add .gitkeep files to empty folders (IMPORTANT!)
+find _drafts -type d -empty -exec touch {}/.gitkeep \;
+find _seo -type d -empty -exec touch {}/.gitkeep \;
+git add .
+git commit -m "feat: Add .gitkeep files to preserve folder structure"
+
+# 3. Sync products to Stripe
 python ../blogpost-tools/jekyll-multi-language-tools/stripe_product_sync.py \
   --products-dir ./_products \
   --stripe-key $STRIPE_SECRET_KEY
 
-# 3. Generate redirects (if changing permalink structure)
+# 4. Generate redirects (if changing permalink structure)
 python ../blogpost-tools/jekyll-multi-language-tools/generate_redirects.py \
   --posts-dir _posts
 
-# 4. Commit changes
+# 5. Commit changes
 git add .
 git commit -m "chore: Sync Stripe products and generate redirects"
 git push
 
-# 5. Deploy (Netlify auto-deploys on push)
+# 6. Deploy (Netlify auto-deploys on push)
 ```
 
 ---
