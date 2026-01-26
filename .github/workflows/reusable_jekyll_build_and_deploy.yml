@@ -43,6 +43,11 @@ on:
         type: boolean
         required: false
         default: true
+      netlify_functions_dir:
+        description: 'Directory where the netlify functions are stored'
+        type: string
+        required: false
+        default: '.netlify/functions'
 
       # Runner configuration
       runs_on:
@@ -152,7 +157,7 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/action-netlify-deploy@main
         with:
           BUILD_DIRECTORY: ${{ inputs.build_dir }}
-          FUNCTIONS_DIRECTORY: ''
+          FUNCTIONS_DIRECTORY: ${{ inputs.netlify_functions_dir }}
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.netlify_auth_token }}
           NETLIFY_SITE_ID: ${{ secrets.netlify_site_id }}
