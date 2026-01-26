@@ -140,6 +140,29 @@ jobs:
           echo "=== _config.yml contents ==="
           head -50 _config.yml || echo "No _config.yml found"
 
+      - name: Check if the netlify functions folder exists
+        id: check_netlify_functions_folder
+        run: |
+          if [ -d ${{inputs.netlify_functions_dir}} ]; then
+            echo "netlify_functions_folder_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "netlify_functions_folder_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install netlify function dependencies
+        if: steps.check_netlify_functions_folder.outputs.netlify_functions_folder_exists == 'true'
+        run: |
+          cd ${{inputs.netlify_functions_dir}}
+          npm install
+
+      - name: Verify netlify function syntax
+        if: steps.check_netlify_functions_folder.outputs.netlify_functions_folder_exists == 'true'
+        run: |
+          for func in ${{inputs.netlify_functions_dir}}/*.js; do
+            echo "Checking $func..."
+            node -c "$func" || exit 1
+          done
+
       - name: Build Jekyll site
         uses: BrightSoftwares/blogpost-tools/jekyll-action@main
         with:
