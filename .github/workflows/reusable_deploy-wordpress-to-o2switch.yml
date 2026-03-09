@@ -1,0 +1,171 @@
+name: Deploy WordPress to o2switch via FTP/SFTP
+
+# Reusable workflow: Deploy a WordPress site to o2switch shared hosting via FTP.
+# Handles wp-content (themes, plugins, uploads) deployment with optional DB migrations.
+# Does NOT upload core WordPress files (wp-admin, wp-includes) — only wp-content.
+# Compatible with o2switch cPanel (no SSH IP-whitelisting needed).
+#
+# REPO: brightsoftwares/blogpost-tools
+# PATH: .github/workflows/reusable_deploy-wordpress-to-o2switch.yml
+# STATUS: DRAFT — push to blogpost-tools before using
+#
+# USAGE:
+#   jobs:
+#     deploy:
+#       uses: brightsoftwares/blogpost-tools/.github/workflows/reusable_deploy-wordpress-to-o2switch.yml@main
+#       with:
+#         domain_name: moda-by-flora.com
+#         ftp_server: ${{ vars.O2SWITCH_FTP_SERVER }}
+#         ftp_username: ${{ vars.O2SWITCH_FTP_USERNAME }}
+#         ftp_path: public_html
+#         deploy_scope: wp-content
+#       secrets:
+#         FTP_PASSWORD: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
+
+on:
+  workflow_call:
+    inputs:
+      domain_name:
+        description: 'Domain name of the WordPress site'
+        type: string
+        required: true
+
+      ftp_server:
+        description: 'FTP server hostname'
+        type: string
+        required: true
+
+      ftp_username:
+        description: 'FTP username (cPanel username)'
+        type: string
+        required: true
+
+      ftp_path:
+        description: 'Remote base path (e.g., public_html)'
+        type: string
+        required: false
+        default: 'public_html'
+
+      deploy_scope:
+        description: 'What to deploy: wp-content (themes+plugins only), full (entire repo), or custom directory'
+        type: string
+        required: false
+        default: 'wp-content'
+
+      source_directory:
+        description: 'Local source directory to deploy (overrides deploy_scope if set)'
+        type: string
+        required: false
+        default: ''
+
+      exclude_uploads:
+        description: 'Exclude wp-content/uploads from deployment (recommended — uploads should not be in git)'
+        type: boolean
+        required: false
+        default: true
+
+      purge_cloudflare:
+        description: 'Purge Cloudflare cache after deployment'
+        type: boolean
+        required: false
+        default: false
+
+    secrets:
+      FTP_PASSWORD:
+        description: 'FTP password for o2switch'
+        required: true
+
+      CLOUDFLARE_API_TOKEN:
+        required: false
+
+      CLOUDFLARE_ZONE_ID:
+        required: false
+
+    outputs:
+      deployment_status:
+        value: ${{ jobs.deploy.outputs.deployment_status }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.set-result.outputs.status }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine source directory
+        id: source
+        run: |
+          if [ -n "${{ inputs.source_directory }}" ]; then
+            echo "dir=${{ inputs.source_directory }}" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.deploy_scope }}" = "wp-content" ]; then
+            echo "dir=wp-content" >> $GITHUB_OUTPUT
+          else
+            echo "dir=." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Deploy WordPress files via FTP
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          SOURCE_DIR="${{ steps.source.outputs.dir }}"
+          REMOTE_DIR="${{ inputs.ftp_path }}"
+
+          # Adjust remote path for wp-content scope
+          if [ "${{ inputs.deploy_scope }}" = "wp-content" ]; then
+            REMOTE_DIR="${{ inputs.ftp_path }}/wp-content"
+          fi
+
+          echo "Deploying $SOURCE_DIR → $REMOTE_DIR on ${{ inputs.ftp_server }}"
+
+          # Build exclude flags
+          EXCLUDES=""
+          if [ "${{ inputs.exclude_uploads }}" = "true" ]; then
+            EXCLUDES="--exclude-glob uploads/"
+          fi
+          EXCLUDES="$EXCLUDES --exclude-glob .git/ --exclude-glob .github/ --exclude-glob '*.log' --exclude-glob .DS_Store"
+
+          lftp -c "
+          set ftp:ssl-allow yes;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set net:timeout 30;
+          set net:max-retries 3;
+          open -u '${{ inputs.ftp_username }}','$FTP_PASSWORD' '${{ inputs.ftp_server }}';
+          mirror \
+            --reverse \
+            --delete \
+            --verbose \
+            $EXCLUDES \
+            '$SOURCE_DIR/' '$REMOTE_DIR/';
+          bye"
+
+          echo "FTP deployment complete"
+
+      - name: Purge Cloudflare cache
+        if: ${{ inputs.purge_cloudflare && secrets.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"purge_everything": true}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('Cache purged:', d.get('success'))"
+
+      - name: Set result
+        id: set-result
+        run: echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "# WordPress Deployment to o2switch" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Domain** | ${{ inputs.domain_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Scope** | ${{ inputs.deploy_scope }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ✅ Success |" >> $GITHUB_STEP_SUMMARY
