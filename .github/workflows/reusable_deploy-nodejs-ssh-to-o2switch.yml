@@ -1,0 +1,449 @@
+name: Deploy Node.js App to o2switch via SSH (with cPanel API Token whitelist)
+
+# Reusable workflow: Build (or receive pre-built) Node.js app and deploy to o2switch
+# via SSH+rsync, using the cPanel UAPI SSH Whitelist (API Token method, May 2025+).
+#
+# No IP whitelisting manual step needed — this workflow:
+#   1. Gets the runner's public IP
+#   2. Temporarily whitelists it via cPanel UAPI (API Token auth)
+#   3. Deploys via rsync over SSH
+#   4. Restarts the app via `touch tmp/restart.txt` (Passenger graceful reload)
+#   5. Removes the runner IP from the whitelist
+#
+# CONSTRAINTS:
+#   - o2switch uses Phusion Passenger — NOT PM2, NOT standalone node server
+#   - App must listen on process.env.PORT (Passenger injects it)
+#   - Build must happen LOCALLY (in CI) — building on shared hosting causes OOM
+#   - Node.js version must be pre-configured in cPanel "Setup Node.js App" UI (one-time)
+#   - Max 5 IPs in SSH whitelist at once
+#
+# PREREQUISITES (one-time, human):
+#   1. cPanel > Setup Node.js App > create app (sets up Passenger + .htaccess)
+#   2. cPanel > Security > Manage API Tokens > create token "github-deploy"
+#   3. Add SSH public key to cPanel > SSH/Shell Access > Manage SSH Keys
+#   4. Add GitHub org/repo secrets listed below
+#
+# REPO: brightsoftwares/blogpost-tools
+# PATH: .github/workflows/reusable_deploy-nodejs-ssh-to-o2switch.yml
+# STATUS: DRAFT — push to blogpost-tools before using
+#
+# USAGE EXAMPLE:
+#   jobs:
+#     deploy:
+#       uses: brightsoftwares/blogpost-tools/.github/workflows/reusable_deploy-nodejs-ssh-to-o2switch.yml@main
+#       with:
+#         app_name: backstage
+#         app_root: /home/myuser/apps/backstage
+#         domain_name: backstage.mydomain.com
+#         node_version: '22'
+#         build_command: 'yarn build:backend'
+#         dist_dir: packages/backend/dist
+#         restart_method: passenger
+#         sync_node_modules: true
+#         ssh_host: ${{ vars.O2SWITCH_SSH_HOST }}
+#         ssh_username: ${{ vars.O2SWITCH_CPANEL_USERNAME }}
+#         cpanel_host: ${{ vars.O2SWITCH_SSH_HOST }}
+#         cpanel_username: ${{ vars.O2SWITCH_CPANEL_USERNAME }}
+#       secrets:
+#         SSH_PRIVATE_KEY: ${{ secrets.O2SWITCH_SSH_PRIVATE_KEY }}
+#         CPANEL_API_TOKEN: ${{ secrets.O2SWITCH_CPANEL_API_TOKEN }}
+
+on:
+  workflow_call:
+    inputs:
+      # App identity
+      app_name:
+        description: 'App name (used in logs and summary)'
+        type: string
+        required: true
+
+      app_root:
+        description: 'Absolute path to app root on o2switch (e.g., /home/user/apps/myapp)'
+        type: string
+        required: true
+
+      domain_name:
+        description: 'Domain or subdomain for the app (used in health check and summary)'
+        type: string
+        required: true
+
+      # Build options
+      node_version:
+        description: 'Node.js version for build'
+        type: string
+        required: false
+        default: '22'
+
+      package_manager:
+        description: 'Package manager: npm or yarn'
+        type: string
+        required: false
+        default: 'yarn'
+
+      install_command:
+        description: 'Install command (e.g., yarn install --frozen-lockfile)'
+        type: string
+        required: false
+        default: 'yarn install --frozen-lockfile'
+
+      build_command:
+        description: 'Build command (e.g., yarn build:backend). Leave empty if uploading pre-built artifacts.'
+        type: string
+        required: false
+        default: ''
+
+      dist_dir:
+        description: 'Local directory containing build output to upload (e.g., packages/backend/dist or dist)'
+        type: string
+        required: false
+        default: 'dist'
+
+      # Sync options
+      sync_node_modules:
+        description: 'Upload node_modules to server (needed if server cannot run npm install)'
+        type: boolean
+        required: false
+        default: false
+
+      sync_full_repo:
+        description: 'Sync entire repo (instead of just dist_dir). Useful for apps that run from source.'
+        type: boolean
+        required: false
+        default: false
+
+      exclude_patterns:
+        description: 'Space-separated rsync exclude patterns (e.g., ".git/ .github/ *.log")'
+        type: string
+        required: false
+        default: '.git/ .github/ .env *.log'
+
+      # SSH connection
+      ssh_host:
+        description: 'SSH hostname for o2switch'
+        type: string
+        required: true
+
+      ssh_port:
+        description: 'SSH port (default 22)'
+        type: string
+        required: false
+        default: '22'
+
+      ssh_username:
+        description: 'SSH username (your cPanel/o2switch username)'
+        type: string
+        required: true
+
+      # cPanel API (for IP whitelisting)
+      cpanel_host:
+        description: 'cPanel hostname (same as SSH host, or server IP — used on port 2083)'
+        type: string
+        required: true
+
+      cpanel_username:
+        description: 'cPanel username'
+        type: string
+        required: true
+
+      # App restart
+      restart_method:
+        description: 'How to restart the app: passenger (touch tmp/restart.txt), cpanel-api, or none'
+        type: string
+        required: false
+        default: 'passenger'
+
+      # Health check
+      health_check_path:
+        description: 'URL path for post-deploy health check (e.g., /healthcheck or /api/catalog/entities)'
+        type: string
+        required: false
+        default: ''
+
+      health_check_timeout:
+        description: 'Seconds to wait for health check response'
+        type: number
+        required: false
+        default: 30
+
+      # Cloudflare
+      purge_cloudflare:
+        description: 'Purge Cloudflare cache after deploy'
+        type: boolean
+        required: false
+        default: false
+
+      debug:
+        description: 'Enable verbose rsync output'
+        type: boolean
+        required: false
+        default: false
+
+    secrets:
+      SSH_PRIVATE_KEY:
+        description: 'SSH private key (ed25519) for o2switch — added to cPanel SSH keys'
+        required: true
+
+      CPANEL_API_TOKEN:
+        description: 'cPanel API Token (from cPanel > Security > Manage API Tokens)'
+        required: true
+
+      APP_ENV_FILE:
+        description: 'Content of the .env file to deploy alongside the app'
+        required: false
+
+      CLOUDFLARE_API_TOKEN:
+        required: false
+
+      CLOUDFLARE_ZONE_ID:
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status: success or failed'
+        value: ${{ jobs.deploy.outputs.deployment_status }}
+
+      deployed_url:
+        description: 'URL of the deployed app'
+        value: ${{ jobs.deploy.outputs.deployed_url }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.set-result.outputs.status }}
+      deployed_url: ${{ steps.set-result.outputs.url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: ${{ inputs.build_command != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: ${{ inputs.package_manager }}
+
+      - name: Install dependencies
+        if: ${{ inputs.build_command != '' }}
+        run: ${{ inputs.install_command }}
+
+      - name: Build app
+        if: ${{ inputs.build_command != '' }}
+        run: ${{ inputs.build_command }}
+
+      - name: Verify build output
+        if: ${{ inputs.build_command != '' }}
+        run: |
+          if [ ! -d "${{ inputs.dist_dir }}" ]; then
+            echo "::error::Build output directory '${{ inputs.dist_dir }}' does not exist"
+            exit 1
+          fi
+          COUNT=$(find "${{ inputs.dist_dir }}" -type f | wc -l)
+          echo "Build produced $COUNT files in ${{ inputs.dist_dir }}"
+          [ "$COUNT" -gt 0 ] || { echo "::error::Build output is empty"; exit 1; }
+
+      # ─── SSH setup ──────────────────────────────────────────────────────────
+
+      - name: Configure SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/o2switch_deploy
+          chmod 600 ~/.ssh/o2switch_deploy
+          ssh-keyscan -p ${{ inputs.ssh_port }} ${{ inputs.ssh_host }} >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<EOF
+          Host o2switch-deploy
+            HostName ${{ inputs.ssh_host }}
+            Port ${{ inputs.ssh_port }}
+            User ${{ inputs.ssh_username }}
+            IdentityFile ~/.ssh/o2switch_deploy
+            StrictHostKeyChecking yes
+            ConnectTimeout 30
+          EOF
+
+      # ─── cPanel API Token IP whitelist ───────────────────────────────────────
+
+      - name: Get runner public IP
+        id: runner_ip
+        run: |
+          IP=$(curl -sf https://api.ipify.org || curl -sf https://checkip.amazonaws.com)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "Runner IP: $IP"
+
+      - name: Whitelist runner IP via cPanel UAPI
+        id: whitelist
+        env:
+          CPANEL_HOST: ${{ inputs.cpanel_host }}
+          CPANEL_USER: ${{ inputs.cpanel_username }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          RUNNER_IP: ${{ steps.runner_ip.outputs.ip }}
+        run: |
+          echo "Whitelisting $RUNNER_IP on $CPANEL_HOST..."
+          RESPONSE=$(curl -sf -m 45 \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+            "https://${CPANEL_HOST}:2083/execute/SshWhitelist/add?address=${RUNNER_IP}&port=22")
+          echo "Response: $RESPONSE"
+          # Verify success
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',0))" 2>/dev/null || echo "0")
+          if [ "$STATUS" != "1" ]; then
+            echo "::error::Failed to whitelist IP. Response: $RESPONSE"
+            exit 1
+          fi
+          echo "IP $RUNNER_IP whitelisted successfully"
+
+      # ─── Deploy ──────────────────────────────────────────────────────────────
+
+      - name: Write .env file
+        if: ${{ secrets.APP_ENV_FILE != '' }}
+        env:
+          ENV_CONTENT: ${{ secrets.APP_ENV_FILE }}
+        run: |
+          echo "$ENV_CONTENT" > /tmp/app.env
+
+      - name: Upload build artifacts via rsync
+        env:
+          RSYNC_VERBOSE: ${{ inputs.debug && '-v' || '' }}
+        run: |
+          APP_ROOT="${{ inputs.app_root }}"
+          DIST_DIR="${{ inputs.dist_dir }}"
+
+          # Build exclude args
+          EXCLUDES=""
+          for pattern in ${{ inputs.exclude_patterns }}; do
+            EXCLUDES="$EXCLUDES --exclude=$pattern"
+          done
+
+          if [ "${{ inputs.sync_full_repo }}" = "true" ]; then
+            SOURCE_DIR="./"
+            REMOTE_DIR="$APP_ROOT/"
+          else
+            SOURCE_DIR="$DIST_DIR/"
+            REMOTE_DIR="$APP_ROOT/$DIST_DIR/"
+          fi
+
+          echo "Deploying: $SOURCE_DIR → o2switch:$REMOTE_DIR"
+          rsync -azc --delete \
+            $RSYNC_VERBOSE \
+            $EXCLUDES \
+            -e "ssh -i ~/.ssh/o2switch_deploy -p ${{ inputs.ssh_port }}" \
+            "$SOURCE_DIR" \
+            "${{ inputs.ssh_username }}@${{ inputs.ssh_host }}:$REMOTE_DIR"
+
+      - name: Upload node_modules (if enabled)
+        if: ${{ inputs.sync_node_modules }}
+        run: |
+          echo "Uploading node_modules (this may take a while on first deploy)..."
+          rsync -azc --delete \
+            --exclude='.cache/' \
+            -e "ssh -i ~/.ssh/o2switch_deploy -p ${{ inputs.ssh_port }}" \
+            "node_modules/" \
+            "${{ inputs.ssh_username }}@${{ inputs.ssh_host }}:${{ inputs.app_root }}/node_modules/"
+
+      - name: Upload .env file
+        if: ${{ secrets.APP_ENV_FILE != '' }}
+        run: |
+          scp -i ~/.ssh/o2switch_deploy -P ${{ inputs.ssh_port }} \
+            /tmp/app.env \
+            "${{ inputs.ssh_username }}@${{ inputs.ssh_host }}:${{ inputs.app_root }}/.env"
+
+      # ─── Restart app ─────────────────────────────────────────────────────────
+
+      - name: Restart app — Passenger (touch tmp/restart.txt)
+        if: ${{ inputs.restart_method == 'passenger' }}
+        run: |
+          ssh o2switch-deploy "
+            mkdir -p '${{ inputs.app_root }}/tmp'
+            touch '${{ inputs.app_root }}/tmp/restart.txt'
+            echo 'Passenger restart triggered (graceful reload on next request)'
+          "
+
+      - name: Restart app — cPanel UAPI
+        if: ${{ inputs.restart_method == 'cpanel-api' }}
+        env:
+          CPANEL_USER: ${{ inputs.cpanel_username }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          CPANEL_HOST: ${{ inputs.cpanel_host }}
+        run: |
+          echo "Restarting app via cPanel UAPI..."
+          curl -sf -m 45 \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+            "https://${CPANEL_HOST}:2083/execute/LangBackend/restart_apps" \
+            -d "app_name=${{ inputs.app_name }}" || true
+
+      # ─── Health check ────────────────────────────────────────────────────────
+
+      - name: Wait for app to come online
+        if: ${{ inputs.health_check_path != '' }}
+        run: |
+          URL="https://${{ inputs.domain_name }}${{ inputs.health_check_path }}"
+          echo "Health check: $URL"
+          for i in $(seq 1 ${{ inputs.health_check_timeout }}); do
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "$URL" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ App is healthy (HTTP 200) after ${i}s"
+              break
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE — waiting..."
+            sleep 1
+          done
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Health check did not return 200 (got $HTTP_CODE). App may still be starting."
+          fi
+
+      # ─── Cloudflare cache purge ───────────────────────────────────────────────
+
+      - name: Purge Cloudflare cache
+        if: ${{ inputs.purge_cloudflare && secrets.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          curl -sf -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"purge_everything":true}' | python3 -c \
+              "import sys,json; d=json.load(sys.stdin); print('CF purge:', 'OK' if d.get('success') else 'FAILED')"
+
+      # ─── Cleanup: remove runner IP ────────────────────────────────────────────
+
+      - name: Remove runner IP from whitelist
+        if: always()
+        env:
+          CPANEL_HOST: ${{ inputs.cpanel_host }}
+          CPANEL_USER: ${{ inputs.cpanel_username }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          RUNNER_IP: ${{ steps.runner_ip.outputs.ip }}
+        run: |
+          echo "Removing $RUNNER_IP from SSH whitelist (both directions)..."
+          # Must remove BOTH directions to properly free the slot from the 5-IP limit
+          for DIR in in out; do
+            curl -sf -m 45 \
+              -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+              "https://${CPANEL_HOST}:2083/execute/SshWhitelist/remove?address=${RUNNER_IP}&port=22&direction=${DIR}" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print('Whitelist remove (${DIR}):', 'OK' if d.get('status')==1 else 'noop')" \
+              || echo "::warning::Could not remove IP (direction=${DIR}) — check manually"
+          done
+
+      # ─── Result ──────────────────────────────────────────────────────────────
+
+      - name: Set deployment result
+        id: set-result
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "url=https://${{ inputs.domain_name }}" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "# Node.js Deployment to o2switch" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App** | ${{ inputs.app_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Domain** | ${{ inputs.domain_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App Root** | ${{ inputs.app_root }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Dist Dir** | ${{ inputs.dist_dir }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Restart** | ${{ inputs.restart_method }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| **URL** | https://${{ inputs.domain_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed from \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
