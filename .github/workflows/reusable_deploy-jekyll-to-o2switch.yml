@@ -1,0 +1,275 @@
+name: Deploy Jekyll Site to o2switch via FTP/SFTP
+
+# Reusable workflow: Build a Jekyll site and deploy it to o2switch shared hosting via FTP/SFTP.
+# Uses lftp for efficient incremental sync — no SSH IP-whitelisting needed.
+# Compatible with all Bright Softwares Jekyll sites (corporate-website, ieatmyhealth, moda-by-flora, etc.)
+#
+# REPO: brightsoftwares/blogpost-tools
+# PATH: .github/workflows/reusable_deploy-jekyll-to-o2switch.yml
+# STATUS: DRAFT — push to blogpost-tools before using
+#
+# USAGE:
+#   jobs:
+#     deploy:
+#       uses: brightsoftwares/blogpost-tools/.github/workflows/reusable_deploy-jekyll-to-o2switch.yml@main
+#       with:
+#         domain_name: ieatmyhealth.com
+#         ftp_server: ${{ vars.O2SWITCH_FTP_SERVER }}
+#         ftp_username: ${{ vars.O2SWITCH_FTP_USERNAME }}
+#         ftp_path: public_html
+#         purge_cloudflare: true
+#       secrets:
+#         FTP_PASSWORD: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
+#         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#         CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID_IEATMYHEALTH }}
+
+on:
+  workflow_call:
+    inputs:
+      # Jekyll build options
+      jekyll_src:
+        description: 'Jekyll source directory (leave empty for root)'
+        type: string
+        required: false
+        default: ''
+
+      build_dir:
+        description: 'Output directory for built site'
+        type: string
+        required: false
+        default: './_site'
+
+      jekyll_env:
+        description: 'Jekyll environment'
+        type: string
+        required: false
+        default: 'production'
+
+      pre_build_commands:
+        description: 'Shell commands to run before Jekyll build (e.g., npm install)'
+        type: string
+        required: false
+        default: ''
+
+      # Common includes submodule (Bright Softwares pattern)
+      use_common_includes:
+        description: 'Clone BrightSoftwares/jekyll-theme-common-includes'
+        type: boolean
+        required: false
+        default: true
+
+      common_includes_path:
+        description: 'Path for common includes'
+        type: string
+        required: false
+        default: '_includes/common'
+
+      # FTP deployment options
+      ftp_server:
+        description: 'FTP server hostname (e.g., ftp.yourdomain.com or yourdomain.com)'
+        type: string
+        required: true
+
+      ftp_username:
+        description: 'FTP username (your o2switch cPanel username)'
+        type: string
+        required: true
+
+      ftp_path:
+        description: 'Remote path on the server (relative to home, e.g., public_html or public_html/subdomain)'
+        type: string
+        required: false
+        default: 'public_html'
+
+      domain_name:
+        description: 'Domain name (used for deployment summary and Cloudflare purge)'
+        type: string
+        required: true
+
+      # Cloudflare cache purge
+      purge_cloudflare:
+        description: 'Purge Cloudflare cache after deployment'
+        type: boolean
+        required: false
+        default: false
+
+      # Build cache
+      enable_cache:
+        description: 'Cache Jekyll bundle and responsive images'
+        type: boolean
+        required: false
+        default: true
+
+      # Debug
+      debug:
+        description: 'Enable verbose output'
+        type: boolean
+        required: false
+        default: false
+
+    secrets:
+      FTP_PASSWORD:
+        description: 'FTP password for o2switch'
+        required: true
+
+      submodule_ssh_key:
+        description: 'SSH key for private submodule access (jekyll-theme-common-includes)'
+        required: false
+
+      algolia_api_key:
+        description: 'Algolia Admin API key for search indexing during build'
+        required: false
+
+      CLOUDFLARE_API_TOKEN:
+        description: 'Cloudflare API token with cache:purge permission'
+        required: false
+
+      CLOUDFLARE_ZONE_ID:
+        description: 'Cloudflare Zone ID for the domain'
+        required: false
+
+    outputs:
+      deployment_status:
+        description: 'Deployment status (success or failed)'
+        value: ${{ jobs.build-and-deploy.outputs.deployment_status }}
+
+      deployed_url:
+        description: 'URL of the deployed site'
+        value: ${{ jobs.build-and-deploy.outputs.deployed_url }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.set-result.outputs.status }}
+      deployed_url: ${{ steps.set-result.outputs.url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone common includes submodule
+        if: ${{ inputs.use_common_includes }}
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/jekyll-theme-common-includes
+          path: ${{ inputs.common_includes_path }}
+          ssh-key: ${{ secrets.submodule_ssh_key }}
+          persist-credentials: false
+
+      - name: Cache bundle dependencies
+        if: ${{ inputs.enable_cache }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/bundle
+            .jekyll-cache
+          key: ${{ runner.os }}-jekyll-${{ hashFiles('**/Gemfile.lock', '**/Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-jekyll-
+
+      - name: Cache responsive images
+        if: ${{ inputs.enable_cache }}
+        uses: actions/cache@v4
+        with:
+          path: assets/resized
+          key: ${{ runner.os }}-images-${{ hashFiles('assets/**/*.jpg', 'assets/**/*.jpeg', 'assets/**/*.png') }}
+          restore-keys: |
+            ${{ runner.os }}-images-
+
+      - name: Run pre-build commands
+        if: ${{ inputs.pre_build_commands != '' }}
+        working-directory: ${{ inputs.jekyll_src || '.' }}
+        run: ${{ inputs.pre_build_commands }}
+
+      - name: Build Jekyll site
+        uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+        with:
+          token: ${{ secrets.github_token }}
+          jekyll_src: ${{ inputs.jekyll_src }}
+          jekyll_env: ${{ inputs.jekyll_env }}
+          build_dir: ${{ inputs.build_dir }}
+          build_only: true
+          algolia_api_key: ${{ secrets.algolia_api_key }}
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "${{ inputs.build_dir }}" ]; then
+            echo "::error::Build directory ${{ inputs.build_dir }} does not exist"
+            exit 1
+          fi
+          FILE_COUNT=$(find "${{ inputs.build_dir }}" -type f | wc -l)
+          echo "Build produced $FILE_COUNT files"
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::Build directory is empty"
+            exit 1
+          fi
+
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Deploy via FTP to o2switch
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          echo "Deploying ${{ inputs.domain_name }} to o2switch..."
+          lftp -c "
+          set ftp:ssl-allow yes;
+          set ftp:ssl-force false;
+          set ftp:ssl-protect-data true;
+          set net:timeout 30;
+          set net:max-retries 3;
+          set net:reconnect-interval-base 5;
+          open -u '${{ inputs.ftp_username }}','$FTP_PASSWORD' '${{ inputs.ftp_server }}';
+          mirror \
+            --reverse \
+            --delete \
+            --verbose \
+            --exclude-glob .git/ \
+            --exclude-glob .github/ \
+            --exclude-glob '*.log' \
+            '${{ inputs.build_dir }}/' '${{ inputs.ftp_path }}/';
+          bye"
+
+          echo "FTP deployment complete"
+
+      - name: Purge Cloudflare cache
+        if: ${{ inputs.purge_cloudflare && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ZONE_ID != '' }}
+        run: |
+          echo "Purging Cloudflare cache for ${{ inputs.domain_name }}..."
+          response=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"purge_everything": true}')
+
+          success=$(echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('success', False))")
+
+          if [ "$success" = "True" ]; then
+            echo "Cloudflare cache purged successfully"
+          else
+            echo "::warning::Cloudflare cache purge may have failed: $response"
+          fi
+
+      - name: Set deployment result
+        id: set-result
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "url=https://${{ inputs.domain_name }}" >> $GITHUB_OUTPUT
+
+      - name: Create deployment summary
+        run: |
+          echo "# Jekyll Deployment to o2switch" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Domain** | ${{ inputs.domain_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **FTP Path** | ${{ inputs.ftp_path }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Jekyll Env** | ${{ inputs.jekyll_env }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| **URL** | https://${{ inputs.domain_name }} |" >> $GITHUB_STEP_SUMMARY
+          if ${{ inputs.purge_cloudflare }}; then
+            echo "| **Cloudflare Cache** | Purged |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed from \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
