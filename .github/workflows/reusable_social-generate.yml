@@ -1,0 +1,87 @@
+name: Social Generate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      posts_dir:
+        type: string
+        default: "_posts/en/"
+      drafts_dir:
+        type: string
+        default: "_social_drafts/"
+      schedule_path:
+        type: string
+        default: "_data/social_schedule.yml"
+      config_path:
+        type: string
+        default: "_data/social_config.yml"
+      target_slug:
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        type: boolean
+        default: false
+    secrets:
+      SMART_ASSETS_API_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          pip install -r ${{ github.action_path }}/scripts/social/requirements.txt
+
+      - name: Generate next post
+        id: gen
+        env:
+          SMART_ASSETS_API_KEY: ${{ secrets.SMART_ASSETS_API_KEY }}
+        run: |
+          python ${{ github.action_path }}/scripts/social/generate_main.py \
+            --posts-dir "${{ inputs.posts_dir }}" \
+            --drafts-dir "${{ inputs.drafts_dir }}" \
+            --schedule-path "${{ inputs.schedule_path }}" \
+            --config-path "${{ inputs.config_path }}" \
+            ${{ inputs.target_slug != '' && format('--target-slug "{0}"', inputs.target_slug) || '' }} \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Open PR
+        if: steps.gen.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          branch: social/schedule-${{ steps.gen.outputs.slug }}
+          title: "social: schedule ${{ steps.gen.outputs.slug }} for ${{ steps.gen.outputs.scheduled_date }}"
+          body: |
+            Auto-generated draft post for **${{ steps.gen.outputs.slug }}**.
+
+            **LinkedIn preview:**
+            ```
+            ${{ steps.gen.outputs.linkedin_preview }}
+            ```
+
+            **Facebook preview:**
+            ```
+            ${{ steps.gen.outputs.facebook_preview }}
+            ```
+
+            **Image:** ${{ steps.gen.outputs.image_url }}
+
+            To approve: edit the draft YAML in `${{ inputs.drafts_dir }}`, set `status: approved`, then merge this PR.
+          add-paths: |
+            ${{ inputs.drafts_dir }}**
+            ${{ inputs.schedule_path }}
+            social-calendar.md
