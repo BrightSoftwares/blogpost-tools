@@ -1,0 +1,12 @@
+[run]
+omit =
+    # Entry-point orchestrators — covered by GitHub Actions integration tests
+    scripts/social/generate_main.py
+    scripts/social/publish_main.py
+    # External API client — covered by integration tests (requires live SAM endpoint)
+    scripts/social/sam_client.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
