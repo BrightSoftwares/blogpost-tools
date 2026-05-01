@@ -1,0 +1,10 @@
+- slug: already-published-post
+  blog_path: _posts/en/2024-01-01-already-published-post.md
+  permalink: /en/already-published-post/
+  scheduled_date: "2024-01-01"
+  status: published
+  draft_path: _social_published/2024-01-01-already-published-post.yml
+  linkedin_post_id: "urn:li:share:123456"
+  facebook_post_id: "123456789_987654321"
+  published_at: "2024-01-02"
+  error: null
