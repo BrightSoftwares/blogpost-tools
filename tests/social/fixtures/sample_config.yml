@@ -1,0 +1,18 @@
+brand:
+  name: "Bright Softwares"
+  voice_url: ""
+  primary_color: "#0066CC"
+  secondary_color: "#00CC66"
+  accent_color: "#FF6600"
+
+site_url: "https://bright-softwares.com"
+
+defaults:
+  pain_point: "Struggling with manual workflows?"
+  cta: "Read the full guide →"
+  hashtags:
+    - brightsoftwares
+    - productivity
+    - automation
+    - devtools
+    - saas
