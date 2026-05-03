@@ -35,22 +35,29 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+
+      - name: Checkout blogpost-tools scripts
+        uses: actions/checkout@v4
+        with:
+          repository: brightsoftwares/blogpost-tools
+          path: _blogpost_tools
+          token: ${{ secrets.GH_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install deps
-        run: |
-          pip install -r ${{ github.action_path }}/scripts/social/requirements.txt
+        run: pip install -r _blogpost_tools/scripts/social/requirements.txt
 
       - name: Generate next post
         id: gen
         env:
           SMART_ASSETS_API_KEY: ${{ secrets.SMART_ASSETS_API_KEY }}
         run: |
-          python ${{ github.action_path }}/scripts/social/generate_main.py \
+          python _blogpost_tools/scripts/social/generate_main.py \
             --posts-dir "${{ inputs.posts_dir }}" \
             --drafts-dir "${{ inputs.drafts_dir }}" \
             --schedule-path "${{ inputs.schedule_path }}" \
