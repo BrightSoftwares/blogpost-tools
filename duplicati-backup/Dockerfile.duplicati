@@ -20,12 +20,12 @@ FROM lscr.io/linuxserver/duplicati:${DUPLICATI_VERSION}
 #   python3 — URL-encoding in the notify script (already present on the base
 #              image, listed explicitly so the layer is self-documenting)
 # ---------------------------------------------------------------------------
-# RUN apt-get update \
-#     && apt-get install -y --no-install-recommends \
-#          curl \
-#          python3 \
-#     && apt-get clean \
-#     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+         curl \
+         python3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
 # Bundle the notification script
