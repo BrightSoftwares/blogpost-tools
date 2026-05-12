@@ -9,7 +9,8 @@
 # editing this file — just pass a new tag at build time or in your CI pipeline.
 # =============================================================================
 
-ARG DUPLICATI_VERSION=latest
+# ARG DUPLICATI_VERSION=latest
+ARG DUPLICATI_VERSION=2.3.0
 
 FROM lscr.io/linuxserver/duplicati:${DUPLICATI_VERSION}
 
