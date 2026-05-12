@@ -1,0 +1,26 @@
+name: Build and publish the duplicati image
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'duplicati-backup/**'
+      
+      
+jobs:
+  build-and-publish-seo-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+  docker:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
+    with:
+      image_name: bright-duplicati
+      tag: latest
+      subfolder_name: duplicati-backup
+      dockerfile_name: Dockerfile.duplicati
+    secrets:
+      registry_username: ${{ secrets.DOCKER_USERNAME }}
+      registry_password: ${{ secrets.DOCKER_PASSWORD }}
