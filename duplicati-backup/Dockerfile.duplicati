@@ -1,0 +1,43 @@
+# =============================================================================
+# Dockerfile — Custom Duplicati image with Uptime Kuma push notification
+#
+# Build:
+#   docker build --build-arg DUPLICATI_VERSION=latest -t my-duplicati:latest .
+#   docker build --build-arg DUPLICATI_VERSION=2.0.8.1 -t my-duplicati:2.0.8.1 .
+#
+# The DUPLICATI_VERSION arg lets you pin or upgrade the base image without
+# editing this file — just pass a new tag at build time or in your CI pipeline.
+# =============================================================================
+
+ARG DUPLICATI_VERSION=latest
+
+FROM lscr.io/linuxserver/duplicati:${DUPLICATI_VERSION}
+
+# ---------------------------------------------------------------------------
+# Runtime dependencies
+#   curl  — HTTP push to Uptime Kuma
+#   python3 — URL-encoding in the notify script (already present on the base
+#              image, listed explicitly so the layer is self-documenting)
+# ---------------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+         curl \
+         python3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# Bundle the notification script
+# ---------------------------------------------------------------------------
+COPY notify-kuma.sh /scripts/notify-kuma.sh
+RUN chmod +x /scripts/notify-kuma.sh
+
+# ---------------------------------------------------------------------------
+# Optional: set a default push URL at image level (override per-container
+# with -e KUMA_PUSH_URL=... or in docker-compose environment section).
+# Leave blank here so the image stays generic.
+# ---------------------------------------------------------------------------
+ENV KUMA_PUSH_URL=""
+
+# Duplicati's default web UI port — unchanged from the base image
+EXPOSE 8200
