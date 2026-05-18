@@ -1,0 +1,85 @@
+name: Reusable Retire Posts
+
+on:
+  workflow_call:
+    inputs:
+      retire_queue_file:
+        description: 'Path to the retire queue YAML file (relative to repo root)'
+        required: false
+        type: string
+        default: '_data/retire_posts.yml'
+      dry_run:
+        description: 'Preview changes without writing files'
+        required: false
+        type: boolean
+        default: false
+      target_branch:
+        description: 'Branch to push changes to'
+        required: false
+        type: string
+        default: 'master'
+    secrets:
+      token:
+        description: 'GitHub token for pushing changes (defaults to GITHUB_TOKEN of the caller)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  retire-posts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
+          ref: ${{ inputs.target_branch }}
+
+      - name: Checkout blogpost-tools (for retire_posts.py)
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          sparse-checkout: |
+            retire-posts/src/retire_posts.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Check queue file exists
+        run: |
+          if [ ! -f "${{ inputs.retire_queue_file }}" ]; then
+            echo "Queue file not found: ${{ inputs.retire_queue_file }}"
+            echo "Nothing to retire."
+            exit 0
+          fi
+
+      - name: Run post retirement script
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python3 .blogpost-tools/retire-posts/src/retire_posts.py \
+            --vault-root . $DRY_RUN_FLAG
+
+      - name: Commit retired posts and updated redirects
+        if: inputs.dry_run == false
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "seo: retire posts and add redirects [skip ci]"
+            git push origin ${{ inputs.target_branch }}
+          fi
