@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: 'master'
+      blogpost_tools_ref:
+        description: 'Branch/tag of BrightSoftwares/blogpost-tools to fetch the script from'
+        required: false
+        type: string
+        default: 'main'
     secrets:
       token:
         description: 'GitHub token for pushing changes (defaults to GITHUB_TOKEN of the caller)'
@@ -42,6 +47,7 @@ jobs:
         with:
           repository: BrightSoftwares/blogpost-tools
           path: .blogpost-tools
+          ref: ${{ inputs.blogpost_tools_ref }}
           sparse-checkout: |
             retire-posts/src/retire_posts.py
           sparse-checkout-cone-mode: false
@@ -55,14 +61,18 @@ jobs:
         run: pip install pyyaml
 
       - name: Check queue file exists
+        id: check_queue
         run: |
           if [ ! -f "${{ inputs.retire_queue_file }}" ]; then
             echo "Queue file not found: ${{ inputs.retire_queue_file }}"
             echo "Nothing to retire."
-            exit 0
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Run post retirement script
+        if: steps.check_queue.outputs.should_run == 'true'
         run: |
           DRY_RUN_FLAG=""
           if [ "${{ inputs.dry_run }}" == "true" ]; then
@@ -72,7 +82,7 @@ jobs:
             --vault-root . $DRY_RUN_FLAG
 
       - name: Commit retired posts and updated redirects
-        if: inputs.dry_run == false
+        if: inputs.dry_run == false && steps.check_queue.outputs.should_run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
