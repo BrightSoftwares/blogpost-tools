@@ -9,7 +9,7 @@ on:
       
 jobs:
   build-and-publish-seo-analysis:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v3
@@ -24,3 +24,6 @@ jobs:
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
+# ⚠️ HOME LAB TOOL — Duplicati backup runs in the home lab (Proxmox VM).
+# This build workflow is safe on GitHub-hosted for the Docker build step only.
+# Any workflow that DEPLOYS or TESTS against the running Duplicati instance must stay on self-hosted.

@@ -10,7 +10,7 @@ on:
       
 jobs:
   build-and-publish-encrypted-backups:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v3
@@ -29,3 +29,5 @@ jobs:
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
+# ⚠️ HOME LAB TOOL — Encrypted backup tooling is deployed to home lab (Proxmox).
+# Build-only: safe on GitHub-hosted. Deploy/test against live instance: MUST use self-hosted.

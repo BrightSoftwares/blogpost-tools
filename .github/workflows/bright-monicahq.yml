@@ -9,7 +9,7 @@ on:
       
 jobs:
   build-and-publish-monicahq-docker:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v3
@@ -24,3 +24,5 @@ jobs:
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
+# ⚠️ HOME LAB TOOL — MonicaHQ CRM is self-hosted in the home lab (Proxmox VM).
+# Build-only: safe on GitHub-hosted. Any integration test against live MonicaHQ: MUST use self-hosted.

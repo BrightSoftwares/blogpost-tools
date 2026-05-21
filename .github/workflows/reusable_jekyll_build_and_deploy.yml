@@ -54,7 +54,7 @@ on:
         description: 'Runner type (ubuntu-latest, self-hosted)'
         type: string
         required: false
-        default: 'ubuntu-latest'
+        default: 'self-hosted'
 
       # Additional build commands
       pre_build_commands:

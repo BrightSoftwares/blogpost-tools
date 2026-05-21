@@ -9,7 +9,7 @@ on:
       
 jobs:
   checkout-code:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v3
@@ -24,3 +24,7 @@ jobs:
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
+# ⚠️ HOME LAB TOOL — This Docker image is deployed to Proxmox/home-lab infrastructure.
+# While the build step can technically run on GitHub-hosted runners, keep it on self-hosted
+# to avoid network issues if the image is tested against home lab services during build.
+# DO NOT blindly migrate runs-on without verifying no home-lab network calls are made.

@@ -190,7 +190,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       status: ${{ steps.result.outputs.status }}
       url: ${{ steps.result.outputs.url }}
