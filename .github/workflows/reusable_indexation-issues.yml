@@ -92,7 +92,7 @@ on:
 
 jobs:
   analyze-indexation:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       total_issues_found: ${{ steps.run-analysis.outputs.total_issues_found }}
       critical_issues: ${{ steps.run-analysis.outputs.critical_issues }}

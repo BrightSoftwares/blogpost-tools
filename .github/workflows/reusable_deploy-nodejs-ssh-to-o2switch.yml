@@ -208,7 +208,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       deployment_status: ${{ steps.set-result.outputs.status }}
       deployed_url: ${{ steps.set-result.outputs.url }}

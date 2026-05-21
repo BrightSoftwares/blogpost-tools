@@ -72,7 +72,7 @@ on:
 jobs:
   deploy-production:
     name: 🚀 Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
       deployment_url: ${{ steps.build-url.outputs.url }}
