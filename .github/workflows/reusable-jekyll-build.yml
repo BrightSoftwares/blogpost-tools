@@ -32,7 +32,7 @@ on:
         description: 'Runner to use (ubuntu-latest or self-hosted)'
         required: false
         type: string
-        default: 'ubuntu-latest'
+        default: 'self-hosted'
       enable-submodules:
         description: 'Enable submodule checkout with SSH key'
         required: false
