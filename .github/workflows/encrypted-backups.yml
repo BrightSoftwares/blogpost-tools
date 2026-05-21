@@ -29,3 +29,5 @@ jobs:
     secrets:
       registry_username: ${{ secrets.DOCKER_USERNAME }}
       registry_password: ${{ secrets.DOCKER_PASSWORD }}
+# ⚠️ HOME LAB TOOL — Encrypted backup tooling is deployed to home lab (Proxmox).
+# Build-only: safe on GitHub-hosted. Deploy/test against live instance: MUST use self-hosted.
