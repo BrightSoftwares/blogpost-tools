@@ -42,7 +42,7 @@ on:
 jobs:
   setup-mautic:
     if: ${{ inputs.setup_mautic }}
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -225,7 +225,7 @@ jobs:
 
   setup-matomo:
     if: ${{ inputs.setup_matomo }}
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

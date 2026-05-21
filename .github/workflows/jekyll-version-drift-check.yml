@@ -18,7 +18,7 @@ env:
 
 jobs:
   check-versions:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     outputs:
       report: ${{ steps.check.outputs.report }}
       has_drift: ${{ steps.check.outputs.has_drift }}
@@ -156,7 +156,7 @@ jobs:
 
   notify:
     needs: check-versions
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     if: ${{ needs.check-versions.outputs.has_drift == 'true' || github.event.inputs.send_report == 'true' }}
     steps:
       - name: Create issue if drift detected

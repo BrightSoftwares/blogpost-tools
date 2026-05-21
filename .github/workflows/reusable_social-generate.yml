@@ -30,7 +30,7 @@ on:
 
 jobs:
   generate:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     permissions:
       contents: write
       pull-requests: write

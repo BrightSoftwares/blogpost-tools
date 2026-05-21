@@ -33,8 +33,7 @@ permissions:
 
 jobs:
   retire-posts:
-    runs-on: self-hosted
-
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - name: Checkout calling repository
         uses: actions/checkout@v4

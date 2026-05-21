@@ -147,7 +147,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     outputs:
       status: ${{ steps.result.outputs.status }}
       url: ${{ steps.result.outputs.url }}

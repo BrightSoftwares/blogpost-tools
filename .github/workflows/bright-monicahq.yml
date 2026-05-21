@@ -9,8 +9,7 @@ on:
       
 jobs:
   build-and-publish-monicahq-docker:
-    runs-on: self-hosted
-
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - uses: actions/checkout@v3
 
