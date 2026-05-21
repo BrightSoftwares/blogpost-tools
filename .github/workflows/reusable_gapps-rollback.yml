@@ -42,7 +42,7 @@ on:
 jobs:
   rollback:
     name: 🔄 Execute Rollback
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     environment:
       name: ${{ inputs.environment }}
 

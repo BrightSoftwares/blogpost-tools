@@ -130,7 +130,7 @@ env:
 
 jobs:
   check-runner:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     outputs:
       runner-label: ${{ steps.set-runner.outputs.runner-label }}
 

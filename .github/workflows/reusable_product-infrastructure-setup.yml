@@ -84,8 +84,7 @@ env:
 
 jobs:
   setup-infrastructure:
-    runs-on: self-hosted
-
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

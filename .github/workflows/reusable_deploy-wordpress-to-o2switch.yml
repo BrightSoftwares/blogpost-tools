@@ -87,7 +87,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     outputs:
       deployment_status: ${{ steps.set-result.outputs.status }}
 

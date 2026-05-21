@@ -9,8 +9,7 @@ on:
       
 jobs:
   build-and-publish-seo-analysis:
-    runs-on: self-hosted
-
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     steps:
       - uses: actions/checkout@v3
 

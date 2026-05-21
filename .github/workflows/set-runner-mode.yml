@@ -1,0 +1,114 @@
+name: "Set Runner Mode (Failover Control)"
+
+# Run this workflow when your self-hosted runner goes down or comes back up.
+# It updates the RUNNER_LABEL variable across all BrightSoftwares repos so
+# every workflow automatically uses the correct runner on next trigger.
+#
+# Requirements:
+#   - Secret RUNNER_CONTROL_PAT must be set in this repo's secrets.
+#     PAT scopes needed: repo (for private repos) or public_repo (public only).
+#
+# Usage:
+#   - Self-hosted going down  → dispatch with mode = ubuntu-latest
+#   - Self-hosted back online → dispatch with mode = self-hosted
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Runner to use across all repos"
+        required: true
+        type: choice
+        options:
+          - self-hosted
+          - ubuntu-latest
+
+jobs:
+  propagate:
+    # MUST run on github-hosted — self-hosted may be offline when you need this
+    runs-on: ubuntu-latest
+    steps:
+      - name: Propagate RUNNER_LABEL to all repos
+        env:
+          GH_TOKEN: ${{ secrets.RUNNER_CONTROL_PAT }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -e
+          REPOS=(
+            "BrightSoftwares/eagles-techs.com"
+            "BrightSoftwares/foolywise.com"
+            "BrightSoftwares/ieatmyhealth.com"
+            "BrightSoftwares/keke.li"
+            "BrightSoftwares/modabyflora-corporate"
+            "BrightSoftwares/olympics-paris2024.com"
+            "BrightSoftwares/joyousbyflora-posts"
+            "BrightSoftwares/corporate-website"
+            "BrightSoftwares/notiwise"
+            "BrightSoftwares/pilotflow-with-zippy"
+            "BrightSoftwares/smart-assets-manager"
+            "BrightSoftwares/hognekaba-backend"
+            "BrightSoftwares/n8n-heroku"
+            "BrightSoftwares/transaction-taxonomy"
+            "BrightSoftwares/duolingo-clone"
+            "BrightSoftwares/blogpost-tools"
+          )
+
+          SUCCESS=0
+          FAILED=0
+
+          for REPO in "${REPOS[@]}"; do
+            # Check if variable already exists
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPO}/actions/variables/RUNNER_LABEL")
+
+            if [ "$STATUS" = "200" ]; then
+              # Update existing variable
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X PATCH \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/actions/variables/RUNNER_LABEL" \
+                -d "{\"value\":\"${MODE}\"}")
+              ACTION="updated"
+            else
+              # Create new variable
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/actions/variables" \
+                -d "{\"name\":\"RUNNER_LABEL\",\"value\":\"${MODE}\"}")
+              ACTION="created"
+            fi
+
+            if [[ "$HTTP" =~ ^2 ]]; then
+              echo "✓ ${REPO} — RUNNER_LABEL=${MODE} (${ACTION})"
+              SUCCESS=$((SUCCESS + 1))
+            else
+              echo "✗ ${REPO} — HTTP ${HTTP} (${ACTION} failed)"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Result: ${SUCCESS} succeeded, ${FAILED} failed"
+          echo "RUNNER_LABEL is now: ${MODE}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::warning::${FAILED} repo(s) failed to update. Check PAT permissions."
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Runner Mode Change" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**New mode:** \`${{ inputs.mode }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All workflow \`runs-on\` fields use \`vars.RUNNER_LABEL\` with \`self-hosted\` fallback." >> $GITHUB_STEP_SUMMARY
+          echo "Changes take effect on the **next trigger** of each workflow (no re-runs needed)." >> $GITHUB_STEP_SUMMARY

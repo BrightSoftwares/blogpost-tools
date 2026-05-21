@@ -139,7 +139,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     outputs:
       deployment_status: ${{ steps.deploy_result.outputs.status }}
       app_url: ${{ steps.deploy_result.outputs.url }}
