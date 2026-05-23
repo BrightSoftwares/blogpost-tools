@@ -1,8 +1,8 @@
 name: "Set Runner Mode (Failover Control)"
 
 # Run this workflow when your self-hosted runner goes down or comes back up.
-# It updates the RUNNER_LABEL variable across all BrightSoftwares repos so
-# every workflow automatically uses the correct runner on next trigger.
+# It updates the RUNNER_LABEL variable across all BrightSoftwares repos and
+# sergioafanou/my-obsidian so every workflow uses the correct runner on next trigger.
 #
 # Requirements:
 #   - Secret RUNNER_CONTROL_PAT must be set in this repo's secrets.
@@ -51,6 +51,7 @@ jobs:
             "BrightSoftwares/transaction-taxonomy"
             "BrightSoftwares/duolingo-clone"
             "BrightSoftwares/blogpost-tools"
+            "sergioafanou/my-obsidian"
           )
 
           SUCCESS=0

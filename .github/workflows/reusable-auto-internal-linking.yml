@@ -1,106 +1,64 @@
-name: Reusable Auto Move and Publish Posts
+name: Reusable Auto Internal Linking
 
 on:
-  workflow_dispatch:
   workflow_call:
-    inputs:
-      internallinking_src_folder_toscan:
-        required: true
-        type: string
-      internallinking_dst_folder_tosaveresults: 
-        required: true
-        type: string
-      internallinking_internal_link_text_file:
-        required: true
-        type: string
-      internallinking_anchor_text_to_post:
-        required: true
-        type: string
-      internallinking_aliases_yml_file:
-        required: true
-        type: string
-      internallinking_aliases_csv_file:
-        required: true
-        type: string
-      internallinking_aliases_new_csv_file:
-        required: true
-        type: string
-      internallinking_dry_run:
-        required: true
-        type: boolean
-      internallinking_lang:
-        required: true
-        type: string
-      markdownlinting_folder_to_lint:
-        required: true
-        type: string
-      github_repo_owner:
-        required: true
-        type: string
-      github_repository:
-        required: true
-        type: string
-    #secrets:
-    #  check_runner_token:
-    #    required: true
-
-#env:
-#  CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-#  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-# GITHUB_REPOSITORY: ${{ github.repository }}
-  
-
-      
+  workflow_dispatch:
 
 jobs:
-  check-runner:
+  internal_linking:
     runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    outputs:
-      runner-label: ${{ steps.set-runner.outputs.runner-label }}
+    timeout-minutes: 30
 
     steps:
-      - name: Set runner
-        id: set-runner
-        uses: BrightSoftwares/blogpost-tools/check-runner@main
-        env:
-          CHECK_RUNNER_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ inputs.github_repo_owner }}
-          GITHUB_REPOSITORY: ${{ inputs.github_repository }}
-  internal_linking:
-    # runs-on: ubuntu-latest
-    #runs-on: self-hosted
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Generate EN the internal linking opportunities
+      - uses: actions/checkout@v4
+
+      - name: Generate EN internal linking opportunities
         uses: BrightSoftwares/blogpost-tools/internal-linking@main
+        continue-on-error: true
         with:
-          src_folder_toscan: ${{ inputs.internallinking_src_folder_toscan }}
-          dst_folder_tosaveresults: ${{ inputs.internallinking_dst_folder_tosaveresults }}
-          internal_link_text_file: ${{ inputs.internallinking_internal_link_text_file }}
-          anchor_text_to_post: ${{ inputs.internallinking_anchor_text_to_post }}
-          aliases_yml_file: ${{ inputs.internallinking_aliases_yml_file }}
-          aliases_csv_file: ${{ inputs.internallinking_aliases_csv_file }}
-          aliases_new_csv_file: ${{ inputs.internallinking_aliases_new_csv_file }}
-          dry_run: ${{ inputs.internallinking_dry_run }}
-          lang: ${{ inputs.internallinking_lang }}
+          src_folder_toscan: /github/workspace/_posts/en/
+          dst_folder_tosaveresults: /github/workspace/_seo/internal-linking/en/
+          internal_link_text_file: /github/workspace/_seo/internal-linking/internal_link_text.csv
+          anchor_text_to_post: /github/workspace/_seo/internal-linking/en/anchor_text_to_post.csv
+          aliases_yml_file: /github/workspace/_seo/internal-linking/en/aliases.yml
+          aliases_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
+          dry_run: false
+          aliases_new_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
+          lang: en
 
       - name: Markdown linting on EN posts
         uses: BrightSoftwares/blogpost-tools/markdown-linting@main
         continue-on-error: true
         with:
-          folder_to_lint: ${{ inputs.markdownlinting_folder_to_lint }}
-          
-      - name: (9) Commit changes if there is any
+          folder_to_lint: /github/workspace/_posts/en/
+
+      - name: Generate FR internal linking opportunities
+        uses: BrightSoftwares/blogpost-tools/internal-linking@main
+        continue-on-error: true
+        with:
+          src_folder_toscan: /github/workspace/_posts/fr/
+          dst_folder_tosaveresults: /github/workspace/_seo/internal-linking/fr/
+          internal_link_text_file: /github/workspace/_seo/internal-linking/internal_link_text.csv
+          anchor_text_to_post: /github/workspace/_seo/internal-linking/fr/anchor_text_to_post.csv
+          aliases_yml_file: /github/workspace/_seo/internal-linking/fr/aliases.yml
+          aliases_csv_file: /github/workspace/_seo/internal-linking/fr/aliases.csv
+          dry_run: false
+          aliases_new_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
+          lang: fr
+
+      - name: Markdown linting on FR posts
+        uses: BrightSoftwares/blogpost-tools/markdown-linting@main
+        continue-on-error: true
+        with:
+          folder_to_lint: /github/workspace/_posts/fr/
+
+      - name: Commit changes if any
         run: |
-          # date > generated.txt
           CHANGES_EXIST="$(git status --porcelain | wc -l)"
           echo "There are $CHANGES_EXIST changes to commit"
           if [ "$CHANGES_EXIST" -eq 0 ]; then
-            echo "There are no changes to commit"
+            echo "No changes to commit"
           else
-            echo "Committing changes"
             git config user.name github-actions
             git config user.email github-actions@github.com
             git add .

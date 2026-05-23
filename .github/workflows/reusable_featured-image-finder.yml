@@ -1,0 +1,76 @@
+name: Reusable Featured Image Finder
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      cloudinary_destfolder:
+        required: true
+        type: string
+        description: "Cloudinary destination folder (e.g. joyousbyflora.com.blog/)"
+      cloudinary_transformation:
+        required: true
+        type: string
+        description: "Cloudinary transformation to apply (e.g. JBFBlogImage)"
+      already_used_items:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/unsplash_videos_used.csv"
+        description: "Path to CSV tracking already-used Unsplash images"
+      src_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+        description: "Source folder containing draft posts to scan"
+      search_results_file:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/unsplash_search_results.csv"
+        description: "Path to CSV for Unsplash search results"
+      max_results:
+        required: false
+        type: string
+        default: "30"
+        description: "Maximum number of Unsplash images to fetch"
+    secrets:
+      UNSPLASH_ACCESS_KEY:
+        required: true
+      CLOUDINARY_URL:
+        required: true
+
+jobs:
+  unsplash-to-cloudinary:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 15
+    concurrency:
+      group: featured-image-finder-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unsplash to Cloudinary
+        uses: BrightSoftwares/blogpost-tools/unsplash-to-cloudinary@main
+        with:
+          unsplash_access_key: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          already_used_items: ${{ inputs.already_used_items }}
+          src_folder: ${{ inputs.src_folder }}
+          search_results_file: ${{ inputs.search_results_file }}
+          max_results: ${{ inputs.max_results }}
+          cloudinary_destfolder: ${{ inputs.cloudinary_destfolder }}
+          cloudinary_transformation: ${{ inputs.cloudinary_transformation }}
+          cloudinary_url: ${{ secrets.CLOUDINARY_URL }}
+
+      - name: Commit if there are modifications
+        run: |
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "chore(images): auto-assign Unsplash featured images"
+            git pull --rebase
+            git push
+          fi
