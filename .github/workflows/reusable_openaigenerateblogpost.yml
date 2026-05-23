@@ -118,41 +118,24 @@ on:
       openai_api_key:
         required: true
 
-#env:
-#  CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
-
+concurrency:
+  group: openai-generate-blogpost-${{ github.repository }}
+  cancel-in-progress: true
 
 jobs:
-  check-runner:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    outputs:
-      runner-label: ${{ steps.set-runner.outputs.runner-label }}
-
-    steps:
-      - name: Set runner
-        id: set-runner
-        uses: BrightSoftwares/blogpost-tools/check-runner@main
-        env:
-          # CHECK_RUNNER_TOKEN: ${{ inputs.CHECK_RUNNER_ACCESS_TOKEN }}
-          CHECK_RUNNER_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ inputs.repository_owner }}
-          GITHUB_REPOSITORY: ${{ inputs.repository }}
-      
   generate_ai_posts:
-    needs: check-runner
-    #runs-on: ubuntu-latest
-    # runs-on: self-hosted
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Upload post title as post ideas - channel ${{ inputs.upload2spreadsheet4postidea_channel }}
         uses: BrightSoftwares/blogpost-tools/openai-generate-blogpost@main
         timeout-minutes: 10
         continue-on-error: true
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_api_key: ${{ secrets.openai_api_key }}
           channel: ${{ inputs.upload2spreadsheet4postidea_channel }}
           posts_requests_base_url: ${{ inputs.requests_base_url }}
           spreadsheet_id: ${{ inputs.spreadsheet_id }}
@@ -171,7 +154,7 @@ jobs:
         timeout-minutes: 10
         continue-on-error: true
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_api_key: ${{ secrets.openai_api_key }}
           channel: ${{ inputs.rephrased2markdown_channel }}
           posts_requests_base_url: ${{ inputs.requests_base_url }}
           spreadsheet_id: ${{ inputs.spreadsheet_id }}
@@ -190,7 +173,7 @@ jobs:
         timeout-minutes: 10
         continue-on-error: true
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_api_key: ${{ secrets.openai_api_key }}
           channel: ${{ inputs.postideas2markdown_channel }}
           posts_requests_base_url: ${{ inputs.requests_base_url }}
           spreadsheet_id: ${{ inputs.spreadsheet_id }}
@@ -209,7 +192,7 @@ jobs:
         timeout-minutes: 10
         continue-on-error: true
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_api_key: ${{ secrets.openai_api_key }}
           channel: ${{ inputs.upload2spreadsheet4rephrasing_channel }}
           posts_requests_base_url: ${{ inputs.requests_base_url }}
           spreadsheet_id: ${{ inputs.spreadsheet_id }}
@@ -226,13 +209,11 @@ jobs:
 
       - name: Commit changes if any
         run: |
-          # date > generated.txt
           CHANGES_EXIST="$(git status --porcelain | wc -l)"
           echo "There are $CHANGES_EXIST changes to commit"
           if [ "$CHANGES_EXIST" -eq 0 ]; then
-            echo "There are no changes to commit"
+            echo "No changes to commit"
           else
-            echo "Committing changes"
             git config user.name github-actions
             git config user.email github-actions@github.com
             git add .
