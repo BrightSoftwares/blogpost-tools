@@ -49,7 +49,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if any posts are missing image frontmatter
+        id: check-images
+        run: |
+          SRC="${{ inputs.src_folder }}"
+          if [ ! -d "$SRC" ]; then
+            echo "Source folder $SRC does not exist; proceeding with scan"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MISSING=$(find "$SRC" -name "*.md" -o -name "*.markdown" | \
+            xargs grep -rL "^image:" 2>/dev/null | wc -l)
+          if [ "$MISSING" -eq 0 ]; then
+            echo "All posts already have image: frontmatter — skipping Unsplash scan"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$MISSING post(s) missing image: frontmatter — proceeding with scan"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Unsplash to Cloudinary
+        if: steps.check-images.outputs.skip != 'true'
         uses: BrightSoftwares/blogpost-tools/unsplash-to-cloudinary@main
         with:
           unsplash_access_key: ${{ secrets.UNSPLASH_ACCESS_KEY }}
@@ -62,6 +82,7 @@ jobs:
           cloudinary_url: ${{ secrets.CLOUDINARY_URL }}
 
       - name: Commit if there are modifications
+        if: steps.check-images.outputs.skip != 'true'
         run: |
           CHANGES_EXIST="$(git status --porcelain | wc -l)"
           if [ "$CHANGES_EXIST" -eq 0 ]; then
