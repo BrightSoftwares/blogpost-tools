@@ -1,0 +1,118 @@
+name: Reusable RSS News to Blogpost
+
+on:
+  workflow_call:
+    inputs:
+      keyword_suggestions_generation_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts"
+      keyword_suggestion_file:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/keyword-generation/keyword_suggestions_merged.csv"
+      feeds_file:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/rss_feeds.csv"
+      feed_blogpost_url_used:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/rss_urls_used.csv"
+      drafts_path:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      keyword_seed:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/keyword-generation/keywords.csv"
+  workflow_dispatch:
+    inputs:
+      keyword_suggestions_generation_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts"
+      keyword_suggestion_file:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/keyword-generation/keyword_suggestions_merged.csv"
+      feeds_file:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/rss_feeds.csv"
+      feed_blogpost_url_used:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/rss_urls_used.csv"
+      drafts_path:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      keyword_seed:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/keyword-generation/keywords.csv"
+
+jobs:
+  rss_feed_to_blogpost:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    concurrency:
+      group: rss-news-to-blogpost-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clean Google redirect URLs (part 1)
+        run: |
+          sed -i -e 's#https://www.google.com/url?rct=j&sa=t&url=##g' \
+            "${{ inputs.feed_blogpost_url_used }}" || true
+        continue-on-error: true
+
+      - name: Clean Google redirect URLs (part 2)
+        run: |
+          sed -i -e 's#&ct=.*##g' "${{ inputs.feed_blogpost_url_used }}" || true
+        continue-on-error: true
+
+      - name: RSS to blogpost
+        uses: BrightSoftwares/blogpost-tools/news-to-blogpost@main
+        with:
+          keyword_suggestions_generation_folder: ${{ inputs.keyword_suggestions_generation_folder }}
+          keyword_suggestion_file: ${{ inputs.keyword_suggestion_file }}
+          feeds_file: ${{ inputs.feeds_file }}
+          feed_blogpost_url_used: ${{ inputs.feed_blogpost_url_used }}
+          drafts_path: ${{ inputs.drafts_path }}
+          keyword_seed: ${{ inputs.keyword_seed }}
+
+      - name: Clean URL artifacts in draft posts (part 1)
+        run: |
+          find _drafts -name "*.md" \
+            -exec sed -i -e 's#https://www.google.com/url?rct=j&sa=t&url=##g' {} \; || true
+        continue-on-error: true
+
+      - name: Clean URL artifacts in draft posts (part 2)
+        run: |
+          find _drafts -name "*.md" -exec sed -i -e 's#&ct=.*##g' {} \; || true
+        continue-on-error: true
+
+      - name: Strip HTML bold tags from titles
+        run: |
+          find _drafts/tmp_posts -name "*.md" \
+            -exec sed -i -e 's#<b>##g' -e 's#</b>##g' {} \; || true
+        continue-on-error: true
+
+      - name: Commit changes if any
+        run: |
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi

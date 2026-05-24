@@ -1,0 +1,81 @@
+name: Reusable SEO HTML Analysis
+
+on:
+  workflow_call:
+    inputs:
+      build_dir:
+        required: false
+        type: string
+        default: "./build"
+      pre_build_commands:
+        required: false
+        type: string
+        default: "apk --update add ruby-dev imagemagick imagemagick-dev"
+      html_analysis_output:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/html_analysis.txt"
+    secrets:
+      GITHUB_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      build_dir:
+        required: false
+        type: string
+        default: "./build"
+      pre_build_commands:
+        required: false
+        type: string
+        default: "apk --update add ruby-dev imagemagick imagemagick-dev"
+      html_analysis_output:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/html_analysis.txt"
+
+jobs:
+  html_analysis:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    concurrency:
+      group: seo-html-analysis-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-gems
+
+      - uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pre_build_commands: ${{ inputs.pre_build_commands }}
+          build_dir: ${{ inputs.build_dir }}
+
+      - name: Check HTML
+        uses: fullbright/htmlproofer@master
+        id: htmlproofer
+        with:
+          directory: "${{ inputs.build_dir }}"
+          arguments: --assume-extension .html
+          output_file: ${{ inputs.html_analysis_output }}
+        continue-on-error: true
+
+      - name: Commit changes if any
+        run: |
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi

@@ -1,0 +1,157 @@
+name: Reusable YouTube Videos and Transcribe
+
+on:
+  workflow_call:
+    inputs:
+      keyword_suggestions_generation_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts"
+      keyword_suggestion:
+        required: false
+        type: string
+        default: "keyword_suggestions_merged.csv"
+      drafts_path:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      keyword_seed:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/keywords.csv"
+      batch_size:
+        required: false
+        type: string
+        default: "5"
+      language:
+        required: false
+        type: string
+        default: "en"
+      country:
+        required: false
+        type: string
+        default: "us"
+      youtube_video_duration:
+        required: false
+        type: string
+        default: "short"
+      siloterm_to_links_file:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_links.csv"
+      siloterm_to_categories_file:
+        required: false
+        type: string
+        default: "/github/workspace/_seo/jekyll-filename-pretifier/silot_term_to_categories.csv"
+      post_author:
+        required: false
+        type: string
+        default: "1"
+      default_layout:
+        required: false
+        type: string
+        default: "flexstart-blog-single"
+    secrets:
+      YOUTUBE_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      keyword_suggestions_generation_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts"
+      keyword_suggestion:
+        required: false
+        type: string
+        default: "keyword_suggestions_merged.csv"
+      drafts_path:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      keyword_seed:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/keywords.csv"
+      batch_size:
+        required: false
+        type: string
+        default: "5"
+      language:
+        required: false
+        type: string
+        default: "en"
+      country:
+        required: false
+        type: string
+        default: "us"
+      youtube_video_duration:
+        required: false
+        type: string
+        default: "short"
+
+jobs:
+  yt_vids_and_transcribe:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 60
+    concurrency:
+      group: yt-vids-transcribe-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Suggestions to blogpost
+        uses: BrightSoftwares/blogpost-tools/suggestions-to-blogpost@main
+        with:
+          keyword_suggestions_generation_folder: ${{ inputs.keyword_suggestions_generation_folder }}
+          keyword_suggestion: ${{ inputs.keyword_suggestion }}
+          drafts_path: ${{ inputs.drafts_path }}
+          keyword_seed: ${{ inputs.keyword_seed }}
+          batch_size: ${{ inputs.batch_size }}
+          language: ${{ inputs.language }}
+
+      - name: Cleanup file names
+        uses: BrightSoftwares/blogpost-tools/jekyll-filename-pretifier@main
+        with:
+          drafts_path: ${{ inputs.drafts_path }}
+          wordpress_frontmatter: true
+          post_author: ${{ inputs.post_author }}
+          dry_run: false
+          siloterm_to_links_file: ${{ inputs.siloterm_to_links_file }}
+          siloterm_to_categories_file: ${{ inputs.siloterm_to_categories_file }}
+          default_author: full
+          default_layout: ${{ inputs.default_layout }}
+          category_type: category
+          generate_silotermtolinksfile_if_missing: true
+          generate_silotermtocategoriesfile_if_missing: true
+          file_generation_src_path: ${{ inputs.drafts_path }}../
+
+      - name: Fetch YouTube videos
+        uses: BrightSoftwares/blogpost-tools/youtube-vid-finder@main
+        with:
+          src_folder: ${{ inputs.drafts_path }}
+          youtube_api_key: ${{ secrets.YOUTUBE_API_KEY }}
+          yt_search_results_file: ${{ inputs.drafts_path }}youtube_search_results.csv
+          yt_already_used_vids: ${{ inputs.drafts_path }}youtube_videos_used.csv
+          language: ${{ inputs.language }}
+          country: ${{ inputs.country }}
+          youtube_video_duration: ${{ inputs.youtube_video_duration }}
+
+      - name: Transcribe YouTube videos
+        uses: BrightSoftwares/blogpost-tools/transcript-downloader@main
+        with:
+          drafts_path: ${{ inputs.drafts_path }}
+
+      - name: Commit changes if any
+        run: |
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi
