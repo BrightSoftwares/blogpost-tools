@@ -1,11 +1,16 @@
 from googletrans import Translator
 import frontmatter
+import hashlib
 import os
 import re
 import glob
 from slugify import slugify
 
 translator = Translator()
+
+def compute_file_hash(filepath):
+    with open(filepath, 'rb') as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 def replace_codeblock_with_tokens(content):
   tokens_array = []
@@ -47,7 +52,7 @@ def replace_tokens_with_codeblocks(content, tokens):
 
 # process the markdown files one by one
 def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path, dest_lang, dry_run=False):
-  
+
   print("Processing post folder", src_folder_path)
   src_entries = glob.glob(src_folder_path + "/**/*.md", recursive=True) #[f for f in os.listdir(src_folder_path) if f.endswith('.md')]
   scanned_entries = glob.glob(scan_folder_path + "/**/*.md", recursive=True) #[f for f in os.listdir(dest_folder_path) if f.endswith('.md')]
@@ -66,6 +71,7 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
 
           if lang is not None and ref is not None:
 
+            src_hash = compute_file_hash(src_post_filepath)
             already_translated = False
 
             for scanned_entry in scanned_entries:
@@ -73,15 +79,22 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
               print("   Loading dest file", dest_post_filepath)
               dest_post = frontmatter.load(dest_post_filepath)
               dest_ref = dest_post['ref'] if 'ref' in dest_post else None
-          
+
               if dest_ref is not None and dest_ref == ref:
-                print("   Found another post in the destination with the same ref = {}. Skipping ...".format(ref))
-                already_translated = True
+                stored_hash = dest_post.get('src_hash', None)
+                if stored_hash is not None and stored_hash == src_hash:
+                  print("   Translation for ref={} is up-to-date (hash match). Skipping.".format(ref))
+                  already_translated = True
+                else:
+                  if stored_hash is None:
+                    print("   Translation for ref={} has no hash — re-translating.".format(ref))
+                  else:
+                    print("   Translation for ref={} source changed (hash mismatch) — re-translating.".format(ref))
                 break
 
-            # Process to the translation if there is no translation found
+            # Process to the translation if there is no translation found or source changed
             if not already_translated:
-              print("Post ref {} not translated. Translating ...".format(ref))
+              print("Post ref {} not translated or outdated. Translating ...".format(ref))
 
               transcription = ""
               try:
@@ -104,22 +117,10 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
                   tokens.append(["{% include", "{% incluent"])
                   tokens.append(["{% endraw %}", "{% dessiner %}"])
                   tokens.append(["{% raw %}", "{% cru %}"])
-                  
+
                   replaced_content_chunks = replace_tokens_with_codeblocks(new_translated_content, tokens)
 
                   post.content = replaced_content_chunks
-
-                  #ytvideo = get_yt_video_id(ytvideo_url)
-
-                  #print("Found a post {} with a youtube video to transcribe. Video id = {}".format(
-                  #    title, ytvideo))
-                  ## print("Content is =", post.content.strip())
-                  #transcription = get_yt_video_transcript(ytvideo, lang)
-                  ##post['transcribed'] = True
-                  #transcribed = True
-                  #post['youtube_video_id'] = ytvideo
-
-                  # print(filecontent)
 
               except Exception as e1:
                   transcription = "An error occured while trying to get translation. Error: {}".format(str(e1))
@@ -131,24 +132,25 @@ def process_source_markdown(src_folder_path, scan_folder_path, dest_folder_path,
                   post['title'] = translated_title
                   post['lang'] = dest_lang
                   post['pretified'] = False # So that the file name gets generated again
+                  post['src_hash'] = src_hash
                   print("Saving the content of the file")
                   filecontent = frontmatter.dumps(post)
-                  
+
                   # Make sure we have a post date
                   if post_date is None:
                     post_date = date.today()
                     post['date'] = post_date
-                  
+
                   # Generate a translated file name
                   newfilename = "{}/{}-{}.md".format(dest_folder_path, post_date.strftime("%Y-%m-%d"), slugify(translated_title.lower()))
-                  
+
                   if dry_run != "true":
                     with open(newfilename, 'w') as f:
                         f.write(filecontent)
                   else:
                     print("In dry run mode, skipping file write ...")
             else:
-              print("Post with ref {} is already translated".format(ref))
+              print("Post with ref {} is already translated and up-to-date".format(ref))
           else:
             print("There was no ref ({}) or lang ({}) for this post title = {}".format(ref, lang, title))
 
