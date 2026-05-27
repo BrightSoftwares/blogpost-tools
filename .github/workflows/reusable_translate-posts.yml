@@ -1,0 +1,82 @@
+name: Reusable Translate Posts
+
+on:
+  workflow_call:
+    inputs:
+      src_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_posts/"
+      dest_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      scan_folder:
+        required: false
+        type: string
+        default: "/github/workspace/"
+      dry_run:
+        required: false
+        type: string
+        default: "True"
+        description: "Set to 'False' to actually write translated files"
+      dest_lang:
+        required: false
+        type: string
+        default: "fr"
+  workflow_dispatch:
+    inputs:
+      src_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_posts/"
+      dest_folder:
+        required: false
+        type: string
+        default: "/github/workspace/_drafts/"
+      scan_folder:
+        required: false
+        type: string
+        default: "/github/workspace/"
+      dry_run:
+        required: false
+        type: string
+        default: "True"
+      dest_lang:
+        required: false
+        type: string
+        default: "fr"
+
+jobs:
+  translate_posts:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 20
+    concurrency:
+      group: translate-posts-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Translate posts
+        uses: BrightSoftwares/blogpost-tools/translate-blogpost@main
+        with:
+          src_folder: ${{ inputs.src_folder }}
+          dest_folder: ${{ inputs.dest_folder }}
+          scan_folder: ${{ inputs.scan_folder }}
+          dry_run: ${{ inputs.dry_run }}
+          dest_lang: ${{ inputs.dest_lang }}
+
+      - name: Commit changes if any
+        run: |
+          CHANGES_EXIST="$(git status --porcelain | wc -l)"
+          if [ "$CHANGES_EXIST" -eq 0 ]; then
+            echo "No changes to commit"
+          else
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            git add .
+            git commit -m "generated and changed files"
+            git pull --rebase
+            git push
+          fi

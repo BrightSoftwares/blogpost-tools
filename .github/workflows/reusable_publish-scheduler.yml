@@ -1,0 +1,150 @@
+name: Reusable Publish Scheduler
+
+# Detects posts with date: == today (UTC) and optionally triggers content
+# workflows for the calling repo. Callers use the has_new_posts output to
+# conditionally chain their own content steps.
+#
+# Usage (minimal, output-only — caller decides what to do):
+#   jobs:
+#     detect:
+#       uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_publish-scheduler.yml@main
+#     process:
+#       needs: detect
+#       if: needs.detect.outputs.has_new_posts == 'true'
+#       uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-auto-internal-linking.yml@main
+#       secrets: inherit
+#
+# Usage (with auto-dispatch — requires PAT with workflow scope stored as secret):
+#   jobs:
+#     schedule:
+#       uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_publish-scheduler.yml@main
+#       with:
+#         workflows_to_trigger: "auto-internal_linking,featured-image-finder,translate_posts"
+#       secrets:
+#         DISPATCH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+on:
+  workflow_call:
+    inputs:
+      posts_folder:
+        required: false
+        type: string
+        default: "_posts"
+        description: "Folder to scan for posts (relative to repo root)"
+      workflows_to_trigger:
+        required: false
+        type: string
+        default: ""
+        description: "Comma-separated workflow file names (without .yml) to dispatch when posts go live. Leave empty to use output-only mode."
+      ref:
+        required: false
+        type: string
+        default: "main"
+        description: "Branch to dispatch workflows on"
+    outputs:
+      has_new_posts:
+        description: "true if any posts have date: == today"
+        value: ${{ jobs.check_posts.outputs.has_posts }}
+      new_post_count:
+        description: "Number of posts going live today"
+        value: ${{ jobs.check_posts.outputs.match_count }}
+    secrets:
+      DISPATCH_TOKEN:
+        required: false
+        description: "PAT with workflow scope for triggering other workflows. Optional — leave unset to use output-only mode."
+  workflow_dispatch:
+    inputs:
+      posts_folder:
+        type: string
+        default: "_posts"
+      workflows_to_trigger:
+        type: string
+        default: ""
+      ref:
+        type: string
+        default: "main"
+      dry_run:
+        type: boolean
+        default: true
+        description: "Print what would be triggered without actually dispatching"
+
+jobs:
+  check_posts:
+    name: Check for posts going live today
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 5
+    outputs:
+      has_posts: ${{ steps.scan.outputs.has_posts }}
+      match_count: ${{ steps.scan.outputs.match_count }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan posts for today's date
+        id: scan
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          POSTS_FOLDER="${{ inputs.posts_folder }}"
+          MATCH_COUNT=0
+          MATCHED_FILES=""
+
+          while IFS= read -r file; do
+            # Extract date: field from YAML frontmatter (first 20 lines)
+            POST_DATE=$(head -20 "$file" | grep -m1 '^date:' | \
+              awk '{print $2}' | tr -d '"'"'" | cut -c1-10)
+            if [ "$POST_DATE" = "$TODAY" ]; then
+              echo "Post going live today: $file (date: $POST_DATE)"
+              MATCH_COUNT=$((MATCH_COUNT + 1))
+              MATCHED_FILES="$MATCHED_FILES $file"
+            fi
+          done < <(find "$POSTS_FOLDER" \( -name "*.md" -o -name "*.html" \) 2>/dev/null | sort)
+
+          echo "match_count=$MATCH_COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$MATCH_COUNT" -gt 0 ]; then
+            echo "has_posts=true" >> "$GITHUB_OUTPUT"
+            echo "Today ($TODAY): $MATCH_COUNT post(s) going live — content pipelines will run"
+          else
+            echo "has_posts=false" >> "$GITHUB_OUTPUT"
+            echo "Today ($TODAY): no posts scheduled — skipping content pipelines"
+          fi
+
+  dispatch_workflows:
+    name: Trigger content workflows
+    needs: check_posts
+    if: >
+      needs.check_posts.outputs.has_posts == 'true' &&
+      inputs.workflows_to_trigger != '' &&
+      inputs.dry_run != true
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 5
+
+    steps:
+      - name: Dispatch content workflows via API
+        env:
+          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          REPO: ${{ github.repository }}
+          REF: ${{ inputs.ref }}
+          WORKFLOWS: ${{ inputs.workflows_to_trigger }}
+        run: |
+          if [ -z "$DISPATCH_TOKEN" ]; then
+            echo "No DISPATCH_TOKEN provided — skipping auto-dispatch (use has_new_posts output instead)"
+            exit 0
+          fi
+
+          IFS=',' read -ra WORKFLOW_LIST <<< "$WORKFLOWS"
+          for workflow in "${WORKFLOW_LIST[@]}"; do
+            workflow="${workflow// /}"  # trim spaces
+            workflow_file="${workflow}.yml"
+            echo "Dispatching $workflow_file on $REPO@$REF"
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST \
+              -H "Authorization: Bearer $DISPATCH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${REPO}/actions/workflows/${workflow_file}/dispatches" \
+              -d "{\"ref\":\"$REF\"}")
+            if [ "$HTTP_STATUS" = "204" ]; then
+              echo "  ✓ $workflow_file dispatched"
+            else
+              echo "  ✗ $workflow_file dispatch failed (HTTP $HTTP_STATUS) — workflow may not exist or token lacks workflow scope"
+            fi
+          done
