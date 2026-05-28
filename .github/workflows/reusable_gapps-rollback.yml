@@ -1,6 +1,7 @@
 name: 🔄 Rollback Google Apps Script Deployment
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       script_id:

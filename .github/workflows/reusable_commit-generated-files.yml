@@ -1,6 +1,7 @@
 name: Commit Generated Files
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       commit_message_prefix:

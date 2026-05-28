@@ -1,6 +1,7 @@
 name: Reusable Retire Posts
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       retire_queue_file:

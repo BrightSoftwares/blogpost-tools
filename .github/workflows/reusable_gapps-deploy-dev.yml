@@ -1,6 +1,7 @@
 name: 🚀 Deploy Google Apps Script to Development
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       script_id:

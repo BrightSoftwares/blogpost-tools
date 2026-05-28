@@ -1,6 +1,7 @@
 name: 🚀 Deploy Google Apps Script to Production
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       script_id:
