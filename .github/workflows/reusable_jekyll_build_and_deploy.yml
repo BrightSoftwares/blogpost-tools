@@ -1,6 +1,7 @@
 name: Reusable Jekyll Build and Deploy
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       # Jekyll build options

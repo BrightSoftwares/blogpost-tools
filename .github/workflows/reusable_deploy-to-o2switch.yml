@@ -4,6 +4,7 @@ name: Deploy Application to o2switch/cPanel
 # This workflow is idempotent - it checks if the application is already deployed before proceeding
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       app_name:

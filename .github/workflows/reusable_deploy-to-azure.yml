@@ -5,6 +5,7 @@ name: Deploy Application to Microsoft Azure
 # This workflow is idempotent - checks if resources exist before creating
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       app_name:

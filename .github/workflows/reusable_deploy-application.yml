@@ -4,6 +4,7 @@ name: Deploy Application (Master Orchestrator)
 # Automatically selects the appropriate deployment workflow based on hosting_provider input
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       app_name:

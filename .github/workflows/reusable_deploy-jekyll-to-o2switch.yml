@@ -24,6 +24,7 @@ name: Deploy Jekyll Site to o2switch via FTP/SFTP
 #         CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID_IEATMYHEALTH }}
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       # Jekyll build options

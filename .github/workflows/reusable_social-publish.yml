@@ -1,6 +1,7 @@
 name: Social Publish (reusable)
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       drafts_dir:

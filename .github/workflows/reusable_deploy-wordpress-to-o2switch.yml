@@ -23,6 +23,7 @@ name: Deploy WordPress to o2switch via FTP/SFTP
 #         FTP_PASSWORD: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       domain_name:

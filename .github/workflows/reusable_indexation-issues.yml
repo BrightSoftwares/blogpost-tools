@@ -3,6 +3,7 @@ name: Analyze indexation and fix issues
 
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       site_url:

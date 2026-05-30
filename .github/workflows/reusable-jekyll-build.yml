@@ -1,6 +1,7 @@
 name: Reusable Jekyll Build
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       ruby-version:

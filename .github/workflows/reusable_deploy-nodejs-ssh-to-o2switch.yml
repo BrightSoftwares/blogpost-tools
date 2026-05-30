@@ -49,6 +49,7 @@ name: Deploy Node.js App to o2switch via SSH (with cPanel API Token whitelist)
 #         CPANEL_API_TOKEN: ${{ secrets.O2SWITCH_CPANEL_API_TOKEN }}
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       # App identity
