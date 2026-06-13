@@ -1,0 +1,85 @@
+name: "[bsgen] Process Social Blocks (reusable)"
+
+on:
+  workflow_call:
+    inputs:
+      post_file:
+        description: "Relative path to the post file within the caller repo"
+        required: true
+        type: string
+      social_output_dir:
+        description: "Directory for extracted social JSON files (relative to repo root)"
+        required: false
+        type: string
+        # Jekyll collection: en/_social/ — configure as a collection in _config.yml
+        default: "en/_social"
+    outputs:
+      files_extracted:
+        description: "Number of social JSON files extracted"
+        value: ${{ jobs.process-social.outputs.files_extracted }}
+
+jobs:
+  process-social:
+    runs-on: ubuntu-latest
+    outputs:
+      files_extracted: ${{ steps.run.outputs.files_extracted }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          path: caller-repo
+          ref: ${{ github.ref }}
+
+      - name: Checkout blogpost-tools (scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: brightsoftwares/blogpost-tools
+          path: blogpost-tools
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Process social blocks
+        id: run
+        working-directory: caller-repo
+        run: |
+          POST="${{ inputs.post_file }}"
+          SOCIAL_DIR="${{ inputs.social_output_dir }}"
+          echo "Extracting social blocks from: $POST → $SOCIAL_DIR"
+
+          if [ ! -f "$POST" ]; then
+            echo "ERROR: post file not found: $POST"
+            exit 1
+          fi
+
+          mkdir -p "$SOCIAL_DIR"
+
+          python ../blogpost-tools/scripts/bsgen/process_social.py "$POST" "$SOCIAL_DIR" 2>&1 | tee /tmp/social_log.txt
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          EXTRACTED=$(grep -c "^OK: extracted social" /tmp/social_log.txt || echo 0)
+          echo "files_extracted=$EXTRACTED" >> $GITHUB_OUTPUT
+
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "FATAL: social processing failed"
+            exit 1
+          fi
+
+          echo "Social extraction complete. Files: $EXTRACTED"
+          ls -la "$SOCIAL_DIR/" 2>/dev/null || echo "(social dir empty)"
+
+      - name: Upload modified post + social JSONs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsgen-social-result
+          path: |
+            caller-repo/${{ inputs.post_file }}
+            caller-repo/${{ inputs.social_output_dir }}/
+          retention-days: 1

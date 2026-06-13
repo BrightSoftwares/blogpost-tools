@@ -1,0 +1,80 @@
+name: "[bsgen] Process Callouts (reusable)"
+
+on:
+  workflow_call:
+    inputs:
+      post_file:
+        description: "Relative path to the post file within the caller repo (e.g. en/_drafts/400_refined_content/2026-06-01-my-post.md)"
+        required: true
+        type: string
+      working_directory:
+        description: "Working directory (root of the caller repo checkout)"
+        required: false
+        type: string
+        default: "."
+    outputs:
+      replacements_made:
+        description: "Number of callout blocks replaced"
+        value: ${{ jobs.process-callouts.outputs.replacements_made }}
+
+jobs:
+  process-callouts:
+    runs-on: ubuntu-latest
+    outputs:
+      replacements_made: ${{ steps.run.outputs.replacements_made }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          path: caller-repo
+          ref: ${{ github.ref }}
+
+      - name: Checkout blogpost-tools (scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: brightsoftwares/blogpost-tools
+          path: blogpost-tools
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Process callout blocks
+        id: run
+        working-directory: caller-repo
+        run: |
+          POST="${{ inputs.post_file }}"
+          echo "Processing callouts in: $POST"
+
+          if [ ! -f "$POST" ]; then
+            echo "ERROR: post file not found: $POST"
+            exit 1
+          fi
+
+          python ../blogpost-tools/scripts/bsgen/process_callouts.py "$POST" 2>&1 | tee /tmp/callout_log.txt
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          REPLACEMENTS=$(grep -c "^OK: replaced callout" /tmp/callout_log.txt || echo 0)
+          echo "replacements_made=$REPLACEMENTS" >> $GITHUB_OUTPUT
+
+          # Exit code 2 = validation errors but non-fatal (some blocks skipped)
+          # Exit code 1 = fatal error → fail the job
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "FATAL: callout processing failed"
+            exit 1
+          fi
+
+          echo "Callout processing complete. Replacements: $REPLACEMENTS"
+
+      - name: Upload modified post (artifact for caller to commit)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsgen-callouts-result
+          path: caller-repo/${{ inputs.post_file }}
+          retention-days: 1
