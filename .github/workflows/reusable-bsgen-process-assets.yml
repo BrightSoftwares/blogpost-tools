@@ -1,0 +1,123 @@
+name: "[bsgen] Process Asset Blocks (reusable)"
+
+on:
+  workflow_call:
+    inputs:
+      post_file:
+        description: "Relative path to the post file within the caller repo"
+        required: true
+        type: string
+      assets_output_dir:
+        description: "Where to save generated asset files (relative to repo root)"
+        required: false
+        type: string
+        default: "assets/images/bsgen"
+      site_url:
+        description: "Site base URL (used for asset path references)"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      # When SAM is live: provide these to switch from placeholder mode to API mode.
+      # Leave empty to use placeholder SVG generation (current default).
+      SAM_API_URL:
+        description: "Smart Assets Manager API URL (e.g. https://sam.bright-softwares.com)"
+        required: false
+      SAM_API_KEY:
+        description: "Smart Assets Manager API key"
+        required: false
+    outputs:
+      assets_generated:
+        description: "Number of asset blocks processed"
+        value: ${{ jobs.process-assets.outputs.assets_generated }}
+      hero_image_url:
+        description: "URL of the hero/og_card image (for frontmatter injection)"
+        value: ${{ jobs.process-assets.outputs.hero_image_url }}
+
+jobs:
+  process-assets:
+    runs-on: ubuntu-latest
+    outputs:
+      assets_generated: ${{ steps.run.outputs.assets_generated }}
+      hero_image_url: ${{ steps.run.outputs.hero_image_url }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          path: caller-repo
+          ref: ${{ github.ref }}
+
+      - name: Checkout blogpost-tools (scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: brightsoftwares/blogpost-tools
+          path: blogpost-tools
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Process asset blocks
+        id: run
+        working-directory: caller-repo
+        env:
+          # Set to live API when SAM is deployed.
+          # Empty = placeholder SVG mode (current default while SAM is in development).
+          BSGEN_SAM_API_URL: ${{ secrets.SAM_API_URL }}
+          BSGEN_SAM_API_KEY: ${{ secrets.SAM_API_KEY }}
+        run: |
+          POST="${{ inputs.post_file }}"
+          ASSETS_DIR="${{ inputs.assets_output_dir }}"
+          SITE_URL="${{ inputs.site_url }}"
+
+          if [ -n "$BSGEN_SAM_API_URL" ]; then
+            echo "Mode: LIVE (Smart Assets Manager API)"
+          else
+            echo "Mode: PLACEHOLDER (SAM not yet live — generating SVG placeholders)"
+          fi
+
+          if [ ! -f "$POST" ]; then
+            echo "ERROR: post file not found: $POST"
+            exit 1
+          fi
+
+          mkdir -p "$ASSETS_DIR"
+
+          python ../blogpost-tools/scripts/bsgen/process_assets.py \
+            "$POST" "$ASSETS_DIR" --site-url "$SITE_URL" \
+            2>&1 | tee /tmp/assets_log.txt
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          # Count generated assets
+          GENERATED=$(grep -c "^OK:" /tmp/assets_log.txt || echo 0)
+          echo "assets_generated=$GENERATED" >> $GITHUB_OUTPUT
+
+          # Extract hero image URL from log
+          HERO=$(grep "^OK: replaced asset" /tmp/assets_log.txt | head -1 | grep -oP "→ \K.*" || echo "")
+          echo "hero_image_url=$HERO" >> $GITHUB_OUTPUT
+
+          if [ $EXIT_CODE -eq 1 ]; then
+            # Hard failure (e.g. SAM API call failed)
+            # Per pipeline policy: fail the workflow, keep post in 400_refined_content
+            echo "FATAL: asset processing failed — post stays in 400_refined_content"
+            exit 1
+          fi
+
+          echo "Asset processing complete. Generated: $GENERATED"
+          ls -la "$ASSETS_DIR/" 2>/dev/null | head -20 || echo "(no assets yet)"
+
+      - name: Upload modified post + assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsgen-assets-result
+          path: |
+            caller-repo/${{ inputs.post_file }}
+            caller-repo/${{ inputs.assets_output_dir }}/
+          retention-days: 1

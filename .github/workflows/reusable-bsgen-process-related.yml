@@ -1,0 +1,102 @@
+name: "[bsgen] Process Related Links (reusable)"
+
+on:
+  workflow_call:
+    inputs:
+      post_file:
+        description: "Relative path to the post file within the caller repo"
+        required: true
+        type: string
+      posts_dir:
+        description: "Directory of published posts to search for related content"
+        required: false
+        type: string
+        default: "en/_posts"
+      site_url:
+        description: "Canonical site URL for building post links (e.g. https://bright-softwares.com)"
+        required: true
+        type: string
+      language:
+        description: "Post language code (en, fr)"
+        required: false
+        type: string
+        default: "en"
+    outputs:
+      links_resolved:
+        description: "Number of related blocks processed"
+        value: ${{ jobs.process-related.outputs.links_resolved }}
+
+jobs:
+  process-related:
+    runs-on: ubuntu-latest
+    outputs:
+      links_resolved: ${{ jobs.process-related.outputs.links_resolved }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          path: caller-repo
+          ref: ${{ github.ref }}
+          # Fetch all posts for search index
+          fetch-depth: 0
+
+      - name: Checkout blogpost-tools (scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: brightsoftwares/blogpost-tools
+          path: blogpost-tools
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Process related blocks
+        id: run
+        working-directory: caller-repo
+        run: |
+          POST="${{ inputs.post_file }}"
+          POSTS_DIR="${{ inputs.posts_dir }}"
+          SITE_URL="${{ inputs.site_url }}"
+          LANG="${{ inputs.language }}"
+
+          echo "Resolving related links in: $POST"
+          echo "Searching: $POSTS_DIR ($(ls $POSTS_DIR/*.md 2>/dev/null | wc -l) posts)"
+
+          if [ ! -f "$POST" ]; then
+            echo "ERROR: post file not found: $POST"
+            exit 1
+          fi
+
+          python ../blogpost-tools/scripts/bsgen/process_related.py \
+            "$POST" "$POSTS_DIR" "$SITE_URL" --language "$LANG" \
+            2>&1 | tee /tmp/related_log.txt
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          RESOLVED=$(grep -c "^OK: replaced related" /tmp/related_log.txt || echo 0)
+          echo "links_resolved=$RESOLVED" >> $GITHUB_OUTPUT
+
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "FATAL: related processing failed"
+            exit 1
+          fi
+
+          # Exit code 2 = dangling wikilinks (resolved with fallback) — log warning, do not fail
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "WARNING: some wikilinks were dangling — fallback links used"
+            grep "WARNING: dangling" /tmp/related_log.txt || true
+          fi
+
+          echo "Related processing complete. Blocks resolved: $RESOLVED"
+
+      - name: Upload modified post
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsgen-related-result
+          path: caller-repo/${{ inputs.post_file }}
+          retention-days: 1
