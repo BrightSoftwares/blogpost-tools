@@ -1,131 +1,160 @@
-name: Reusable — bsgen Asset Generation
+name: Reusable — bsgen Asset Generation (LinkedIn Composer)
 
 # ---------------------------------------------------------------------------
 # Reusable workflow: given a markdown file containing ```bsgen:asset blocks,
-# renders all blocks into DeckSpec JSON files and publishes them as artifacts.
-# Optionally calls the linkedin-composer carousel publish workflow for each deck.
+# builds the LinkedIn Composer Next.js server locally, renders each block
+# via POST /api/carousel/render, uploads results to Cloudinary (or saves
+# PNGs inline), and publishes the manifest as an artifact.
 #
 # Callers:
-#   BrightSoftwares/corporate-website — generate-bsgen-assets.yml
-#   BrightSoftwares/linkedin-composer — ci-bsgen-preview.yml (CI only, direct)
+#   BrightSoftwares/corporate-website  — generate-bsgen-assets.yml
+#   (other Jekyll websites in future)
 # ---------------------------------------------------------------------------
 
 on:
   workflow_call:
     inputs:
       markdown_file:
-        description: "Path to the markdown file containing bsgen:asset blocks (relative to repo root)"
+        description: "Repo-relative path to the markdown file with bsgen:asset blocks"
         required: true
         type: string
       output_dir:
-        description: "Directory to write rendered .deck.json files"
+        description: "Directory to write output files (manifest + optional PNGs)"
         required: false
         type: string
         default: "bsgen-output"
-      artifact_name:
-        description: "Name of the GitHub Actions artifact to upload"
+      storage:
+        description: "Storage mode: 'cloudinary' (uploads to CDN) or 'inline' (saves local PNGs)"
         required: false
         type: string
-        default: "bsgen-decks"
+        default: "cloudinary"
+      artifact_name:
+        description: "GitHub Actions artifact name"
+        required: false
+        type: string
+        default: "bsgen-assets"
       artifact_retention_days:
-        description: "Artifact retention in days"
         required: false
         type: number
         default: 14
       node_version:
-        description: "Node.js version to use"
         required: false
         type: string
         default: "20"
       linkedin_composer_ref:
-        description: "Git ref to checkout from linkedin-composer (branch/tag/SHA)"
+        description: "Git ref to checkout from BrightSoftwares/linkedin-composer"
         required: false
         type: string
         default: "main"
-      dry_run:
-        description: "Set to true to skip LinkedIn publishing step"
-        required: false
-        type: boolean
-        default: true
     secrets:
-      linkedin_composer_api_key:
-        description: "Static API key for the LinkedIn Composer server"
+      LC_API_KEY:
+        description: "LINKEDIN_COMPOSER_API_KEY — static Bearer token for the LC server"
+        required: true
+      CLOUDINARY_CLOUD_NAME:
         required: false
-      linkedin_access_token:
-        description: "LinkedIn OAuth access token"
+      CLOUDINARY_API_KEY:
         required: false
-      linkedin_org_urn:
-        description: "LinkedIn organization URN"
+      CLOUDINARY_API_SECRET:
         required: false
-      cloudinary_cloud_name:
-        required: false
-      cloudinary_api_key:
-        required: false
-      cloudinary_api_secret:
+      GH_PAT:
+        description: "GitHub PAT with repo:read scope to clone linkedin-composer (falls back to GITHUB_TOKEN)"
         required: false
     outputs:
-      deck_count:
-        description: "Number of deck files rendered"
-        value: ${{ jobs.render.outputs.deck_count }}
+      asset_count:
+        description: "Number of assets successfully rendered"
+        value: ${{ jobs.render.outputs.asset_count }}
       artifact_name:
         description: "Name of the uploaded artifact"
         value: ${{ jobs.render.outputs.artifact_name }}
 
 jobs:
   render:
-    name: Render bsgen blocks
+    name: Build LC and render bsgen assets
     runs-on: ubuntu-latest
     outputs:
-      deck_count: ${{ steps.count.outputs.deck_count }}
-      artifact_name: ${{ steps.upload.outputs.artifact-id }}
+      asset_count: ${{ steps.verify.outputs.asset_count }}
+      artifact_name: ${{ inputs.artifact_name }}
+    env:
+      LINKEDIN_COMPOSER_API_KEY: ${{ secrets.LC_API_KEY }}
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
     steps:
-      - name: Checkout caller repo
+      - name: Checkout caller repo (for markdown file)
         uses: actions/checkout@v4
 
-      - name: Checkout linkedin-composer (render script)
+      - name: Checkout LinkedIn Composer
         uses: actions/checkout@v4
         with:
           repository: BrightSoftwares/linkedin-composer
           ref: ${{ inputs.linkedin_composer_ref }}
-          path: _linkedin-composer
-          token: ${{ secrets.linkedin_composer_api_key || github.token }}
+          path: _lc
+          token: ${{ secrets.GH_PAT || github.token }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
           cache: npm
-          cache-dependency-path: _linkedin-composer/package-lock.json
+          cache-dependency-path: _lc/package-lock.json
 
-      - name: Install linkedin-composer dependencies
-        working-directory: _linkedin-composer
+      - name: Install LinkedIn Composer dependencies
+        working-directory: _lc
         run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: _lc
+        run: npx playwright install chromium --with-deps
+
+      - name: Build LinkedIn Composer
+        working-directory: _lc
+        run: npm run build
+
+      - name: Start LinkedIn Composer server
+        working-directory: _lc
+        run: |
+          npm run start &
+          echo $! > /tmp/lc-server.pid
+          for i in $(seq 1 30); do
+            STATUS=$(curl -so /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null)
+            if echo "$STATUS" | grep -qE "^[23]"; then
+              echo "[bsgen] LC server ready (status=$STATUS, attempt=$i)"
+              break
+            fi
+            echo "[bsgen] waiting for server... ($i/30)"
+            sleep 2
+          done
 
       - name: Render bsgen blocks
         run: |
-          node _linkedin-composer/scripts/render-bsgen.mjs \
-            "${{ inputs.markdown_file }}" \
-            --out "${{ inputs.output_dir }}"
+          node _lc/scripts/render-bsgen.mjs "${{ inputs.markdown_file }}" \
+            --out "${{ inputs.output_dir }}" \
+            --api-url http://localhost:3000 \
+            --storage "${{ inputs.storage }}" \
+            --api-key "$LINKEDIN_COMPOSER_API_KEY"
 
-      - name: Count output decks
-        id: count
+      - name: Verify output
+        id: verify
         run: |
-          COUNT=$(ls "${{ inputs.output_dir }}"/*.deck.json 2>/dev/null | wc -l)
-          echo "deck_count=$COUNT" >> $GITHUB_OUTPUT
-          echo "[bsgen] Rendered $COUNT deck(s)"
-          if [ "$COUNT" -eq 0 ]; then
-            echo "::warning::No bsgen:asset blocks found in ${{ inputs.markdown_file }}"
-          fi
+          echo "=== Manifest ==="
+          cat "${{ inputs.output_dir }}/bsgen-manifest.json" 2>/dev/null || echo "(not found)"
+          COUNT=$(python3 -c "
+          import json
+          try:
+              data = json.load(open('${{ inputs.output_dir }}/bsgen-manifest.json'))
+              print(len([e for e in data if e.get('status') == 'ok']))
+          except Exception:
+              print(0)
+          " 2>/dev/null || echo "0")
+          echo "asset_count=$COUNT" >> $GITHUB_OUTPUT
+          echo "[bsgen] $COUNT asset(s) rendered."
+          [ "$COUNT" -gt "0" ] || echo "::warning::No assets rendered for ${{ inputs.markdown_file }}"
 
-      - name: List rendered decks
-        run: |
-          echo "=== Rendered deck files ==="
-          ls -lh "${{ inputs.output_dir }}"/ 2>/dev/null || echo "(none)"
-
-      - name: Upload deck artifacts
-        id: upload
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ${{ inputs.artifact_name }}
           path: ${{ inputs.output_dir }}/
