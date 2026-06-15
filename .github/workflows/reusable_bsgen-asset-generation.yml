@@ -119,6 +119,20 @@ jobs:
             echo "[bsgen] waiting... ($i/30, status=$STATUS)"; sleep 2
           done
 
+      - name: Check Cloudinary config (cloudinary mode only)
+        if: ${{ inputs.storage == 'cloudinary' }}
+        run: |
+          MISSING=""
+          [ -z "$CLOUDINARY_CLOUD_NAME" ] && MISSING="$MISSING CLOUDINARY_CLOUD_NAME"
+          [ -z "$CLOUDINARY_API_KEY"    ] && MISSING="$MISSING CLOUDINARY_API_KEY"
+          [ -z "$CLOUDINARY_API_SECRET" ] && MISSING="$MISSING CLOUDINARY_API_SECRET"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing Cloudinary secrets:$MISSING — images will NOT upload to Cloudinary."
+            echo "Add these as repository secrets and forward them in the caller workflow."
+            exit 1
+          fi
+          echo "[bsgen] Cloudinary secrets present (cloud_name=${CLOUDINARY_CLOUD_NAME})"
+
       - name: Render bsgen blocks
         run: |
           node _lc/scripts/render-bsgen.mjs "${{ inputs.markdown_file }}" \
@@ -130,16 +144,24 @@ jobs:
       - name: Verify output
         id: verify
         run: |
-          echo "=== Manifest ==="
-          cat "${{ inputs.output_dir }}/bsgen-manifest.json" 2>/dev/null || echo "(not found)"
+          echo "=== bsgen-manifest.json ==="
+          python3 -m json.tool "${{ inputs.output_dir }}/bsgen-manifest.json" 2>/dev/null || \
+            cat "${{ inputs.output_dir }}/bsgen-manifest.json" 2>/dev/null || echo "(not found)"
           COUNT=$(python3 -c "
-          import json
+          import json, sys
           try:
               data = json.load(open('${{ inputs.output_dir }}/bsgen-manifest.json'))
-              print(len([e for e in data if e.get('status') == 'ok']))
-          except Exception:
+              ok = [e for e in data if e.get('status') == 'ok']
+              errs = [e for e in data if e.get('status') == 'error']
+              print(len(ok))
+              if errs:
+                  print(f'::warning::{len(errs)} block(s) failed: ' +
+                        ', '.join(e[\"id\"] + \" — \" + e.get(\"error\",\"\")[:80] for e in errs),
+                        file=sys.stderr)
+          except Exception as ex:
               print(0)
-          " 2>/dev/null || echo "0")
+              print(f'::warning::Could not parse manifest: {ex}', file=sys.stderr)
+          " 2>&1 | tee /dev/stderr | head -1 || echo "0")
           echo "asset_count=$COUNT" >> $GITHUB_OUTPUT
           echo "[bsgen] $COUNT asset(s) rendered."
           [ "$COUNT" -gt "0" ] || echo "::warning::No assets rendered for ${{ inputs.markdown_file }}"
