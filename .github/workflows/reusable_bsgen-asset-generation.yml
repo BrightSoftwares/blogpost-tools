@@ -1,0 +1,133 @@
+name: Reusable — bsgen Asset Generation
+
+# ---------------------------------------------------------------------------
+# Reusable workflow: given a markdown file containing ```bsgen:asset blocks,
+# renders all blocks into DeckSpec JSON files and publishes them as artifacts.
+# Optionally calls the linkedin-composer carousel publish workflow for each deck.
+#
+# Callers:
+#   BrightSoftwares/corporate-website — generate-bsgen-assets.yml
+#   BrightSoftwares/linkedin-composer — ci-bsgen-preview.yml (CI only, direct)
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_call:
+    inputs:
+      markdown_file:
+        description: "Path to the markdown file containing bsgen:asset blocks (relative to repo root)"
+        required: true
+        type: string
+      output_dir:
+        description: "Directory to write rendered .deck.json files"
+        required: false
+        type: string
+        default: "bsgen-output"
+      artifact_name:
+        description: "Name of the GitHub Actions artifact to upload"
+        required: false
+        type: string
+        default: "bsgen-decks"
+      artifact_retention_days:
+        description: "Artifact retention in days"
+        required: false
+        type: number
+        default: 14
+      node_version:
+        description: "Node.js version to use"
+        required: false
+        type: string
+        default: "20"
+      linkedin_composer_ref:
+        description: "Git ref to checkout from linkedin-composer (branch/tag/SHA)"
+        required: false
+        type: string
+        default: "main"
+      dry_run:
+        description: "Set to true to skip LinkedIn publishing step"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      linkedin_composer_api_key:
+        description: "Static API key for the LinkedIn Composer server"
+        required: false
+      linkedin_access_token:
+        description: "LinkedIn OAuth access token"
+        required: false
+      linkedin_org_urn:
+        description: "LinkedIn organization URN"
+        required: false
+      cloudinary_cloud_name:
+        required: false
+      cloudinary_api_key:
+        required: false
+      cloudinary_api_secret:
+        required: false
+    outputs:
+      deck_count:
+        description: "Number of deck files rendered"
+        value: ${{ jobs.render.outputs.deck_count }}
+      artifact_name:
+        description: "Name of the uploaded artifact"
+        value: ${{ jobs.render.outputs.artifact_name }}
+
+jobs:
+  render:
+    name: Render bsgen blocks
+    runs-on: ubuntu-latest
+    outputs:
+      deck_count: ${{ steps.count.outputs.deck_count }}
+      artifact_name: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+
+      - name: Checkout linkedin-composer (render script)
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/linkedin-composer
+          ref: ${{ inputs.linkedin_composer_ref }}
+          path: _linkedin-composer
+          token: ${{ secrets.linkedin_composer_api_key || github.token }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: _linkedin-composer/package-lock.json
+
+      - name: Install linkedin-composer dependencies
+        working-directory: _linkedin-composer
+        run: npm ci
+
+      - name: Render bsgen blocks
+        run: |
+          node _linkedin-composer/scripts/render-bsgen.mjs \
+            "${{ inputs.markdown_file }}" \
+            --out "${{ inputs.output_dir }}"
+
+      - name: Count output decks
+        id: count
+        run: |
+          COUNT=$(ls "${{ inputs.output_dir }}"/*.deck.json 2>/dev/null | wc -l)
+          echo "deck_count=$COUNT" >> $GITHUB_OUTPUT
+          echo "[bsgen] Rendered $COUNT deck(s)"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::warning::No bsgen:asset blocks found in ${{ inputs.markdown_file }}"
+          fi
+
+      - name: List rendered decks
+        run: |
+          echo "=== Rendered deck files ==="
+          ls -lh "${{ inputs.output_dir }}"/ 2>/dev/null || echo "(none)"
+
+      - name: Upload deck artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.output_dir }}/
+          retention-days: ${{ inputs.artifact_retention_days }}
+          if-no-files-found: warn
