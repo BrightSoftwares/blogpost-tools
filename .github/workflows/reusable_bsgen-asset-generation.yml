@@ -2,13 +2,14 @@ name: Reusable — bsgen Asset Generation (LinkedIn Composer)
 
 # ---------------------------------------------------------------------------
 # Reusable workflow: given a markdown file containing ```bsgen:asset blocks,
-# builds the LinkedIn Composer Next.js server locally, renders each block
-# via POST /api/carousel/render, uploads results to Cloudinary (or saves
-# PNGs inline), and publishes the manifest as an artifact.
+# calls the deployed LinkedIn Composer API to render each block via
+# POST /api/carousel/render, saves PNGs inline or uploads to Cloudinary.
+#
+# No need to clone linkedin-composer — the deployed Vercel API is called directly.
 #
 # Callers:
 #   BrightSoftwares/corporate-website  — generate-bsgen-assets.yml
-#   (other Jekyll websites in future)
+#   (other Jekyll websites)
 # ---------------------------------------------------------------------------
 
 on:
@@ -28,6 +29,16 @@ on:
         required: false
         type: string
         default: "cloudinary"
+      lc_api_url:
+        description: "Base URL of the deployed LinkedIn Composer API"
+        required: false
+        type: string
+        default: "https://linkedin-composer-epnkl9ue9-full-bright-s-projects.vercel.app"
+      linkedin_composer_ref:
+        description: "Git ref to fetch render-bsgen.mjs from linkedin-composer (branch/tag/SHA)"
+        required: false
+        type: string
+        default: "main"
       artifact_name:
         description: "GitHub Actions artifact name"
         required: false
@@ -37,18 +48,9 @@ on:
         required: false
         type: number
         default: 14
-      node_version:
-        required: false
-        type: string
-        default: "20"
-      linkedin_composer_ref:
-        description: "Git ref to checkout from BrightSoftwares/linkedin-composer"
-        required: false
-        type: string
-        default: "main"
     secrets:
       LC_API_KEY:
-        description: "LINKEDIN_COMPOSER_API_KEY — static Bearer token for the LC server"
+        description: "Bearer token for the LinkedIn Composer API (LINKEDIN_COMPOSER_API_KEY)"
         required: true
       CLOUDINARY_CLOUD_NAME:
         required: false
@@ -57,7 +59,7 @@ on:
       CLOUDINARY_API_SECRET:
         required: false
       GH_PAT:
-        description: "GitHub PAT with repo:read scope to clone linkedin-composer (falls back to GITHUB_TOKEN)"
+        description: "GitHub PAT to fetch render-bsgen.mjs from linkedin-composer (if private)"
         required: false
     outputs:
       asset_count:
@@ -69,71 +71,44 @@ on:
 
 jobs:
   render:
-    name: Build LC and render bsgen assets
+    name: Render bsgen assets via LC API
     runs-on: ubuntu-latest
     outputs:
       asset_count: ${{ steps.verify.outputs.asset_count }}
       artifact_name: ${{ inputs.artifact_name }}
-    env:
-      LINKEDIN_COMPOSER_API_KEY: ${{ secrets.LC_API_KEY }}
-      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
     steps:
       - name: Checkout caller repo (for markdown file)
         uses: actions/checkout@v4
 
-      - name: Checkout LinkedIn Composer
-        uses: actions/checkout@v4
-        with:
-          repository: BrightSoftwares/linkedin-composer
-          ref: ${{ inputs.linkedin_composer_ref }}
-          path: _lc
-          token: ${{ secrets.GH_PAT || github.token }}
+      - name: Fetch render-bsgen.mjs from linkedin-composer
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          LC_REF: ${{ inputs.linkedin_composer_ref }}
+        run: |
+          curl -fsSL \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/BrightSoftwares/linkedin-composer/contents/scripts/render-bsgen.mjs?ref=${LC_REF}" \
+            -o render-bsgen.mjs
+          echo "[bsgen] render-bsgen.mjs downloaded ($(wc -c < render-bsgen.mjs) bytes)"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node_version }}
-          cache: npm
-          cache-dependency-path: _lc/package-lock.json
+          node-version: "20"
 
-      - name: Install LinkedIn Composer dependencies
-        working-directory: _lc
-        run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: _lc
-        run: npx playwright install chromium --with-deps
-
-      - name: Build LinkedIn Composer
-        working-directory: _lc
-        run: npm run build
-
-      - name: Start LinkedIn Composer server
-        working-directory: _lc
+      - name: Render bsgen blocks via LC API
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: |
-          npm run start &
-          echo $! > /tmp/lc-server.pid
-          for i in $(seq 1 30); do
-            STATUS=$(curl -so /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null)
-            if echo "$STATUS" | grep -qE "^[23]"; then
-              echo "[bsgen] LC server ready (status=$STATUS, attempt=$i)"
-              break
-            fi
-            echo "[bsgen] waiting for server... ($i/30)"
-            sleep 2
-          done
-
-      - name: Render bsgen blocks
-        run: |
-          node _lc/scripts/render-bsgen.mjs "${{ inputs.markdown_file }}" \
+          node render-bsgen.mjs "${{ inputs.markdown_file }}" \
             --out "${{ inputs.output_dir }}" \
-            --api-url http://localhost:3000 \
+            --api-url "${{ inputs.lc_api_url }}" \
             --storage "${{ inputs.storage }}" \
-            --api-key "$LINKEDIN_COMPOSER_API_KEY"
+            --api-key "${{ secrets.LC_API_KEY }}"
 
       - name: Verify output
         id: verify
