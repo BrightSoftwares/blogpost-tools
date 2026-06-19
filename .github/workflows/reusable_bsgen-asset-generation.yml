@@ -166,6 +166,90 @@ jobs:
           echo "[bsgen] $COUNT asset(s) rendered."
           [ "$COUNT" -gt "0" ] || echo "::warning::No assets rendered for ${{ inputs.markdown_file }}"
 
+      - name: Write Cloudinary URLs back into markdown (cloudinary mode)
+        if: ${{ inputs.storage == 'cloudinary' && steps.verify.outputs.asset_count > 0 }}
+        env:
+          MARKDOWN_FILE: ${{ inputs.markdown_file }}
+          OUTPUT_DIR: ${{ inputs.output_dir }}
+        run: |
+          python3 << 'PYEOF'
+          import json, re, os
+          from pathlib import Path
+
+          md_path = Path(os.environ["MARKDOWN_FILE"])
+          manifest_path = Path(os.environ["OUTPUT_DIR"]) / "bsgen-manifest.json"
+
+          try:
+              manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          except Exception as e:
+              print(f"[bsgen] Cannot read manifest: {e}")
+              raise SystemExit(0)
+
+          url_map = {
+              e["id"]: e["cloudinaryUrl"]
+              for e in manifest
+              if e.get("status") == "ok" and e.get("cloudinaryUrl")
+          }
+          if not url_map:
+              print("[bsgen] No successful Cloudinary uploads to write back.")
+              raise SystemExit(0)
+
+          if not md_path.exists():
+              print(f"[bsgen] Markdown file not found: {md_path}")
+              raise SystemExit(0)
+
+          original = md_path.read_text(encoding="utf-8")
+
+          def patch_block(m):
+              content = m.group(1)
+              id_m = re.search(r'^id:\s*(\S+)', content, re.MULTILINE)
+              if not id_m:
+                  return m.group(0)
+              block_id = id_m.group(1).strip('"\'')
+              url = url_map.get(block_id)
+              if not url:
+                  return m.group(0)
+              # Remove any existing generated_url line and append fresh
+              content = re.sub(r'\ngenerated_url:[^\n]*', '', content)
+              content = content.rstrip('\n') + f'\ngenerated_url: "{url}"\n'
+              return f'```bsgen:asset\n{content}```'
+
+          updated = re.sub(r'```bsgen:asset\s*\n([\s\S]*?)```', patch_block, original)
+
+          if updated == original:
+              print("[bsgen] No changes — URLs may already be present.")
+              raise SystemExit(0)
+
+          md_path.write_text(updated, encoding="utf-8")
+          count = len(url_map)
+          print(f"[bsgen] Wrote {count} Cloudinary URL(s) into {md_path}")
+          PYEOF
+
+      - name: Commit Cloudinary URLs to caller repo (cloudinary mode)
+        if: ${{ inputs.storage == 'cloudinary' && steps.verify.outputs.asset_count > 0 }}
+        env:
+          MARKDOWN_FILE: ${{ inputs.markdown_file }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$MARKDOWN_FILE"
+          if git diff --staged --quiet; then
+            echo "[bsgen] Nothing to commit (no URL changes in $MARKDOWN_FILE)."
+            exit 0
+          fi
+          SHORT=$(basename "$MARKDOWN_FILE")
+          git commit -m "chore(bsgen): embed Cloudinary asset URLs — ${SHORT}"
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          for attempt in 1 2 3; do
+            if git push origin HEAD; then
+              echo "[bsgen] Pushed to ${BRANCH}."
+              break
+            fi
+            echo "[bsgen] Push conflict, rebasing (attempt ${attempt}/3)..."
+            git pull --rebase origin "$BRANCH"
+            sleep $((attempt * 3))
+          done
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
