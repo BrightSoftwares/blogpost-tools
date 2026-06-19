@@ -1,0 +1,119 @@
+name: Reusable SEO Links Populate
+
+on:
+  workflow_call:
+    inputs:
+      posts_dir:
+        description: "Directory containing Jekyll posts to scan"
+        required: false
+        type: string
+        default: "en/_posts"
+      drafts_dir:
+        description: "Directory containing Jekyll drafts to scan"
+        required: false
+        type: string
+        default: "en/_drafts/400_refined_content"
+      min_links:
+        description: "Minimum Wikidata links per post"
+        required: false
+        type: number
+        default: 2
+      max_links:
+        description: "Maximum Wikidata links per post"
+        required: false
+        type: number
+        default: 4
+      force:
+        description: "Overwrite existing seo.links"
+        required: false
+        type: boolean
+        default: false
+      scan_posts:
+        description: "Scan published posts directory"
+        required: false
+        type: boolean
+        default: true
+      scan_drafts:
+        description: "Scan drafts directory"
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GITHUB_TOKEN:
+        required: false
+
+jobs:
+  populate-seo-links:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    concurrency:
+      group: seo-links-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: _blogpost-tools
+          token: ${{ secrets.GITHUB_TOKEN || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Populate SEO links in posts
+        if: ${{ inputs.scan_posts }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
+          if [ -d "${{ inputs.posts_dir }}" ]; then
+            python _blogpost-tools/scripts/seo_links_populator.py \
+              --dir "${{ inputs.posts_dir }}" \
+              --min-links ${{ inputs.min_links }} \
+              --max-links ${{ inputs.max_links }} \
+              $FORCE_FLAG
+          else
+            echo "Posts directory ${{ inputs.posts_dir }} not found, skipping."
+          fi
+
+      - name: Populate SEO links in drafts
+        if: ${{ inputs.scan_drafts }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
+          if [ -d "${{ inputs.drafts_dir }}" ]; then
+            python _blogpost-tools/scripts/seo_links_populator.py \
+              --dir "${{ inputs.drafts_dir }}" \
+              --min-links ${{ inputs.min_links }} \
+              --max-links ${{ inputs.max_links }} \
+              $FORCE_FLAG
+          else
+            echo "Drafts directory ${{ inputs.drafts_dir }} not found, skipping."
+          fi
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No SEO link changes to commit."
+          else
+            git commit -m "chore(seo): populate seo.links with relevant Wikidata entities"
+            git push
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf _blogpost-tools
