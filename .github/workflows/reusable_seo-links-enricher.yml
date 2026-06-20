@@ -1,0 +1,73 @@
+name: Reusable SEO Links Enricher
+
+on:
+  workflow_call:
+    inputs:
+      posts_dir:
+        required: false
+        type: string
+        default: "./_posts"
+        description: "Directory containing blog post markdown files"
+      apply:
+        required: false
+        type: boolean
+        default: false
+        description: "Apply changes (true) or dry-run (false)"
+      commit_changes:
+        required: false
+        type: boolean
+        default: true
+        description: "Commit and push changes after enrichment"
+    secrets:
+      GITHUB_TOKEN:
+        required: false
+
+jobs:
+  enrich-seo-links:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v4
+
+      - name: Checkout blogpost-tools
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          token: ${{ secrets.GITHUB_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r .blogpost-tools/seo-links-enricher/requirements.txt
+
+      - name: Run SEO links enricher
+        run: |
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            python .blogpost-tools/seo-links-enricher/src/enrich_seo_links.py \
+              --posts-dir "${{ inputs.posts_dir }}" --apply
+          else
+            python .blogpost-tools/seo-links-enricher/src/enrich_seo_links.py \
+              --posts-dir "${{ inputs.posts_dir }}" --dry-run
+          fi
+
+      - name: Commit and push changes
+        if: inputs.apply && inputs.commit_changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(seo): enrich seo.links with relevant Wikidata entities"
+            git push
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf .blogpost-tools
