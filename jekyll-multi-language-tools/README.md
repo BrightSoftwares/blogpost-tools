@@ -148,6 +148,43 @@ score = money_potential × publishing_interest × priority_weight
 
 ---
 
+### 4. `translate_posts.py`
+
+**Purpose:** Batch translate Jekyll posts from one language to another by translating frontmatter metadata (lang, title, redirect_from paths) while preserving body content.
+
+**Use Case:**
+- Closing the translation gap between EN and FR posts
+- Deterministic translation (no external API needed)
+- Batch processing with configurable batch sizes
+
+**Usage:**
+```bash
+# Dry-run: show what would be translated
+python translate_posts.py /path/to/jekyll-site --dry-run
+
+# Translate next 20 untranslated posts (newest first)
+python translate_posts.py /path/to/jekyll-site --batch-size 20
+
+# Translate ALL remaining posts
+python translate_posts.py /path/to/jekyll-site --all
+
+# Oldest posts first
+python translate_posts.py /path/to/jekyll-site --batch-size 30 --sort oldest
+```
+
+**Features:**
+- Finds untranslated posts by comparing `en/_posts/` vs `fr/_posts/`
+- Translates `lang:` field and `redirect_from:` paths (adds `/fr/` prefix)
+- Preserves body content as-is (matches bright-softwares.com pattern)
+- Supports `--dry-run`, `--batch-size`, `--sort` (newest/oldest)
+- No external dependencies (stdlib only)
+
+**Requirements:**
+- Jekyll site with `en/_posts/` and `fr/_posts/` structure
+- Post files with YAML frontmatter
+
+---
+
 ## Installation
 
 **Dependencies:**
