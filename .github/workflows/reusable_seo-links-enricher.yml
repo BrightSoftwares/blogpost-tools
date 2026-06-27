@@ -19,7 +19,7 @@ on:
         default: true
         description: "Commit and push changes after enrichment"
     secrets:
-      GITHUB_TOKEN:
+      GH_TOKEN:
         required: false
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
         with:
           repository: BrightSoftwares/blogpost-tools
           path: .blogpost-tools
-          token: ${{ secrets.GITHUB_TOKEN || github.token }}
+          token: ${{ secrets.GH_TOKEN || github.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
