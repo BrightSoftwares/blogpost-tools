@@ -39,7 +39,7 @@ on:
         type: boolean
         default: true
     secrets:
-      GITHUB_TOKEN:
+      GH_TOKEN:
         required: false
 
 jobs:
@@ -51,18 +51,18 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: BrightSoftwares/blogpost-tools
           path: _blogpost-tools
-          token: ${{ secrets.GITHUB_TOKEN || github.token }}
+          token: ${{ secrets.GH_TOKEN || github.token }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 

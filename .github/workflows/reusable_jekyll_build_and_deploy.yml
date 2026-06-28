@@ -105,11 +105,11 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Clone common includes submodule
         if: ${{ inputs.use_common_includes }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: BrightSoftwares/jekyll-theme-common-includes
           path: ${{ inputs.common_includes_path }}
@@ -118,7 +118,7 @@ jobs:
 
       - name: Cache bundle dependencies
         if: ${{ inputs.enable_cache }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             vendor/bundle
@@ -130,7 +130,7 @@ jobs:
 
       - name: Cache responsive images
         if: ${{ inputs.enable_cache }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: assets/resized
           key: ${{ runner.os }}-images-${{ hashFiles('assets/**/*.jpg', 'assets/**/*.jpeg', 'assets/**/*.png') }}
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload build artifacts
         if: ${{ inputs.debug }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jekyll-build
           path: ${{ inputs.build_dir }}
