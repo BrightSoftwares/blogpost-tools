@@ -28,17 +28,17 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout calling repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout blogpost-tools
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: BrightSoftwares/blogpost-tools
           path: .blogpost-tools
           token: ${{ secrets.GH_TOKEN || github.token }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
