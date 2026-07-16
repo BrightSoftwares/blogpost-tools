@@ -3,3 +3,4 @@ numpy
 PyYAML
 python-frontmatter
 spacy
+click
