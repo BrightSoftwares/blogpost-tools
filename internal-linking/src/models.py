@@ -2,12 +2,16 @@
 
 Spec: 951.123.AINOTE.solo.out.ainote-internal-linking-v2-spec.md (Section 5).
 
-Only ``ExclusionReason`` and ``PostMetadata`` are populated by the current
-implementation (Phase 1 — indexer.py, Phase 2 — keywords.py). ``Section``,
-``LinkOpportunity``, and ``ChangeLogEntry`` are defined here to match the
-full spec so Phase 3-6 (scoring, insertion, migration, reporting) can be
-added later without changing this module, but nothing in this repo
-constructs them yet.
+``ExclusionReason`` and ``PostMetadata`` are populated by Phase 1
+(indexer.py) and Phase 2 (keywords.py). ``Section`` and
+``LinkOpportunity`` are now also populated, by Phase 3 (scoring.py —
+``segment_into_sections()`` in text_utils.py and
+``find_link_opportunities()``/``apply_distribution_constraints()``) and
+consumed by Phase 4 (inserter.py). ``ChangeLogEntry`` is defined here to
+match the full spec so Phase 6 (reporting, not yet implemented) can use
+it without changing this module; Phase 4/5's insertion/migration logs are
+currently plain dicts (matching the spec's own Phase 4/5 pseudocode
+literally), not ``ChangeLogEntry`` instances.
 """
 
 from __future__ import annotations
@@ -67,9 +71,7 @@ class PostMetadata:
 class Section:
     """A heading-delimited section of a post body.
 
-    Populated by ``text_utils.segment_into_sections()`` (Phase 3, not yet
-    implemented). Defined here so Phase 3+ can import it from this module
-    without a later breaking change.
+    Populated by ``text_utils.segment_into_sections()`` (Phase 3).
     """
 
     index: int
@@ -84,9 +86,9 @@ class Section:
 class LinkOpportunity:
     """A candidate wikilink insertion.
 
-    Populated by ``scoring.find_link_opportunities()`` (Phase 3, not yet
-    implemented). Defined here so Phase 3+ can import it from this module
-    without a later breaking change.
+    Populated by ``scoring.find_link_opportunities()`` (Phase 3) and
+    filtered by ``scoring.apply_distribution_constraints()``; consumed by
+    ``inserter.insert_wikilinks()`` (Phase 4).
     """
 
     source_slug: str

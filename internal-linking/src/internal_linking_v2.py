@@ -3,23 +3,26 @@
 Spec: 951.123.AINOTE.solo.out.ainote-internal-linking-v2-spec.md.
 
 Current scope: Phase 0 (bootstrap/config) + Phase 1 (post index building)
-+ Phase 2 (keyword extraction). Phase 3 (link opportunity scoring),
-Phase 4 (link insertion), Phase 5 (existing link migration), and Phase 6
-(output/reporting) are NOT implemented here — this entry point builds the
-index, extracts keywords for every eligible post, logs a summary, and
-exits. It does not write any files (no reports, no modified posts).
++ Phase 2 (keyword extraction) + Phase 3 (link opportunity scoring +
+distribution constraints) + Phase 4 (wikilink insertion, in-memory only).
+Phase 5 (existing link migration) and Phase 6 (output/reporting — writing
+modified posts and CSV reports to disk) are NOT implemented here —
+``ilv2k9a3-4`` and later. This entry point therefore builds the index,
+extracts keywords, computes and inserts wikilinks *in memory* for every
+eligible-length source post, logs a summary of what *would* change, and
+exits without writing any files.
 
-CLI flags below cover only what Phase 0-2 need (config bootstrap, where
-to scan, which language, the target-eligibility cutoff date, and
-logging). Flags tied exclusively to Phase 3-6 (e.g. --mode,
---max-links-per-post, --distribution-strategy) are intentionally left out
-of this CLI for now; ``config.py``'s schema already defines them (with
-defaults) so a future task can wire them in without changing the config
-layer.
+CLI flags below cover Phase 0-4 (config bootstrap, where to scan, which
+language, the target-eligibility cutoff date, logging, and the Phase 3/4
+constraint/strategy knobs). Flags tied exclusively to Phase 5/6 (e.g.
+--mode, --dry-run, --report-only, --skip-migration) are intentionally
+left out of this CLI for now; ``config.py``'s schema already defines them
+(with defaults) so a future task can wire them in without changing the
+config layer.
 
 Usage:
     python internal_linking_v2.py --posts-dir _posts/en/ --lang en \\
-        --seo-dir _seo/internal-linking/en/
+        --seo-dir _seo/internal-linking/en/ --max-links-per-post 5
 """
 
 from __future__ import annotations
@@ -33,7 +36,9 @@ import spacy
 
 from config import ConfigError, bootstrap
 from indexer import build_post_index
+from inserter import insert_wikilinks
 from keywords import extract_keywords, get_spacy_model_for_lang
+from scoring import apply_distribution_constraints, find_link_opportunities
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +59,29 @@ logger = logging.getLogger(__name__)
     default=None,
     help='Cutoff date for target eligibility ("auto" = today UTC, or YYYY-MM-DD).',
 )
+@click.option("--max-links-per-post", default=None, type=int, help="Hard cap on links inserted per source post.")
+@click.option(
+    "--min-post-length-words", default=None, type=int, help="Skip source posts shorter than this word count."
+)
+@click.option(
+    "--link-density-max", default=None, type=float, help="Max link density (links per word, e.g. 0.05 = 1/20 words)."
+)
+@click.option(
+    "--min-paragraphs-between-links", default=None, type=int, help="Minimum paragraph spacing between links."
+)
+@click.option("--max-links-per-section", default=None, type=int, help="Maximum links per heading section.")
+@click.option(
+    "--distribution-strategy",
+    default=None,
+    type=click.Choice(["spread", "end-heavy", "uniform"], case_sensitive=False),
+    help="Link position strategy.",
+)
+@click.option(
+    "--anchor-text-strategy",
+    default=None,
+    type=click.Choice(["title-priority", "context", "filename"], case_sensitive=False),
+    help="Anchor text selection strategy.",
+)
 @click.option(
     "--log-level",
     default=None,
@@ -67,15 +95,33 @@ def main(
     seo_dir: str,
     lang: str,
     future_cutoff_date: str,
+    max_links_per_post: int,
+    min_post_length_words: int,
+    link_density_max: float,
+    min_paragraphs_between_links: int,
+    max_links_per_section: int,
+    distribution_strategy: str,
+    anchor_text_strategy: str,
     log_level: str,
     log_file: str,
 ) -> None:
-    """Build the post index (Phase 1) and extract keywords (Phase 2)."""
+    """Build the post index, extract keywords, and compute+insert wikilinks in memory.
+
+    Phase 1-4 only: no files are written (Phase 5 migration and Phase 6
+    reporting/output are not implemented yet).
+    """
     cli_overrides: Dict[str, Any] = {
         "posts_dir": posts_dir,
         "seo_dir": seo_dir,
         "lang": lang,
         "future_cutoff_date": future_cutoff_date,
+        "max_links_per_post": max_links_per_post,
+        "min_post_length_words": min_post_length_words,
+        "link_density_max": link_density_max,
+        "min_paragraphs_between_links": min_paragraphs_between_links,
+        "max_links_per_section": max_links_per_section,
+        "distribution_strategy": distribution_strategy,
+        "anchor_text_strategy": anchor_text_strategy,
         "log_level": log_level,
         "log_file": log_file,
     }
@@ -122,9 +168,35 @@ def main(
         if shown >= 5:
             break
 
+    # Phase 3 + 4 (in-memory only — Phase 5 migration and Phase 6 output
+    # are not implemented yet, so nothing is written to disk here).
+    min_length = config["min_post_length_words"]
+    posts_with_new_links = 0
+    total_new_links = 0
+
+    for slug, source_post in index.items():
+        word_count = source_post.body_word_count
+        if word_count < min_length:
+            logger.debug(f"Skipping short source post {slug} ({word_count} words)")
+            continue
+
+        opportunities = find_link_opportunities(source_post, index, config)
+        selected = apply_distribution_constraints(
+            opportunities, config, source_word_count=word_count
+        )
+        if not selected:
+            continue
+
+        modified_body, insert_log = insert_wikilinks(source_post, selected)
+        if modified_body != source_post.body:
+            posts_with_new_links += 1
+            total_new_links += len(insert_log)
+            logger.debug(f"  {slug}: {len(insert_log)} new wikilink(s)")
+
     logger.info(
-        "Phase 1-2 complete. Phase 3-6 (link scoring/insertion/migration/reporting) not yet implemented; "
-        "no files were written."
+        f"Phase 3-4 complete (in-memory): {posts_with_new_links} post(s) would gain "
+        f"{total_new_links} new wikilink(s). Phase 5 (migration) and Phase 6 (reporting/writing "
+        "modified posts to disk) are not yet implemented; no files were written."
     )
 
 
