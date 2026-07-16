@@ -27,6 +27,7 @@ auto_social: true               # required — must be true
 social_stat: "74% fewer rules"  # optional — shown on stat-card template
 pain_point: "Too many rules?"   # optional — overrides brand voice default
 cta: "Try it free →"           # optional — overrides config default
+utm_campaign: exp-notiwise-01  # optional — ties this post's social CTA to a channel experiment (958.010 §7.2); defaults to "evergreen"
 ---
 ```
 
@@ -174,8 +175,28 @@ Variables available in templates:
 | `pain_point` | Post frontmatter → brand_voice.default_pain_point → config.defaults.pain_point |
 | `excerpt` | Post frontmatter `excerpt` → first non-empty body paragraph |
 | `cta` | Post frontmatter → config.defaults.cta |
-| `permalink` | Post frontmatter → `/{slug}/` |
+| `permalink` | Post frontmatter `permalink` (or `/{slug}/`), resolved to an **absolute URL** via `config.site_url` and tagged with UTM params — see below |
 | `hashtags` | Post frontmatter `tags` (lowercased) → config.defaults.hashtags |
+
+### UTM tagging (vault convention 958.010 §7.4)
+
+`compose_post._derive_permalink()` always resolves the post's Jekyll-relative
+`permalink` into a full absolute URL (`config.site_url` + path) before it is
+posted anywhere — a bare `/en/my-post/` is not a clickable link on LinkedIn or
+Facebook. `compose_post._add_utm_params()` then appends, per platform:
+
+| Param | LinkedIn | Facebook |
+|-------|----------|----------|
+| `utm_source` | `linkedin` | `facebook` |
+| `utm_medium` | `organic` | `organic` |
+| `utm_campaign` | post frontmatter `utm_campaign` → config `defaults.utm_campaign` → `evergreen` |
+
+Set `utm_campaign: exp-<product>-<nn>` in a post's frontmatter to attribute
+its social traffic to a specific channel experiment (958.010 §7.2 / ALGO
+953.066); everything else defaults to `evergreen`. Any pre-existing `utm_*`
+params on the URL are overridden (never duplicated); other query params are
+preserved. This is a mechanical, per-post override — it does not require
+editing this pipeline again.
 
 ## Social Card Image Styles
 

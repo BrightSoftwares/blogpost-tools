@@ -1,0 +1,80 @@
+# ============================================================
+# Internal Linking v2 — Configuration
+# ============================================================
+# Copy to internal-linking-config.yml at the site root (or pass an
+# explicit path via --config) and adjust values as needed.
+#
+# Current implementation status: only Phase 0 (this file) + Phase 1
+# (post index) + Phase 2 (keyword extraction) are implemented in
+# internal_linking_v2.py. Fields used exclusively by Phase 3-6 (link
+# scoring, insertion, migration, reporting) are documented below and
+# already validated by config.py, but have no effect yet.
+
+# --- Paths (required) ---
+posts_dir: _posts/en/                    # relative to site root
+seo_dir: _seo/internal-linking/en/       # output directory for reports (Phase 6, not yet implemented)
+                                          # possible values: any writable directory
+
+# --- Language (required) ---
+lang: en                                  # possible values: en, fr, es, de, it, pt
+                                          # determines spaCy model: en_core_web_sm, fr_core_news_sm, etc.
+
+# --- Execution mode (Phase 3-6, not yet implemented) ---
+mode: full                                # possible values:
+                                          #   full         = Phase 1-6 (default)
+                                          #   migrate-only = Phase 1, 5, 6 (only convert existing links)
+                                          #   audit        = Phase 1-3 + report, no file writes
+
+dry_run: false                            # possible values: true, false (Phase 6, not yet implemented)
+
+report_only: false                        # possible values: true, false (Phase 6, not yet implemented)
+
+skip_migration: false                     # possible values: true, false (Phase 5, not yet implemented)
+
+# --- Link insertion constraints (Phase 3-4, not yet implemented) ---
+max_links_per_post: 8                     # possible values: integer 1-50
+
+min_post_length_words: 300                # possible values: integer 0-10000
+
+link_density_max: 0.05                    # possible values: float 0.001-0.5
+
+min_paragraphs_between_links: 3           # possible values: integer 1-20
+
+max_links_per_section: 1                  # possible values: integer 1-10
+
+# --- Distribution strategy (Phase 3, not yet implemented) ---
+distribution_strategy: spread             # possible values: spread, end-heavy, uniform
+
+# --- Anchor text strategy (Phase 3-4, not yet implemented) ---
+anchor_text_strategy: title-priority      # possible values: title-priority, context, filename
+
+# --- Target filtering (Phase 1, implemented) ---
+future_cutoff_date: auto                  # possible values:
+                                          #   auto       = today UTC (datetime.utcnow().date())
+                                          #   YYYY-MM-DD = explicit date string
+
+include_unpublished: false                # possible values: true, false
+                                          # NOTE: not yet wired into indexer.build_post_index() —
+                                          # see docstring in src/indexer.py. Unpublished posts are
+                                          # always excluded as targets regardless of this flag today.
+
+# --- Source post opt-outs (Phase 3, not yet implemented) ---
+excluded_source_slugs: []                 # possible values: list of slug strings
+
+# --- Per-post opt-out marker (Phase 3, not yet implemented) ---
+# In a post's frontmatter, add `internal_linking: false` to skip that post as source.
+
+# --- Keyword extraction (Phase 2; see NOTE below) ---
+keyword_min_length: 3                     # possible values: integer 1-20
+keyword_min_ngram: 2                      # possible values: integer 1-5
+keyword_max_ngram: 5                      # possible values: integer 2-10
+                                          # NOTE: keywords.extract_keywords() currently hardcodes its
+                                          # per-tier n-gram windows (title: 2-5, filename: 2-4) per the
+                                          # spec's literal pseudocode rather than reading these fields.
+
+# --- Logging ---
+log_level: INFO                           # possible values: DEBUG, INFO, WARNING, ERROR
+log_file: null                            # possible values: null OR path to log file
+
+# --- Backward compatibility (Phase 6, not yet implemented) ---
+write_aliases_csv: true                   # possible values: true, false

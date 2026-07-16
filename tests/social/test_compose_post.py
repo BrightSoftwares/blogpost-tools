@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "social"))
 
-from compose_post import compose_post
+from compose_post import _add_utm_params, _derive_permalink, compose_post
 
 _BASE_CONFIG = {
     "site_url": "https://bright-softwares.com",
@@ -98,3 +98,69 @@ def test_t7_no_excerpt_uses_body() -> None:
 
     li = result["linkedin"]["text"]
     assert "This is the first real paragraph." in li
+
+
+# T8 — UTM convention (958.010 §7.4): every published CTA link carries
+# utm_source/utm_medium/utm_campaign automatically, per platform.
+def test_t8_linkedin_and_facebook_links_carry_utm_params() -> None:
+    post = _make_post({
+        "title": "UTM Post",
+        "excerpt": "Excerpt.",
+        "permalink": "/en/utm-post/",
+        "tags": ["automation"],
+    })
+    result = compose_post(post, _BASE_CONFIG, {})
+
+    li = result["linkedin"]["text"]
+    fb = result["facebook"]["text"]
+
+    assert "https://bright-softwares.com/en/utm-post/?" in li
+    assert "utm_source=linkedin" in li
+    assert "utm_medium=organic" in li
+    assert "utm_campaign=evergreen" in li
+
+    assert "https://bright-softwares.com/en/utm-post/?" in fb
+    assert "utm_source=facebook" in fb
+    assert "utm_medium=organic" in fb
+    assert "utm_campaign=evergreen" in fb
+
+
+# T9 — frontmatter utm_campaign overrides the 'evergreen' default (channel
+# experiment traffic per 958.010 §7.2 / ALGO 953.066).
+def test_t9_frontmatter_utm_campaign_override() -> None:
+    post = _make_post({
+        "title": "Experiment Post",
+        "excerpt": "Excerpt.",
+        "permalink": "/en/experiment-post/",
+        "tags": ["automation"],
+        "utm_campaign": "exp-notiwise-01",
+    })
+    result = compose_post(post, _BASE_CONFIG, {})
+
+    assert "utm_campaign=exp-notiwise-01" in result["linkedin"]["text"]
+    assert "utm_campaign=exp-notiwise-01" in result["facebook"]["text"]
+
+
+# T10 — _derive_permalink always returns an absolute URL when site_url is set,
+# even though Jekyll frontmatter permalinks are site-relative.
+def test_t10_derive_permalink_is_absolute() -> None:
+    post = _make_post({"title": "X", "permalink": "/en/some-post/"})
+    assert _derive_permalink(post, _BASE_CONFIG) == "https://bright-softwares.com/en/some-post/"
+
+    post_no_permalink = _make_post({"title": "X"})
+    post_no_permalink["slug"] = "some-slug"
+    assert _derive_permalink(post_no_permalink, _BASE_CONFIG) == "https://bright-softwares.com/some-slug/"
+
+
+# T11 — _add_utm_params overrides any pre-existing utm_* params and preserves
+# other query params; no-ops on non-absolute URLs instead of corrupting them.
+def test_t11_add_utm_params_overrides_existing_and_preserves_other_query() -> None:
+    url = "https://bright-softwares.com/en/post/?ref=abc&utm_source=old"
+    result = _add_utm_params(url, utm_source="linkedin", utm_medium="organic", utm_campaign="evergreen")
+
+    assert "ref=abc" in result
+    assert "utm_source=linkedin" in result
+    assert "utm_source=old" not in result
+
+    relative = "/en/post/"
+    assert _add_utm_params(relative, utm_source="linkedin", utm_medium="organic", utm_campaign="evergreen") == relative
