@@ -216,7 +216,11 @@ def build_post_index(posts_dir: str, lang: str, cutoff_date: date) -> Dict[str, 
     all_posts = sorted(posts_path.glob("*.md")) + sorted(posts_path.glob("*.markdown"))
 
     for filepath in all_posts:
-        raw = filepath.read_text(encoding="utf-8")
+        try:
+            raw = filepath.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            logger.warning(f"Skipping unreadable file (bad encoding): {filepath} — {e}")
+            continue
 
         try:
             parsed = frontmatter.loads(raw)
@@ -236,7 +240,7 @@ def build_post_index(posts_dir: str, lang: str, cutoff_date: date) -> Dict[str, 
         no_date = post_date is None
         is_future = (not no_date) and post_date > cutoff_date
         is_unpublished = fm.get("published", True) is False
-        is_redirect = "redirect_to" in fm or "redirect_from_only" in fm
+        is_redirect = bool(fm.get("redirect_to")) or bool(fm.get("redirect_from_only"))
         post_lang = fm.get("lang", lang)
         lang_mismatch = lang is not None and post_lang != lang
 
