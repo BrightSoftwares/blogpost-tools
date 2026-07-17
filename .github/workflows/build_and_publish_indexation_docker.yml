@@ -1,29 +1,19 @@
 name: Build and publish the Indexation Issues analyzer image
 
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Manual + weekly only (was firing-and-failing on every push via a stuck
+# self-hosted runner). The self-hosted validation job (and its `needs:` link)
+# has been dropped along with the push trigger.
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'indexation-issues/**'
-  
-  # Build weekly to keep image updated
   schedule:
-    - cron: '0 4 * * 1'
+    - cron: '30 5 * * 1'   # Mondays 05:30 UTC — periodic image refresh
 
 jobs:
-  build-and-publish-indexation-analyzer:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run basic validation
-        run: echo "Building Indexation Issues analyzer Docker image"
-        
   docker:
-    needs: build-and-publish-indexation-analyzer
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
-      image_name: indexationanalyzer  
+      image_name: indexationanalyzer
       tag: latest
       subfolder_name: indexation-issues
       dockerfile_name: Dockerfile.indexationanalyzer

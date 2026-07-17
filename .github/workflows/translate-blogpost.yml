@@ -1,19 +1,14 @@
 name: Build and publish the translate-blogpost image
 
-
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Manual + weekly only (was firing-and-failing on every push via a stuck
+# self-hosted runner).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "translate-blogpost/**"
+  schedule:
+    - cron: '30 4 * * 1'   # Mondays 04:30 UTC — periodic image refresh
 
-      
 jobs:
-  build-and-publish-keyword-suggestion:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    steps:
-      - uses: actions/checkout@v3
-
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:

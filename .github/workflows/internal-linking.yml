@@ -1,22 +1,15 @@
 name: Build and publish the internal linking image
 
-
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Was firing-and-failing on every push to internal-linking/** via a stuck
+# self-hosted runner. Now: manual + weekly only. Unit-test gating lives in
+# internal-linking-tests.yml (GitHub-hosted, required).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "internal-linking/**"
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC — periodic image refresh
 
-      
 jobs:
-  build-and-publish:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Run a one line script
-        run: echo Hello from Github actions!
-
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:

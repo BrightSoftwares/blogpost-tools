@@ -1,22 +1,14 @@
 name: Build and publish the keyword suggestions image
 
-
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Manual + weekly only (was firing-and-failing on every push via a stuck
+# self-hosted runner).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "keyword-suggestion/**"
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC — periodic image refresh
 
-      
 jobs:
-  build-and-publish-keyword-suggestion:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Run a one line script
-        run: echo Hello from Github actions!
-
   docker:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:

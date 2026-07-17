@@ -1,13 +1,13 @@
 name: Build and publish the rss to blogpost image
 
-
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Manual + weekly only (was firing-and-failing on every push via a stuck
+# self-hosted runner).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "news-to-blogpost/**"
+  schedule:
+    - cron: '45 4 * * 1'   # Mondays 04:45 UTC — periodic image refresh
 
-      
 jobs:
   build-and-publish-keyword-suggestion:
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
