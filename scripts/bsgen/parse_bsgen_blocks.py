@@ -27,6 +27,15 @@ except ImportError:
     import yaml
 
 
+# Brevity guideline for callout `content`. Callouts render as a flowing HTML
+# <p class="bs-callout__content"> that wraps naturally (see process_callouts.py) —
+# unlike pullquotes / social cards, which render into fixed-dimension images where
+# over-length text genuinely overflows the canvas. Over-length callout content is
+# therefore a *soft* nudge toward brevity, not a rendering failure: the block is
+# still rendered and a warning is logged. (Fix: over-length callouts used to raise a
+# fatal validation error that halted the whole bsgen pipeline with exit code 2.)
+CALLOUT_CONTENT_SOFT_LIMIT = 120
+
 VALID_BLOCK_TYPES = {"asset", "callout", "social", "related"}
 VALID_BRANDS = {
     "luminous", "bright-softwares", "personal",
@@ -119,8 +128,15 @@ def validate_callout(data: dict, index: int) -> list[str]:
     if ctype in ("TIP", "WARNING", "SHORTCUT", "STAT"):
         if "content" not in data:
             errors.append(f"callout #{index} ({ctype}): missing 'content'")
-        elif len(str(data["content"])) > 120:
-            errors.append(f"callout #{index} ({ctype}): 'content' exceeds 120 chars")
+        elif len(str(data["content"])) > CALLOUT_CONTENT_SOFT_LIMIT:
+            # Soft guideline only — do NOT append to `errors` (that would skip the
+            # block and fail the pipeline). The callout still renders; HTML wraps it.
+            print(
+                f"WARNING: callout #{index} ({ctype}): 'content' is "
+                f"{len(str(data['content']))} chars (soft guideline: "
+                f"{CALLOUT_CONTENT_SOFT_LIMIT}); rendering anyway",
+                file=sys.stderr,
+            )
     if ctype == "STAT":
         for f in ("stat_value", "stat_label"):
             if f not in data:
