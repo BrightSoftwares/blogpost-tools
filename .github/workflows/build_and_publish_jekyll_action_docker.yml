@@ -1,33 +1,17 @@
 name: Build and publish the Jekyll Action image
 
+# Heavy Docker image build — NON-BLOCKING, decoupled from merge gating.
+# Manual + weekly only (was firing-and-failing on every push via a stuck
+# self-hosted runner). The self-hosted file-existence-check job (and its
+# `needs:` link) has been dropped along with the push trigger — the docker
+# build step itself already fails if these files are missing.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'jekyll-action/**'
-
-  # Build weekly to keep image updated
   schedule:
-    - cron: '0 4 * * 1'
+    - cron: '45 5 * * 1'   # Mondays 05:45 UTC — periodic image refresh
 
 jobs:
-  build-and-publish-jekyll-action:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run basic validation
-        run: |
-          echo "Building Jekyll Action Docker image"
-          echo "Checking required files exist..."
-          test -f jekyll-action/Dockerfile && echo "✓ Dockerfile exists"
-          test -f jekyll-action/entrypoint.sh && echo "✓ entrypoint.sh exists"
-          test -f jekyll-action/action.yml && echo "✓ action.yml exists"
-
   docker:
-    needs: build-and-publish-jekyll-action
     uses: BrightSoftwares/blogpost-tools/.github/workflows/build_and_publish_docker.yml@main
     with:
       image_name: jekyll-action

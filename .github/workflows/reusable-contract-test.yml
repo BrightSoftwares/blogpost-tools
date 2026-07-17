@@ -1,0 +1,35 @@
+name: reusable-contract-test
+
+# Catches "this change breaks a downstream caller" before it ships:
+#  (1) actionlint statically validates every reusable's workflow_call interface;
+#  (2) a live workflow_call smoke-invokes a GitHub-hosted reusable with dummy inputs.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-interfaces:
+    name: lint-interfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint (validates all workflow_call signatures)
+        uses: raven-actions/actionlint@v2
+        with:
+          files: ".github/workflows/*.yml"
+
+  smoke-call-reusable:
+    name: smoke-call-reusable
+    uses: ./.github/workflows/reusable-bsgen-process-callouts.yml
+    with:
+      post_file: ".github/contract-fixtures/sample-post.md"
+      working_directory: "."
