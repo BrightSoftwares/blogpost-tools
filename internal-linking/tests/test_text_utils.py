@@ -62,6 +62,16 @@ class TestForbiddenRegions(unittest.TestCase):
         end = body.index(")") + 1
         self.assertTrue(is_inside_any_region(start, end, regions))
 
+    def test_bare_url_in_prose_is_forbidden(self):
+        # Real production bug: a keyword match on "localhost" landed inside
+        # a bare (non-markdown-wrapped) URL and got wikilink-wrapped mid-URL,
+        # corrupting it to http://[[...|localhost]]:3000/.
+        body = "Run the app then visit http://localhost:3000/ in your browser."
+        regions = compute_forbidden_regions(body)
+        start = body.index("localhost")
+        end = start + len("localhost")
+        self.assertTrue(is_inside_any_region(start, end, regions))
+
     def test_html_tag_is_forbidden(self):
         body = "Some <span class='x'>text</span> here."
         regions = compute_forbidden_regions(body)

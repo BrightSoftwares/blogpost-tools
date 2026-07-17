@@ -42,6 +42,11 @@ _WIKILINK_RE = re.compile(r"\[\[[^\]]+\]\]")
 MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")  # public: reused by migrator.py (Phase 5)
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _LIQUID_TAG_RE = re.compile(r"\{%[^%]*%\}|\{\{[^}]*\}\}")
+# Bare URLs typed directly in prose (no [text](url) wrapper). Without this,
+# a keyword match landing on e.g. "localhost" inside "http://localhost:3000/"
+# gets wikilink-wrapped mid-URL, corrupting it — a real bug found in
+# production content from a prior linking pass.
+_BARE_URL_RE = re.compile(r"https?://\S+")
 
 
 def merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
@@ -94,6 +99,8 @@ def compute_forbidden_regions(body: str) -> List[Tuple[int, int]]:
     for m in _HTML_TAG_RE.finditer(body):
         regions.append((m.start(), m.end()))
     for m in _LIQUID_TAG_RE.finditer(body):
+        regions.append((m.start(), m.end()))
+    for m in _BARE_URL_RE.finditer(body):
         regions.append((m.start(), m.end()))
 
     return merge_intervals(regions)
