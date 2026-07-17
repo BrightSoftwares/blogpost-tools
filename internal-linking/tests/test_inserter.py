@@ -4,7 +4,15 @@ Includes the spec's mandatory Test 3 (wikilink format output)
 (951.123.AINOTE.solo.out.ainote-internal-linking-v2-spec.md, Section 5),
 adapted only to construct ``PostMetadata``/``LinkOpportunity`` with this
 repo's actual dataclass fields (the spec's pseudocode omits a couple of
-required fields, e.g. ``frontmatter``) — assertions are unchanged.
+required fields, e.g. ``frontmatter``) — assertions are unchanged except
+where noted.
+
+``target_filename_stem`` is deliberately set to a DATE-PREFIXED value
+(e.g. ``2024-01-01-install-nginx``) distinct from ``target_slug``
+(``install-nginx``) in every test here — this is the exact shape real
+Jekyll posts have, and is what caught the original bug where the
+inserted bracket content used ``target_slug`` instead of the filename
+stem, which ``jekyll-wikirefs`` (the actual renderer) cannot resolve.
 """
 
 import sys
@@ -37,7 +45,7 @@ def _make_post(slug: str, body: str) -> PostMetadata:
 
 
 class TestWikilinkFormatOutput(unittest.TestCase):
-    """Spec Test 3 (Section 5), verbatim assertions."""
+    """Spec Test 3 (Section 5), adapted for the filename-stem bracket format."""
 
     def test_wikilink_format_with_anchor(self):
         body = "This post mentions how to install nginx in detail."
@@ -49,6 +57,7 @@ class TestWikilinkFormatOutput(unittest.TestCase):
         opp = LinkOpportunity(
             source_slug="src-post",
             target_slug="install-nginx",
+            target_filename_stem="2024-01-01-install-nginx",
             keyword="install nginx",
             anchor_text=anchor,
             match_start=start,
@@ -61,12 +70,13 @@ class TestWikilinkFormatOutput(unittest.TestCase):
         )
 
         modified_body, log = insert_wikilinks(post, [opp])
-        self.assertIn("[[install-nginx]]", modified_body)
-        self.assertNotIn("[[install-nginx|install nginx]]", modified_body)
+        self.assertIn("[[2024-01-01-install-nginx]]", modified_body)
+        self.assertNotIn("[[install-nginx]]", modified_body)
+        self.assertNotIn("[[2024-01-01-install-nginx|install nginx]]", modified_body)
         self.assertEqual(log[0]["target"], "install-nginx")
         self.assertEqual(log[0]["link_type"], "new")
 
-        # Non-matching anchor -> long form [[slug|anchor]].
+        # Non-matching anchor -> long form [[filename-stem|anchor]].
         body2 = "This post: how to install nginx in detail."
         anchor2 = "how to install nginx"
         start2 = body2.index(anchor2)
@@ -74,6 +84,7 @@ class TestWikilinkFormatOutput(unittest.TestCase):
         opp2 = LinkOpportunity(
             source_slug="src-post",
             target_slug="install-nginx",
+            target_filename_stem="2024-01-01-install-nginx",
             keyword="install nginx",
             anchor_text=anchor2,
             match_start=start2,
@@ -85,7 +96,8 @@ class TestWikilinkFormatOutput(unittest.TestCase):
             source_tier="title",
         )
         modified_body2, _log2 = insert_wikilinks(post2, [opp2])
-        self.assertIn("[[install-nginx|how to install nginx]]", modified_body2)
+        self.assertIn("[[2024-01-01-install-nginx|how to install nginx]]", modified_body2)
+        self.assertNotIn("[[install-nginx|", modified_body2)
 
 
 class TestInsertionMechanics(unittest.TestCase):
@@ -93,11 +105,12 @@ class TestInsertionMechanics(unittest.TestCase):
         body = "First mention of alpha here, then beta later, then gamma at the end."
         post = _make_post("multi", body)
 
-        def _opp(target, text):
+        def _opp(target_slug, filename_stem, text):
             start = body.index(text)
             return LinkOpportunity(
                 source_slug="multi",
-                target_slug=target,
+                target_slug=target_slug,
+                target_filename_stem=filename_stem,
                 keyword=text,
                 anchor_text=text,
                 match_start=start,
@@ -109,13 +122,17 @@ class TestInsertionMechanics(unittest.TestCase):
                 source_tier="title",
             )
 
-        opps = [_opp("alpha-post", "alpha"), _opp("beta-post", "beta"), _opp("gamma-post", "gamma")]
+        opps = [
+            _opp("alpha-post", "2024-01-01-alpha-post", "alpha"),
+            _opp("beta-post", "2024-01-02-beta-post", "beta"),
+            _opp("gamma-post", "2024-01-03-gamma-post", "gamma"),
+        ]
 
         modified_body, log = insert_wikilinks(post, opps)
 
-        self.assertIn("[[alpha-post|alpha]]", modified_body)
-        self.assertIn("[[beta-post|beta]]", modified_body)
-        self.assertIn("[[gamma-post|gamma]]", modified_body)
+        self.assertIn("[[2024-01-01-alpha-post|alpha]]", modified_body)
+        self.assertIn("[[2024-01-02-beta-post|beta]]", modified_body)
+        self.assertIn("[[2024-01-03-gamma-post|gamma]]", modified_body)
         self.assertEqual(len(log), 3)
         self.assertEqual({entry["target"] for entry in log}, {"alpha-post", "beta-post", "gamma-post"})
 
@@ -133,6 +150,7 @@ class TestInsertionMechanics(unittest.TestCase):
         opp = LinkOpportunity(
             source_slug="src",
             target_slug="install-nginx",
+            target_filename_stem="2024-01-01-install-nginx",
             keyword="nginx",
             anchor_text="nginx",
             match_start=start,
@@ -146,7 +164,7 @@ class TestInsertionMechanics(unittest.TestCase):
         _modified, log = insert_wikilinks(post, [opp])
         entry = log[0]
         self.assertEqual(entry["source"], "src")
-        self.assertEqual(entry["target"], "install-nginx")
+        self.assertEqual(entry["target"], "install-nginx")  # log stays slug-keyed
         self.assertEqual(entry["anchor"], "nginx")
         self.assertEqual(entry["position"], start)
         self.assertEqual(entry["score"], 0.75)

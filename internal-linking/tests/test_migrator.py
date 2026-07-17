@@ -11,10 +11,16 @@ from migrator import migrate_existing_links, resolve_url_to_slug  # noqa: E402
 from models import ExclusionReason, PostMetadata  # noqa: E402
 
 
-def _make_post(slug: str, body: str, url_path: str | None = None, eligible: bool = True) -> PostMetadata:
+def _make_post(
+    slug: str,
+    body: str,
+    url_path: str | None = None,
+    eligible: bool = True,
+    filepath: Path | None = None,
+) -> PostMetadata:
     return PostMetadata(
         slug=slug,
-        filepath=Path(f"/tmp/{slug}.md"),
+        filepath=filepath or Path(f"/tmp/{slug}.md"),
         title="Post",
         date=date(2024, 1, 1),
         tags=[],
@@ -106,6 +112,38 @@ class TestMigrateExistingLinks(unittest.TestCase):
 
         self.assertTrue(modified)
         self.assertIn("[[install-nginx|how to set up nginx]]", modified_body)
+
+    def test_migrated_bracket_uses_filename_stem_not_slug_short_form(self):
+        # Real Jekyll posts are filed as YYYY-MM-DD-slug.md — the slug the
+        # rest of this codebase indexes by is NOT what jekyll-wikirefs (the
+        # actual [[...]] renderer) resolves against; it needs the full
+        # filename stem. Verified live against a real jekyll-wikirefs build:
+        # [[install-nginx]] renders as invalid-wiki-link, only
+        # [[2024-01-01-install-nginx]] resolves. This test would have caught
+        # the original bug where the bracket content was built from the slug.
+        target = _make_post("install-nginx", "target body", filepath=Path("/tmp/2024-01-01-install-nginx.md"))
+        body = "See [install nginx](/install-nginx/) for details."
+        source = _make_post("src", body)
+        index = {"install-nginx": target}
+
+        modified_body, modified, log = migrate_existing_links(source, index)
+
+        self.assertTrue(modified)
+        self.assertIn("[[2024-01-01-install-nginx]]", modified_body)
+        self.assertNotIn("[[install-nginx]]", modified_body)
+        self.assertEqual(log[0]["target"], "install-nginx")  # log stays slug-keyed
+
+    def test_migrated_bracket_uses_filename_stem_not_slug_long_form(self):
+        target = _make_post("install-nginx", "target body", filepath=Path("/tmp/2024-01-01-install-nginx.md"))
+        body = "Read [how to set up nginx](/install-nginx/) here."
+        source = _make_post("src", body)
+        index = {"install-nginx": target}
+
+        modified_body, modified, _log = migrate_existing_links(source, index)
+
+        self.assertTrue(modified)
+        self.assertIn("[[2024-01-01-install-nginx|how to set up nginx]]", modified_body)
+        self.assertNotIn("[[install-nginx|", modified_body)
 
     def test_skips_external_links(self):
         body = "See [external](https://example.com/foo) for details."

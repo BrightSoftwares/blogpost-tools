@@ -348,6 +348,7 @@ def find_link_opportunities(
                     LinkOpportunity(
                         source_slug=source_post.slug,
                         target_slug=target_slug,
+                        target_filename_stem=target_post.filepath.stem,
                         keyword=keyword,
                         anchor_text=anchor_text,
                         match_start=a_start,

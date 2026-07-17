@@ -61,6 +61,7 @@ class TestDistributionConstraints(unittest.TestCase):
             LinkOpportunity(
                 source_slug="src",
                 target_slug=f"tgt-{i}",
+                target_filename_stem=f"2024-01-01-tgt-{i}",
                 keyword=f"kw{i}",
                 anchor_text=f"anchor {i}",
                 match_start=i * 100,
@@ -90,6 +91,7 @@ class TestDistributionConstraints(unittest.TestCase):
             LinkOpportunity(
                 source_slug="src",
                 target_slug=f"tgt-{i}",
+                target_filename_stem=f"2024-01-01-tgt-{i}",
                 keyword=f"kw{i}",
                 anchor_text=f"anchor {i}",
                 match_start=i * 100,
@@ -114,6 +116,7 @@ class TestDistributionConstraints(unittest.TestCase):
             LinkOpportunity(
                 source_slug="src",
                 target_slug=f"tgt-{i}",
+                target_filename_stem=f"2024-01-01-tgt-{i}",
                 keyword=f"kw{i}",
                 anchor_text=f"anchor {i}",
                 match_start=i * 1000,
@@ -137,6 +140,7 @@ class TestDistributionConstraints(unittest.TestCase):
             LinkOpportunity(
                 source_slug="src",
                 target_slug="same-target",
+                target_filename_stem="2024-01-01-same-target",
                 keyword=f"kw{i}",
                 anchor_text=f"anchor {i}",
                 match_start=i * 1000,
@@ -160,6 +164,7 @@ class TestDistributionConstraints(unittest.TestCase):
             LinkOpportunity(
                 source_slug="src",
                 target_slug=f"tgt-{i}",
+                target_filename_stem=f"2024-01-01-tgt-{i}",
                 keyword=f"kw{i}",
                 anchor_text=f"anchor {i}",
                 match_start=i * 1000,

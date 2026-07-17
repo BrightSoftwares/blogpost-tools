@@ -4,13 +4,19 @@ Spec: 951.123.AINOTE.solo.out.ainote-internal-linking-v2-spec.md
 (Section 1 "Phase 5 — Existing Link Migration").
 
 Rewrites existing markdown links (``[text](url)``) that point at another
-post in the index into wikilinks (``[[slug]]`` or ``[[slug|text]]``),
-matching the same anchor-equals-slug convention ``inserter.py`` (Phase 4)
-already uses for newly-inserted links. External links, image links
-(``![...](...)``), and links inside code blocks are left untouched;
-links that cannot be resolved to a post in the index, or that resolve to
-an ineligible target (future/unpublished/redirect), are also left as-is
-(logged, not migrated).
+post in the index into wikilinks (``[[filename-stem]]`` or
+``[[filename-stem|text]]``), matching the same anchor-equals-slug
+convention ``inserter.py`` (Phase 4) already uses for newly-inserted
+links. The bracket content is the target's FILENAME STEM (e.g.
+``2024-01-01-install-nginx``), not its date-stripped slug — see
+``models.py``'s ``LinkOpportunity`` docstring for why (verified live
+against ``jekyll-wikirefs``, the plugin these wikilinks are meant for:
+it resolves ``[[...]]`` against the file's basename, which still carries
+the date prefix). External links, image links (``![...](...)``), and
+links inside code blocks are left untouched; links that cannot be
+resolved to a post in the index, or that resolve to an ineligible target
+(future/unpublished/redirect), are also left as-is (logged, not
+migrated).
 
 Deliberately out of scope here, matching the same "compute in memory,
 change nothing on disk" pattern ``internal_linking_v2.py`` already uses
@@ -152,17 +158,29 @@ def migrate_existing_links(
             continue
 
         target = target_index.get(resolved_slug)
-        if target is not None and not target.eligible_as_target:
+        if target is None:
+            # Shouldn't happen — resolve_url_to_slug only returns keys it
+            # found in target_index — but fail safe rather than crash on
+            # target.filepath below if the index is ever inconsistent.
+            logger.debug(f"Resolved slug {resolved_slug} missing from index; skipping")
+            continue
+        if not target.eligible_as_target:
             logger.warning(
                 f"Post {source_post.slug} links to ineligible post "
                 f"{resolved_slug} ({target.exclusion_reason.value})"
             )
             continue
 
+        # Bracket content is the target's FILENAME STEM, not its
+        # date-stripped slug — see models.py's LinkOpportunity docstring
+        # for why (jekyll-wikirefs resolves [[...]] against the file
+        # basename, verified live). The anchor-matches-slug comparison
+        # stays slug-based (a human anchor reads like "install nginx",
+        # never like "2024-01-01-install-nginx").
         if normalize(anchor_text) == normalize(resolved_slug.replace("-", " ")):
-            replacement = f"[[{resolved_slug}]]"
+            replacement = f"[[{target.filepath.stem}]]"
         else:
-            replacement = f"[[{resolved_slug}|{anchor_text}]]"
+            replacement = f"[[{target.filepath.stem}|{anchor_text}]]"
 
         body = body[: match.start()] + replacement + body[match.end() :]
         modified = True

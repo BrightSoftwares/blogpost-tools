@@ -89,10 +89,24 @@ class LinkOpportunity:
     Populated by ``scoring.find_link_opportunities()`` (Phase 3) and
     filtered by ``scoring.apply_distribution_constraints()``; consumed by
     ``inserter.insert_wikilinks()`` (Phase 4).
+
+    ``target_filename_stem`` exists separately from ``target_slug``
+    because the ``jekyll-wikirefs`` plugin (the actual renderer for the
+    ``[[...]]`` syntax this pipeline emits) resolves a wikilink's bracket
+    content against a post's full FILENAME stem (e.g.
+    ``2024-01-01-install-nginx``, matching ``Jekyll::Document#basename``
+    minus extension) — NOT the date-stripped ``slug`` (``install-nginx``)
+    this codebase uses everywhere else for indexing/lookup. Verified live
+    against a real jekyll-wikirefs build: ``[[install-nginx]]`` renders
+    as ``invalid-wiki-link``; ``[[2024-01-01-install-nginx]]`` resolves
+    correctly. ``target_slug`` is kept for anchor-text-matches-slug
+    comparisons and reporting (aliases.csv/change_report.csv stay
+    slug-keyed); only the literal bracket content uses the filename stem.
     """
 
     source_slug: str
     target_slug: str
+    target_filename_stem: str  # target_post.filepath.stem — see inserter.py for why
     keyword: str
     anchor_text: str
     match_start: int
