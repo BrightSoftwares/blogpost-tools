@@ -2,43 +2,39 @@
 
 Spec: 951.123.AINOTE.solo.out.ainote-internal-linking-v2-spec.md.
 
-Current scope: Phase 0 (bootstrap/config) + Phase 1 (post index building)
-+ Phase 2 (keyword extraction) + Phase 3 (link opportunity scoring +
+Full scope: Phase 0 (bootstrap/config) + Phase 1 (post index building) +
+Phase 2 (keyword extraction) + Phase 3 (link opportunity scoring +
 distribution constraints) + Phase 4 (wikilink insertion) + Phase 5
-(existing link migration) — all in-memory only. Phase 6 (output/reporting
-— writing modified posts and CSV reports to disk) is NOT implemented here
-— a later task. This entry point therefore builds the index, extracts
-keywords, migrates existing internal markdown links, computes and inserts
-new wikilinks *in memory* for every eligible-length source post, logs a
-summary of what *would* change, and exits without writing any files.
+(existing link migration) + Phase 6 (output/reporting — writing modified
+posts back to disk, aliases.csv, change_report.csv).
 
 Per the spec, Phase 5 (migration) runs before Phase 3 (new-link scoring)
 for each source post, so newly-migrated wikilinks are already present in
 the body Phase 3 scans — a link the migration just converted must not
 also be treated as a fresh insertion opportunity.
 
-CLI flags below cover Phase 0-5 (config bootstrap, where to scan, which
+CLI flags cover Phase 0-6: config bootstrap, where to scan, which
 language, the target-eligibility cutoff date, logging, the Phase 3/4
-constraint/strategy knobs, and ``--migrate/--no-migrate`` for Phase 5).
-Flags tied exclusively to Phase 6 (e.g. --dry-run, --report-only) are
-intentionally left out of this CLI for now; ``config.py``'s schema
-already defines them (with defaults) so a future task can wire them in
-without changing the config layer. ``--mode`` (full/migrate-only/audit)
-is likewise deferred — ``--migrate/--no-migrate`` covers this task's
-actual need (an on/off switch for Phase 5) without committing to the
-full mode semantics before Phase 6 exists to make "migrate-only"/"audit"
-meaningful.
+constraint/strategy knobs, ``--migrate/--no-migrate`` for Phase 5, and
+``--dry-run/--no-dry-run`` + ``--report-only/--no-report-only`` for
+Phase 6. ``--mode`` (full/migrate-only/audit) stays deferred — the two
+explicit boolean flags cover every combination this task needs
+(``--dry-run``: log what would change, write nothing; ``--report-only``:
+write ``audit_report.csv`` only, no post files touched; neither: full
+live write) without committing to the spec's 3-way ``mode`` enum before
+a real second consumer of it exists.
 
 Usage:
     python internal_linking_v2.py --posts-dir _posts/en/ --lang en \\
-        --seo-dir _seo/internal-linking/en/ --max-links-per-post 5
+        --seo-dir _seo/internal-linking/en/ --max-links-per-post 5 --dry-run
 """
 
 from __future__ import annotations
 
 import logging
 import sys
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 import click
 import spacy
@@ -48,6 +44,7 @@ from indexer import build_post_index, count_words
 from inserter import insert_wikilinks
 from keywords import extract_keywords, get_spacy_model_for_lang
 from migrator import migrate_existing_links
+from reporter import write_outputs
 from scoring import apply_distribution_constraints, find_link_opportunities
 
 logger = logging.getLogger(__name__)
@@ -99,6 +96,18 @@ logger = logging.getLogger(__name__)
     help="Migrate existing internal markdown links to wikilinks (Phase 5). Defaults to config's `skip_migration` setting (migration ON) when not passed.",
 )
 @click.option(
+    "--dry-run/--no-dry-run",
+    "dry_run",
+    default=None,
+    help="Phase 6: log what would change, write no files at all (not even reports).",
+)
+@click.option(
+    "--report-only/--no-report-only",
+    "report_only",
+    default=None,
+    help="Phase 6: write audit_report.csv only — no post files modified, no aliases.csv.",
+)
+@click.option(
     "--log-level",
     default=None,
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
@@ -119,13 +128,13 @@ def main(
     distribution_strategy: str,
     anchor_text_strategy: str,
     migrate: bool,
+    dry_run: bool,
+    report_only: bool,
     log_level: str,
     log_file: str,
 ) -> None:
-    """Build the post index, extract keywords, migrate existing links, and compute+insert new wikilinks in memory.
-
-    Phase 1-5 only: no files are written (Phase 6 reporting/output is not
-    implemented yet).
+    """Build the post index, extract keywords, migrate existing links, compute+insert
+    new wikilinks, and write the result per Phase 6's dry-run/report-only/live mode.
     """
     cli_overrides: Dict[str, Any] = {
         "posts_dir": posts_dir,
@@ -135,6 +144,8 @@ def main(
         "max_links_per_post": max_links_per_post,
         "min_post_length_words": min_post_length_words,
         "skip_migration": (not migrate) if migrate is not None else None,
+        "dry_run": dry_run,
+        "report_only": report_only,
         "link_density_max": link_density_max,
         "min_paragraphs_between_links": min_paragraphs_between_links,
         "max_links_per_section": max_links_per_section,
@@ -186,17 +197,22 @@ def main(
         if shown >= 5:
             break
 
-    # Phase 5 + Phase 3 + 4 (in-memory only — Phase 6 output/reporting is
-    # not implemented yet, so nothing is written to disk here). Phase 5
-    # runs first per the spec, so any link it migrates is already a
-    # wikilink by the time Phase 3 scans the body for new opportunities.
+    # Phase 5 then Phase 3+4 per source post — Phase 5 runs first per the
+    # spec, so any link it migrates is already a wikilink by the time
+    # Phase 3 scans the body for new opportunities. Every post whose body
+    # actually changed (by either phase) is collected into modified_posts
+    # for Phase 6 to write out; all_log_entries feeds change_report.csv.
     min_length = config["min_post_length_words"]
     posts_migrated = 0
     total_migrated_links = 0
     posts_with_new_links = 0
     total_new_links = 0
+    modified_posts: List[Tuple[Path, str]] = []
+    all_log_entries: List[Dict[str, Any]] = []
 
     for slug, source_post in index.items():
+        post_changed = False
+
         if not config["skip_migration"]:
             migrated_body, was_migrated, migration_log = migrate_existing_links(source_post, index)
             if was_migrated:
@@ -210,35 +226,43 @@ def main(
                 source_post.body_word_count = count_words(migrated_body)
                 posts_migrated += 1
                 total_migrated_links += len(migration_log)
-                logger.debug(f"  {slug}: {len(migration_log)} link(s) would migrate")
+                all_log_entries.extend(migration_log)
+                post_changed = True
+                logger.debug(f"  {slug}: {len(migration_log)} link(s) migrated")
 
         word_count = source_post.body_word_count
         if word_count < min_length:
             logger.debug(f"Skipping short source post {slug} ({word_count} words)")
+            if post_changed:
+                modified_posts.append((source_post.filepath, source_post.body))
             continue
 
         opportunities = find_link_opportunities(source_post, index, config)
         selected = apply_distribution_constraints(
             opportunities, config, source_word_count=word_count
         )
-        if not selected:
-            continue
+        if selected:
+            new_body, insert_log = insert_wikilinks(source_post, selected)
+            if new_body != source_post.body:
+                source_post.body = new_body
+                posts_with_new_links += 1
+                total_new_links += len(insert_log)
+                all_log_entries.extend(insert_log)
+                post_changed = True
+                logger.debug(f"  {slug}: {len(insert_log)} new wikilink(s)")
 
-        modified_body, insert_log = insert_wikilinks(source_post, selected)
-        if modified_body != source_post.body:
-            posts_with_new_links += 1
-            total_new_links += len(insert_log)
-            logger.debug(f"  {slug}: {len(insert_log)} new wikilink(s)")
+        if post_changed:
+            modified_posts.append((source_post.filepath, source_post.body))
 
     logger.info(
-        f"Phase 5 complete (in-memory): {posts_migrated} post(s) would have "
-        f"{total_migrated_links} existing link(s) migrated to wikilinks."
+        f"Phase 5: {posts_migrated} post(s) had {total_migrated_links} existing "
+        "link(s) migrated to wikilinks."
     )
     logger.info(
-        f"Phase 3-4 complete (in-memory): {posts_with_new_links} post(s) would gain "
-        f"{total_new_links} new wikilink(s). Phase 6 (reporting/writing modified posts to "
-        "disk) is not yet implemented; no files were written."
+        f"Phase 3-4: {posts_with_new_links} post(s) gained {total_new_links} new wikilink(s)."
     )
+
+    write_outputs(modified_posts, all_log_entries, index, config)
 
 
 if __name__ == "__main__":
