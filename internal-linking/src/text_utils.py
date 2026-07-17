@@ -39,7 +39,7 @@ _FENCED_CODE_RE = re.compile(r"```[\s\S]*?```")
 _INDENTED_CODE_RE = re.compile(r"(?:^|\n)((?:    [^\n]*\n?)+)")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 _WIKILINK_RE = re.compile(r"\[\[[^\]]+\]\]")
-_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")  # public: reused by migrator.py (Phase 5)
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _LIQUID_TAG_RE = re.compile(r"\{%[^%]*%\}|\{\{[^}]*\}\}")
 
@@ -89,11 +89,44 @@ def compute_forbidden_regions(body: str) -> List[Tuple[int, int]]:
         regions.append((m.start(), m.end()))
     for m in _WIKILINK_RE.finditer(body):
         regions.append((m.start(), m.end()))
-    for m in _MARKDOWN_LINK_RE.finditer(body):
+    for m in MARKDOWN_LINK_RE.finditer(body):
         regions.append((m.start(), m.end()))
     for m in _HTML_TAG_RE.finditer(body):
         regions.append((m.start(), m.end()))
     for m in _LIQUID_TAG_RE.finditer(body):
+        regions.append((m.start(), m.end()))
+
+    return merge_intervals(regions)
+
+
+def compute_code_regions(body: str) -> List[Tuple[int, int]]:
+    """Return merged ``(start, end)`` offsets covering only code (Phase 5).
+
+    A narrower sibling of ``compute_forbidden_regions``: covers fenced,
+    indented, and inline code only — NOT existing wikilinks/markdown
+    links/HTML/Liquid tags. Phase 5 (``migrator.py``) needs this
+    distinction because it operates directly on existing markdown-link
+    matches (``[text](url)``); those matches are themselves markdown
+    links, so checking them against the full forbidden-region list from
+    ``compute_forbidden_regions`` (which includes every markdown link)
+    would make every migration candidate trivially overlap its own
+    region and never migrate. This function answers only "is this span
+    inside a code block?", which is the one code-block check Phase 5's
+    spec pseudocode (``is_inside_code_block``) actually needs.
+
+    Args:
+        body: Post body text (frontmatter already stripped).
+
+    Returns:
+        Sorted list of merged (start, end) offset tuples.
+    """
+    regions: List[Tuple[int, int]] = []
+
+    for m in _FENCED_CODE_RE.finditer(body):
+        regions.append((m.start(), m.end()))
+    for m in _INDENTED_CODE_RE.finditer(body):
+        regions.append((m.start(1), m.end(1)))
+    for m in _INLINE_CODE_RE.finditer(body):
         regions.append((m.start(), m.end()))
 
     return merge_intervals(regions)
