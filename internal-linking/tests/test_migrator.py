@@ -145,6 +145,18 @@ class TestMigrateExistingLinks(unittest.TestCase):
         self.assertIn("[[2024-01-01-install-nginx|how to set up nginx]]", modified_body)
         self.assertNotIn("[[install-nginx|", modified_body)
 
+    def test_skips_unparseable_url_without_crashing(self):
+        # Real production content had a prior (buggy) linking pass leave a
+        # malformed URL behind: a stray "[" right after "//" makes Python's
+        # urlparse think it's an IPv6 host literal and raise ValueError.
+        # Must be skipped, not crash the whole migration run.
+        body = "See [localhost](http://[[2022-01-23-how-do-i-connect-to-localhost|localhost]]:3000/) for details."
+        source = _make_post("src", body)
+        modified_body, modified, log = migrate_existing_links(source, {})
+        self.assertFalse(modified)
+        self.assertEqual(log, [])
+        self.assertEqual(modified_body, body)
+
     def test_skips_external_links(self):
         body = "See [external](https://example.com/foo) for details."
         source = _make_post("src", body)

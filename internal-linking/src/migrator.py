@@ -145,7 +145,19 @@ def migrate_existing_links(
         anchor_text = match.group(1)
         url = match.group(2)
 
-        if urlparse(url).scheme or url.startswith(_EXTERNAL_PREFIXES):
+        try:
+            is_external = bool(urlparse(url).scheme) or url.startswith(_EXTERNAL_PREFIXES)
+        except ValueError:
+            # A prior (buggy) linking pass can leave malformed URLs behind —
+            # e.g. "http://[[date-slug|localhost]]:3000/", where the stray
+            # "[" right after "//" makes urlparse think it's parsing an
+            # IPv6 host literal and raise. Not our bug to silently paper
+            # over by guessing intent; skip this link (leave it as-is) and
+            # keep processing the rest of the post, same per-item isolation
+            # principle as the indexer's per-file read_text() guard.
+            logger.warning(f"Unparseable URL {url!r} in {source_post.slug}; skipping")
+            continue
+        if is_external:
             continue
         if match.start() > 0 and body[match.start() - 1] == "!":
             continue
