@@ -38,6 +38,10 @@ jobs:
     steps:
       - name: Checkout caller repo
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.GH_TOKEN }}
+          persist-credentials: false
 
       - name: Checkout blogpost-tools scripts
         uses: actions/checkout@v4

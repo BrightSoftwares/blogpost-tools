@@ -36,7 +36,11 @@ utm_campaign: exp-notiwise-01  # optional — ties this post's social CTA to a c
 ```yaml
 brand:
   name: "Bright Softwares"
-  voice_url: ""                   # URL to brand voice document (optional)
+  slug: "bright-softwares"        # brand slug — reads _design-system/brand-voice/{slug}.json
+                                   # from the design-system git submodule (requires
+                                   # `submodules: true` on the caller-repo checkout step)
+  voice_url: ""                   # fallback only, used if slug/submodule file is absent —
+                                   # URL to a remote brand voice markdown document
   primary_color: "#0066CC"
   secondary_color: "#00CC66"
   accent_color: "#FF6600"
@@ -233,7 +237,7 @@ scripts/social/
 ├── requirements.txt
 ├── yaml_io.py             # YAML load/save helpers
 ├── select_next_post.py    # Pick next eligible post
-├── brand_voice_fetcher.py # Fetch brand voice from remote URL
+├── brand_voice_fetcher.py # Brand voice: design-system submodule JSON (preferred) or remote URL fallback
 ├── compose_post.py        # Render LinkedIn + Facebook copy
 ├── sam_client.py          # Smart Assets Manager API client
 ├── render_calendar.py     # Render social-calendar.md

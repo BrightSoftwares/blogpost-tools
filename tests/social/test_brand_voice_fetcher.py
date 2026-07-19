@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "social"))
 
-from brand_voice_fetcher import fetch_brand_voice
+from brand_voice_fetcher import fetch_brand_voice, load_brand_voice_from_submodule
 
 _SAMPLE_DOC = """
 ## brandname_tagline
@@ -68,3 +69,59 @@ def test_empty_voice_url_not_called() -> None:
 
     mock_get.assert_not_called()
     assert result == {}
+
+
+def test_load_from_submodule_maps_fields(tmp_path: Path) -> None:
+    voice_dir = tmp_path / "_design-system" / "brand-voice"
+    voice_dir.mkdir(parents=True)
+    (voice_dir / "bright-softwares.json").write_text(
+        json.dumps(
+            {
+                "tagline": "We turn your processes into machines",
+                "voice_adjectives": ["Intelligent", "Trustworthy"],
+                "pain_points": ["Too many manual processes eating time", "Other pain"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = load_brand_voice_from_submodule(tmp_path, "bright-softwares")
+
+    assert result["tagline"] == "We turn your processes into machines"
+    assert result["voice"] == "Intelligent, Trustworthy"
+    assert result["default_pain_point"] == "Too many manual processes eating time"
+
+
+def test_load_from_submodule_missing_file_returns_none(tmp_path: Path) -> None:
+    assert load_brand_voice_from_submodule(tmp_path, "no-such-brand") is None
+
+
+def test_load_from_submodule_empty_slug_returns_none(tmp_path: Path) -> None:
+    assert load_brand_voice_from_submodule(tmp_path, "") is None
+
+
+def test_load_from_submodule_malformed_json_returns_none(tmp_path: Path) -> None:
+    voice_dir = tmp_path / "_design-system" / "brand-voice"
+    voice_dir.mkdir(parents=True)
+    (voice_dir / "broken.json").write_text("{not valid json", encoding="utf-8")
+
+    assert load_brand_voice_from_submodule(tmp_path, "broken") is None
+
+
+def test_load_from_submodule_non_dict_json_returns_none(tmp_path: Path) -> None:
+    """Valid JSON but wrong shape (e.g. an array) must degrade gracefully, not crash."""
+    voice_dir = tmp_path / "_design-system" / "brand-voice"
+    voice_dir.mkdir(parents=True)
+    (voice_dir / "wrong-shape.json").write_text(json.dumps(["not", "a", "dict"]), encoding="utf-8")
+
+    assert load_brand_voice_from_submodule(tmp_path, "wrong-shape") is None
+
+
+def test_load_from_submodule_rejects_path_traversal(tmp_path: Path) -> None:
+    """A malicious/malformed slug (e.g. from a compromised caller-repo config)
+    must never escape _design-system/brand-voice/."""
+    secret = tmp_path / "outside-secret.json"
+    secret.write_text(json.dumps({"tagline": "leaked"}), encoding="utf-8")
+
+    for bad_slug in ("../outside-secret", "../../outside-secret", "/etc/passwd", "a/b", "a\\b"):
+        assert load_brand_voice_from_submodule(tmp_path, bad_slug) is None
