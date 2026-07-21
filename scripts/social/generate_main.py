@@ -12,7 +12,7 @@ from pathlib import Path
 from yaml_io import load_yaml, save_yaml
 from select_next_post import select_next_post
 from compose_post import compose_post
-from brand_voice_fetcher import fetch_brand_voice
+from brand_voice_fetcher import fetch_brand_voice, load_brand_voice_from_submodule
 from sam_client import generate_social_card
 from render_calendar import render_calendar
 
@@ -64,8 +64,11 @@ def main() -> None:
         _set_output("has_changes", "false")
         return
 
-    voice_url = config.get("brand", {}).get("voice_url", "")
-    brand_voice = fetch_brand_voice(voice_url) if voice_url else {}
+    brand_slug = config.get("brand", {}).get("slug", "")
+    brand_voice = load_brand_voice_from_submodule(repo_root, brand_slug)
+    if brand_voice is None:
+        voice_url = config.get("brand", {}).get("voice_url", "")
+        brand_voice = fetch_brand_voice(voice_url) if voice_url else {}
 
     composed = compose_post(post, config, brand_voice)
 
