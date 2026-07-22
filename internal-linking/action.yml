@@ -1,35 +1,52 @@
 name: "Generate the internal linking opportunities"
 
-description: "Generate the list of internal linking."
+description: "Runs Internal Linking v2 (src/internal_linking_v2.py): keyword extraction, link opportunity scoring, existing-link migration to wikilinks, and new wikilink insertion for markdown blog posts."
 
-inputs:    
-  src_folder_toscan:
-    description: The path to the folder where the markdown posts are stored.
-  dst_folder_tosaveresults:
-    description: The path to the folder where the analysis results will be saved
-  internal_link_text_file:
-    description: The full path to the csv file that contains examples of text that can be used in internal linking
-  anchor_text_to_post:
-    description: The full path to the csv file that contains an anchor text and a link to the post
-  aliases_yml_file:
-    description: The full path to the aliases.yml file. This is not used for the moment.
-  aliases_csv_file:
-    description: The full path to the aliases.csv file that contains the mapping between the anchor text and the dst file
-  aliases_new_csv_file:
-    description: The filename to store the generated aliases into
-    default: aliases_new.csv
-  aliasesfiltered_yml_file:
-    description: Optional. Not used at the moment.
+inputs:
+  config:
+    description: Path to the YAML config file, relative to the workspace root. CLI defaults to ./internal-linking-config.yml when not set.
+  posts_dir:
+    description: Directory containing post markdown files (e.g. _posts/en/). Required by the CLI unless already set in the config file.
+  seo_dir:
+    description: Output directory for reports. Both change_report.csv and aliases.csv (or audit_report.csv in report-only mode) are written here. Required by the CLI unless already set in the config file.
   lang:
-    description: the language to process
+    description: Post language. Possible values: en, fr, es, de, it, pt.
     default: en
+  future_cutoff_date:
+    description: 'Cutoff date for target eligibility. Possible values: auto (today UTC) or an explicit YYYY-MM-DD date.'
+  max_links_per_post:
+    description: Hard cap on links inserted per source post. Possible values integer 1-50.
+  min_post_length_words:
+    description: Skip source posts shorter than this word count.
+  link_density_max:
+    description: Max link density in links per word (e.g. 0.05 = 1 link per 20 words). Possible values float 0.001-0.5.
+  min_paragraphs_between_links:
+    description: Minimum paragraph spacing enforced between inserted links.
+  max_links_per_section:
+    description: Maximum links inserted per heading section.
+  distribution_strategy:
+    description: Link position strategy. Possible values: spread, end-heavy, uniform.
+  anchor_text_strategy:
+    description: Anchor text selection strategy. Possible values title-priority, context, filename.
+  migrate:
+    description: 'Migrate existing internal markdown links to wikilinks (Phase 5). Possible values: true, false.'
+    default: "true"
   dry_run:
-    description: If true, the auto linked files won't be saved.
-    default: false
+    description: 'If true, log what would change and write no files at all (not even reports). Possible values: true, false.'
+    default: "false"
+  report_only:
+    description: 'If true, write audit_report.csv only (no post files modified, no aliases.csv). Possible values: true, false.'
+    default: "false"
+  log_level:
+    description: Logging level. Possible values DEBUG, INFO, WARNING, ERROR, CRITICAL.
+  log_file:
+    description: Optional path to a rotating log file.
 
 outputs:
-  updated_posts:
-    description: A list of updated posts
+  change_report_csv:
+    description: "Path to the generated change report (source_file, target_slug, anchor_text, position, score, link_type, source_tier, timestamp), written to <seo_dir>/change_report.csv. Not written in dry-run or report-only mode (report-only writes <seo_dir>/audit_report.csv instead)."
+  aliases_csv:
+    description: "Path to the generated keyword -> target mapping (keyword, target_slug, target_url, specificity), written to <seo_dir>/aliases.csv. Not written in dry-run or report-only mode."
 
 runs:
   using: "docker"
