@@ -138,13 +138,13 @@ def score_by_keywords(current_fm: dict, candidate: dict) -> float:
         return Counter(w for w in words if w not in STOP_WORDS and len(w) > 2)
 
     current_text = " ".join([
-        str(current_fm.get("title", "")),
-        str(current_fm.get("description", "")),
+        str(current_fm.get("title", "") or ""),
+        str(current_fm.get("description", "") or ""),
         " ".join(current_fm.get("tags", []) or []),
     ])
     cand_text = " ".join([
-        candidate.get("title", ""),
-        candidate.get("description", ""),
+        str(candidate.get("title", "") or ""),
+        str(candidate.get("description", "") or ""),
         " ".join(candidate.get("tags", []) or []),
     ])
 
@@ -170,7 +170,7 @@ def discover_related(current_fm: dict, posts_index: list[dict], current_slug: st
         scored.append((total, post))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    return [p for _, p in scored[:count] if _[0] > 0]
+    return [p for total, p in scored[:count] if total > 0]
 
 
 def render_related_module(links: list[dict]) -> str:

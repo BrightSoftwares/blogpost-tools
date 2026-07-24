@@ -15,4 +15,36 @@ RUN python -m spacy download fr && \
 
 COPY . .
 
-CMD [ "python", "/src/main.py" ]
+# internal_linking_v2.py (see src/internal_linking_v2.py) replaces v1's
+# main.py. It is a click CLI that only accepts real flags -- passing an
+# empty string to a typed option (e.g. `--max-links-per-post ""`) crashes
+# click -- so every optional flag below is only emitted when the matching
+# GitHub Action input was actually set: POSIX `${VAR:+...}` expands to
+# nothing when VAR is unset or empty (which is exactly what an unset
+# Action input resolves to), letting the CLI fall back to
+# internal-linking-config.yml / its own built-in defaults. Boolean flag
+# pairs (--migrate/--no-migrate, --dry-run/--no-dry-run,
+# --report-only/--no-report-only) are resolved explicitly against
+# "true"/"false" for the same reason -- click's boolean pair takes no
+# value, so we can't blindly forward an INPUT_* string.
+CMD python /src/internal_linking_v2.py \
+    ${INPUT_CONFIG:+--config "$INPUT_CONFIG"} \
+    ${INPUT_POSTS_DIR:+--posts-dir "$INPUT_POSTS_DIR"} \
+    ${INPUT_SEO_DIR:+--seo-dir "$INPUT_SEO_DIR"} \
+    ${INPUT_LANG:+--lang "$INPUT_LANG"} \
+    ${INPUT_FUTURE_CUTOFF_DATE:+--future-cutoff-date "$INPUT_FUTURE_CUTOFF_DATE"} \
+    ${INPUT_MAX_LINKS_PER_POST:+--max-links-per-post "$INPUT_MAX_LINKS_PER_POST"} \
+    ${INPUT_MIN_POST_LENGTH_WORDS:+--min-post-length-words "$INPUT_MIN_POST_LENGTH_WORDS"} \
+    ${INPUT_LINK_DENSITY_MAX:+--link-density-max "$INPUT_LINK_DENSITY_MAX"} \
+    ${INPUT_MIN_PARAGRAPHS_BETWEEN_LINKS:+--min-paragraphs-between-links "$INPUT_MIN_PARAGRAPHS_BETWEEN_LINKS"} \
+    ${INPUT_MAX_LINKS_PER_SECTION:+--max-links-per-section "$INPUT_MAX_LINKS_PER_SECTION"} \
+    ${INPUT_DISTRIBUTION_STRATEGY:+--distribution-strategy "$INPUT_DISTRIBUTION_STRATEGY"} \
+    ${INPUT_ANCHOR_TEXT_STRATEGY:+--anchor-text-strategy "$INPUT_ANCHOR_TEXT_STRATEGY"} \
+    $([ "$INPUT_MIGRATE" = "true" ] && echo --migrate) \
+    $([ "$INPUT_MIGRATE" = "false" ] && echo --no-migrate) \
+    $([ "$INPUT_DRY_RUN" = "true" ] && echo --dry-run) \
+    $([ "$INPUT_DRY_RUN" = "false" ] && echo --no-dry-run) \
+    $([ "$INPUT_REPORT_ONLY" = "true" ] && echo --report-only) \
+    $([ "$INPUT_REPORT_ONLY" = "false" ] && echo --no-report-only) \
+    ${INPUT_LOG_LEVEL:+--log-level "$INPUT_LOG_LEVEL"} \
+    ${INPUT_LOG_FILE:+--log-file "$INPUT_LOG_FILE"}
