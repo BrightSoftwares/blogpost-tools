@@ -31,7 +31,8 @@ on:
 
 jobs:
   generate:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    # runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
