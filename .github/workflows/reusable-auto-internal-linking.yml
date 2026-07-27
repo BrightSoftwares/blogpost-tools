@@ -16,15 +16,12 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/internal-linking@main
         continue-on-error: true
         with:
-          src_folder_toscan: /github/workspace/_posts/en/
-          dst_folder_tosaveresults: /github/workspace/_seo/internal-linking/en/
-          internal_link_text_file: /github/workspace/_seo/internal-linking/internal_link_text.csv
-          anchor_text_to_post: /github/workspace/_seo/internal-linking/en/anchor_text_to_post.csv
-          aliases_yml_file: /github/workspace/_seo/internal-linking/en/aliases.yml
-          aliases_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
-          dry_run: false
-          aliases_new_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
+          posts_dir: /github/workspace/_posts/en/
+          seo_dir: /github/workspace/_seo/internal-linking/en/
           lang: en
+          migrate: true
+          dry_run: false
+          report_only: false
 
       - name: Markdown linting on EN posts
         uses: BrightSoftwares/blogpost-tools/markdown-linting@main
@@ -36,15 +33,12 @@ jobs:
         uses: BrightSoftwares/blogpost-tools/internal-linking@main
         continue-on-error: true
         with:
-          src_folder_toscan: /github/workspace/_posts/fr/
-          dst_folder_tosaveresults: /github/workspace/_seo/internal-linking/fr/
-          internal_link_text_file: /github/workspace/_seo/internal-linking/internal_link_text.csv
-          anchor_text_to_post: /github/workspace/_seo/internal-linking/fr/anchor_text_to_post.csv
-          aliases_yml_file: /github/workspace/_seo/internal-linking/fr/aliases.yml
-          aliases_csv_file: /github/workspace/_seo/internal-linking/fr/aliases.csv
-          dry_run: false
-          aliases_new_csv_file: /github/workspace/_seo/internal-linking/en/aliases.csv
+          posts_dir: /github/workspace/_posts/fr/
+          seo_dir: /github/workspace/_seo/internal-linking/fr/
           lang: fr
+          migrate: true
+          dry_run: false
+          report_only: false
 
       - name: Markdown linting on FR posts
         uses: BrightSoftwares/blogpost-tools/markdown-linting@main
