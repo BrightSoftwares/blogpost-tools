@@ -60,7 +60,8 @@ jobs:
           python ../blogpost-tools/scripts/bsgen/process_callouts.py "$POST" 2>&1 | tee /tmp/callout_log.txt
 
           EXIT_CODE=${PIPESTATUS[0]}
-          REPLACEMENTS=$(grep -c "^OK: replaced callout" /tmp/callout_log.txt || echo 0)
+          REPLACEMENTS=$(grep -c "^OK: replaced callout" /tmp/callout_log.txt || true)
+          REPLACEMENTS=${REPLACEMENTS:-0}
           echo "replacements_made=$REPLACEMENTS" >> $GITHUB_OUTPUT
 
           # Exit code 2 = validation errors but non-fatal (some blocks skipped)

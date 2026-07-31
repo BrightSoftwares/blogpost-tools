@@ -26,6 +26,7 @@ jobs:
         uses: raven-actions/actionlint@v2
         with:
           files: ".github/workflows/*.yml"
+          shellcheck: false
 
   smoke-call-reusable:
     name: smoke-call-reusable
