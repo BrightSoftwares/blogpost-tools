@@ -67,6 +67,49 @@ def date_from_filename(post_path: Path) -> str:
     return m.group(1) if m else datetime.now().strftime("%Y-%m-%d")
 
 
+def wrap_label_to_width(text: str, font_size: int, max_width: int, max_lines: int = 3) -> list[str]:
+    """Word-wrap text into lines that fit max_width at font_size, capped at max_lines.
+
+    SVG has no layout engine, so this uses a standard average-character-width
+    heuristic for a system-ui/sans-serif font (~0.55 * font_size per char,
+    the same ratio commonly used for canvas/SVG text-fitting since real glyph
+    metrics aren't available at generation time). The last line is
+    ellipsis-truncated if content still doesn't fit within max_lines — this
+    is a placeholder, not final art, so a hard cap is the right tradeoff over
+    unbounded overflow.
+    """
+    if not text:
+        return []
+    avg_char_width = font_size * 0.55
+    max_chars = max(1, int(max_width / avg_char_width))
+
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= max_chars or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+        if len(lines) == max_lines:
+            break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+
+    if len(lines) == max_lines:
+        last = lines[-1]
+        if len(last) > max_chars:
+            lines[-1] = last[: max(0, max_chars - 1)].rstrip() + "…"
+        # Also true if wrapping simply ran out of lines before consuming all words.
+        consumed = sum(len(l) + 1 for l in lines) - 1
+        if consumed < len(text) and not lines[-1].endswith("…"):
+            lines[-1] = lines[-1].rstrip() + "…"
+
+    return lines
+
+
 def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str) -> str:
     """Generate a branded SVG placeholder image for a bsgen:asset block."""
     brand = data.get("brand", "bright-softwares")
@@ -78,8 +121,14 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
     asset_type = data.get("type", "asset")
     label_lines = []
 
+    # Note: no fixed-character pre-truncation here (previously `[:80]`/`[:60]`)
+    # — that was the same bug as the headline overflow, just applied earlier:
+    # a character-count cutoff mid-word ("...for No" instead of "...for
+    # Notiwise") regardless of how it would actually render. wrap_label_to_width()
+    # below measures against the real card width and caps total lines, so the
+    # full string can be passed through safely.
     if asset_type == "pullquote":
-        quote = str(data.get("quote", ""))[:80]
+        quote = str(data.get("quote", ""))
         attribution = str(data.get("attribution", ""))
         label_lines = [f'"{quote}"', f"— {attribution}"]
     elif asset_type == "stat_card":
@@ -97,32 +146,47 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
     elif asset_type in ("social_card", "hero_image"):
         label_lines = [str(data.get("headline", ""))]
         if data.get("subheadline"):
-            label_lines.append(str(data["subheadline"])[:60])
+            label_lines.append(str(data["subheadline"]))
 
-    # Build SVG text elements
-    text_y_start = height // 2 - (len(label_lines) - 1) * 22
-    text_elements = ""
+    # Word-wrap each logical label into physical lines that fit the card,
+    # tagging each with its source label's font size/weight so a long
+    # headline doesn't render past the card edges (the original bug: a
+    # single un-wrapped <text> line truncated at 70 CHARACTERS regardless
+    # of how wide those characters actually rendered at font-size 32).
+    text_max_width = int(width * 0.86)  # leave ~7% margin each side
+    physical_lines = []  # list of (text, font_size, weight)
     for i, line in enumerate(label_lines):
-        y = text_y_start + i * 44
-        escaped = html_module.escape(line[:70])
         font_size = 32 if i == 0 else 20
+        weight = "700" if i == 0 else "400"
+        max_lines = 3 if i == 0 else 2  # keep secondary lines (subheadline/attribution) from dominating the card
+        for wrapped in wrap_label_to_width(line, font_size, text_max_width, max_lines=max_lines):
+            physical_lines.append((wrapped, font_size, weight))
+
+    # Build SVG text elements (tspans on one <text>, so dominant-baseline
+    # centering still reads as one visual block instead of N independent
+    # anchors that could drift).
+    line_height = 40
+    text_y_start = height // 2 - (len(physical_lines) - 1) * (line_height // 2)
+    text_elements = ""
+    for i, (line, font_size, weight) in enumerate(physical_lines):
+        y = text_y_start + i * line_height
+        escaped = html_module.escape(line)
         text_elements += (
             f'<text x="{width//2}" y="{y}" '
             f'font-family="system-ui, sans-serif" '
             f'font-size="{font_size}" '
-            f'font-weight="{"700" if i == 0 else "400"}" '
+            f'font-weight="{weight}" '
             f'fill="{text_color}" '
             f'text-anchor="middle" '
             f'dominant-baseline="middle">{escaped}</text>\n'
         )
 
-    # Type badge in corner
-    type_badge = (
-        f'<rect x="16" y="16" width="160" height="32" rx="8" fill="{accent}" opacity="0.9"/>'
-        f'<text x="96" y="32" font-family="system-ui" font-size="13" '
-        f'font-weight="600" fill="{bg}" text-anchor="middle" dominant-baseline="middle">'
-        f'bsgen:{asset_type}</text>'
-    )
+    # Asset type is recorded as an XML comment for debugging, not a visible
+    # on-image badge — the visible corner badge (rendering literal internal
+    # strings like "bsgen:social_card" on every placeholder) was flagged as
+    # unwanted noise by the human reviewer; the type is still inspectable in
+    # the SVG source when needed.
+    type_badge = f'<!-- bsgen:asset type={html_module.escape(asset_type)} -->'
 
     # Placeholder label
     placeholder_label = (
