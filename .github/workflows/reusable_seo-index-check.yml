@@ -64,13 +64,11 @@ jobs:
           path: .blogpost-tools
           token: ${{ secrets.GH_TOKEN || github.token }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
 
       - name: Install dependencies
-        run: pip install -r .blogpost-tools/seo-index-checker/requirements.txt
+        run: pip install -r .blogpost-tools/seo-index-checker/requirements.txt --break-system-packages 2>/dev/null || pip install -r .blogpost-tools/seo-index-checker/requirements.txt
 
       - name: Run SEO index checker
         run: |

@@ -51,12 +51,11 @@ jobs:
           path: _blogpost_tools
           token: ${{ secrets.GH_TOKEN || github.token }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
 
       - name: Install deps
-        run: pip install -r _blogpost_tools/scripts/social/requirements.txt
+        run: pip install -r _blogpost_tools/scripts/social/requirements.txt --break-system-packages 2>/dev/null || pip install -r _blogpost_tools/scripts/social/requirements.txt
 
       - name: Generate next post
         id: gen
