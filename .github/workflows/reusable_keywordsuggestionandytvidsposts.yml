@@ -8,27 +8,27 @@ on:
   workflow_call:
     inputs:
       generatenewkeywordsuggestions_keywordseed: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/keywords.csv
       generatenewkeywordsuggestions_keywordsuggestionsgenerationfolder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts
       generatenewkeywordsuggestions_draftspath: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       generatenewkeywordsuggestions_keywordsuggestionsblogpostfile: 
-        required: true
+        required: false
         type: string
         default: keyword_suggestions_merged_blogpost_candidates.csv
       generatenewkeywordsuggestions_keywordminvolumeeligible: 
-        required: true
+        required: false
         type: string
         default: 1
       generatenewkeywordsuggestions_keywordmaxvolumeeligible: 
-        required: true
+        required: false
         type: string
         default: 500000
       #generateblogpostcandidatesdata10_100_srcfolder: 
@@ -36,27 +36,27 @@ on:
       #  type: string
       #  default: /github/workspace/_drafts/
       generateblogpostcandidatesdata_srcfolder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfolder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       generateblogpostcandidatesdata10_100_keywordsuggestiongenerationfile: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/keyword_suggestions.csv
       generateblogpostcandidatesdata10_100_keywordsuggestionsblogpostfile: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/kw_blogpost_candidates_10_100.csv
       generateblogpostcandidatesdata10_100_keywordminvolumeeligible: 
-        required: true
+        required: false
         type: string
         default: 10
       generateblogpostcandidatesdata10_100_keywordmaxvolumeeligible:
-        required: true
+        required: false
         type: string
         default: 100
       #generateblogpostcandidatesdata100_500_srcfolder: 
@@ -64,99 +64,99 @@ on:
       #  type: string
       #  default: /github/workspace/_drafts/
       generateblogpostcandidatesdata100_500_keyword_suggestion_generation_folder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       generateblogpostcandidatesdata100_500_keyword_suggestion_generation_file: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/keyword_suggestions.csv
       generateblogpostcandidatesdata100_500_keyword_suggestions_blogpost_file: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/kw_blogpost_candidates_100_500.csv
       generateblogpostcandidatesdata100_500_keyword_min_volume_eligible: 
-        required: true
+        required: false
         type: string
         default: 100
       generateblogpostcandidatesdata100_500_keyword_max_volume_eligible: 
-        required: true
+        required: false
         type: string
         default: 500
       suggestionstoblogpost10_100_keyword_suggestions_generation_folder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts
       suggestionstoblogpost10_100_keyword_suggestion: 
-        required: true
+        required: false
         type: string
         default: kw_blogpost_candidates_10_100.csv
       suggestionstoblogpost10_100_drafts_path: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       suggestionstoblogpost10_100_keyword_seed: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/keywords.csv
       suggestionstoblogpost10_100_batch_size: 
-        required: true
+        required: false
         type: string
         default: 5
       suggestionstoblogpost10_100_language: 
-        required: true
+        required: false
         type: string
         default: fr
       suggestionstoblogpost100_500_keywordsuggestionsgenerationfolder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts
       suggestionstoblogpost100_500_keywordsuggestion: 
-        required: true
+        required: false
         type: string
         default: kw_blogpost_candidates_10_100.csv
       suggestionstoblogpost100_500_draftspath: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       suggestionstoblogpost100_500_keywordseed: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/keywords.csv
       suggestionstoblogpost100_500_batchsize: 
-        required: true
+        required: false
         type: string
         default: 5
       suggestionstoblogpost100_500_language: 
-        required: true
+        required: false
         type: string
         default: fr
       generatenewyoutubevids_srcfolder: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       generatenewyoutubevids_ytsearchresultsfile: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/youtube_search_results.csv
       generatenewyoutubevids_ytalreadyusedvids: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/youtube_videos_used.csv
       generatenewyoutubevids_language: 
-        required: true
+        required: false
         type: string
         default: fr
       generatenewyoutubevids_country: 
-        required: true
+        required: false
         type: string
         default: fr
       generatenewyoutubevids_youtubevideoduration: 
-        required: true
+        required: false
         type: string
         default: medium
       transcribeytvideos_draftspath: 
-        required: true
+        required: false
         type: string
         default: /github/workspace/_drafts/
       #generatedrawcontent_path:
