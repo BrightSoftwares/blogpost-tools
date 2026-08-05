@@ -13,14 +13,9 @@ on:
         type: string
 
       app_type:
-        description: 'Application type'
+        description: 'Application type: nodejs | php-laravel | static-site | python'
         required: true
-        type: choice
-        options:
-          - 'nodejs'
-          - 'php-laravel'
-          - 'static-site'
-          - 'python'
+        type: string
 
       domain_name:
         description: 'Domain name for the application'
@@ -152,12 +147,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup SSH Key
-        if: ${{ secrets.CPANEL_SSH_KEY != '' }}
+        env:
+          CPANEL_SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.CPANEL_SSH_KEY }}" > ~/.ssh/cpanel_key
-          chmod 600 ~/.ssh/cpanel_key
-          ssh-keyscan -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_host }} >> ~/.ssh/known_hosts
+          if [ -n "$CPANEL_SSH_KEY" ]; then
+            mkdir -p ~/.ssh
+            echo "$CPANEL_SSH_KEY" > ~/.ssh/cpanel_key
+            chmod 600 ~/.ssh/cpanel_key
+            ssh-keyscan -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_host }} >> ~/.ssh/known_hosts
+          fi
 
       - name: Check if Application Already Deployed (Idempotency Check)
         id: check_deployed
@@ -338,15 +336,22 @@ jobs:
           ENDSSH
 
       - name: Create Environment File
-        if: steps.check_deployed.outputs.already_deployed == 'false' && secrets.ENV_FILE_CONTENT != ''
+        if: steps.check_deployed.outputs.already_deployed == 'false'
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
+          if [ -z "$ENV_FILE_CONTENT" ]; then
+            echo "No ENV_FILE_CONTENT secret set, skipping .env creation"
+            exit 0
+          fi
+
           if [ -n "${{ secrets.CPANEL_SSH_KEY }}" ]; then
             SSH_CMD="ssh -i ~/.ssh/cpanel_key -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
           else
             SSH_CMD="sshpass -p '${{ secrets.CPANEL_PASSWORD }}' ssh -p ${{ inputs.cpanel_port }} ${{ inputs.cpanel_username }}@${{ inputs.cpanel_host }}"
           fi
 
-          echo "${{ secrets.ENV_FILE_CONTENT }}" | $SSH_CMD "cat > ${{ inputs.deployment_path }}/${{ inputs.app_name }}/.env"
+          echo "$ENV_FILE_CONTENT" | $SSH_CMD "cat > ${{ inputs.deployment_path }}/${{ inputs.app_name }}/.env"
 
       - name: Setup Node.js Application on cPanel
         if: inputs.app_type == 'nodejs' && steps.check_deployed.outputs.already_deployed == 'false'

@@ -37,13 +37,11 @@ jobs:
           path: blogpost-tools
           ref: main
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
 
       - name: Install dependencies
-        run: pip install pyyaml
+        run: pip install pyyaml --break-system-packages 2>/dev/null || pip install pyyaml
 
       - name: Process callout blocks
         id: run
@@ -60,7 +58,8 @@ jobs:
           python ../blogpost-tools/scripts/bsgen/process_callouts.py "$POST" 2>&1 | tee /tmp/callout_log.txt
 
           EXIT_CODE=${PIPESTATUS[0]}
-          REPLACEMENTS=$(grep -c "^OK: replaced callout" /tmp/callout_log.txt || echo 0)
+          REPLACEMENTS=$(grep -c "^OK: replaced callout" /tmp/callout_log.txt || true)
+          REPLACEMENTS=${REPLACEMENTS:-0}
           echo "replacements_made=$REPLACEMENTS" >> $GITHUB_OUTPUT
 
           # Exit code 2 = validation errors but non-fatal (some blocks skipped)

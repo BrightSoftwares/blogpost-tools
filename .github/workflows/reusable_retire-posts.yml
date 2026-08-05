@@ -52,13 +52,11 @@ jobs:
             retire-posts/src/retire_posts.py
           sparse-checkout-cone-mode: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
 
       - name: Install dependencies
-        run: pip install pyyaml
+        run: pip install pyyaml --break-system-packages 2>/dev/null || pip install pyyaml
 
       - name: Check queue file exists
         id: check_queue

@@ -47,12 +47,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
 
       - name: Install deps
-        run: pip install -r ${{ github.action_path }}/scripts/social/requirements.txt
+        run: pip install -r ${{ github.action_path }}/scripts/social/requirements.txt --break-system-packages 2>/dev/null || pip install -r ${{ github.action_path }}/scripts/social/requirements.txt
 
       - name: Publish approved drafts
         id: pub

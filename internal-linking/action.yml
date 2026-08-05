@@ -10,7 +10,7 @@ inputs:
   seo_dir:
     description: Output directory for reports. Both change_report.csv and aliases.csv (or audit_report.csv in report-only mode) are written here. Required by the CLI unless already set in the config file.
   lang:
-    description: Post language. Possible values: en, fr, es, de, it, pt.
+    description: 'Post language. Possible values: en, fr, es, de, it, pt.'
     default: en
   future_cutoff_date:
     description: 'Cutoff date for target eligibility. Possible values: auto (today UTC) or an explicit YYYY-MM-DD date.'
@@ -25,7 +25,7 @@ inputs:
   max_links_per_section:
     description: Maximum links inserted per heading section.
   distribution_strategy:
-    description: Link position strategy. Possible values: spread, end-heavy, uniform.
+    description: 'Link position strategy. Possible values: spread, end-heavy, uniform.'
   anchor_text_strategy:
     description: Anchor text selection strategy. Possible values title-priority, context, filename.
   migrate:
