@@ -1,0 +1,40 @@
+name: bsgen-tests
+
+# Fast, hermetic unit tests for scripts/bsgen/ (Python, stdlib-only code — pytest
+# is the only test dependency, no external services, no self-hosted runner).
+# Added 2026-08-05: tests/bsgen/test_process_assets.py (9 tests, wrap_label_to_width
+# + generate_placeholder_svg regressions) and tests/bsgen/test_process_callouts.py
+# (7 tests) existed but had no CI wired to run them — this closes that gap.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: bsgen-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run bsgen unit tests
+        run: pytest tests/bsgen -v --tb=short
