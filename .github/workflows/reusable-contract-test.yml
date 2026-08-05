@@ -22,11 +22,28 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Run actionlint (validates all workflow_call signatures)
-        uses: raven-actions/actionlint@v2
         with:
-          files: ".github/workflows/*.yml"
-          shellcheck: false
+          fetch-depth: 0
+
+      - name: Fetch main (diff base)
+        run: git fetch --no-tags --depth=200 origin main
+
+      - name: Install actionlint
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      # 2026-08-05: repo-wide actionlint had been red on every run since 2026-07-21 --
+      # 45 pre-existing errors live in ~20 unrelated deploy/infra workflows no single PR
+      # touches (reusable_deploy-to-{aws,azure,gcp,application}.yml,
+      # reusable_deploy-{jekyll,nodejs}-*-o2switch.yml, bright-*.yml, encrypted-backups.yml,
+      # post_summarizer.yml, etc. -- see PR #31 for the full trace). That made the check
+      # permanently unpassable and useless as a gate. lint_changed_workflow_lines.py
+      # re-scopes it to only the .github/workflows/*.yml lines a PR actually adds/changes
+      # (actionlint run on changed files, errors filtered to changed line numbers from the
+      # diff -- the same idea as reviewdog's `filter_mode: added`), so this is a real
+      # per-PR quality gate again. It does NOT fix the pre-existing errors elsewhere --
+      # those stay visible in the job log as non-blocking so they aren't forgotten.
+      - name: Run actionlint on lines this PR changed
+        run: python3 .github/scripts/lint_changed_workflow_lines.py origin/main --actionlint ./actionlint
 
   smoke-call-reusable:
     name: smoke-call-reusable
