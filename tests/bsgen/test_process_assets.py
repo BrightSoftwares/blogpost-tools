@@ -465,3 +465,46 @@ class TestBlogHeroFragment:
         written = list(output_dir.glob("*.svg"))
         assert len(written) == 1
         assert "test-post" in written[0].name
+
+
+class TestBlogHeroBackgroundImage:
+    """Regression (found 2026-08-06 demoing blog-hero with real Notiwise/
+    Pilotflow images): a background_image made the title collide illegibly
+    with the photo's own content — the first scrim was too weak and the
+    text sat too high to reliably land in a dark zone regardless of what
+    the underlying image contains."""
+
+    SAMPLE_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
+    def _render(self, **extra) -> str:
+        data = {"type": "blog-hero", "brand": "bright-softwares", **extra}
+        return generate_placeholder_svg(data, 1200, 630, "asset-blog-hero-img")
+
+    def test_background_image_embeds_as_svg_image_element(self):
+        svg = self._render(title="X", background_image=self.SAMPLE_DATA_URI)
+        assert f'href="{self.SAMPLE_DATA_URI}"' in svg
+        assert "<image" in svg
+
+    def test_background_image_present_skips_the_radial_glow_placeholder(self):
+        svg = self._render(title="X", background_image=self.SAMPLE_DATA_URI)
+        assert "radialGradient" not in svg
+
+    def test_no_background_image_still_uses_radial_glow_fallback(self):
+        svg = self._render(title="X")
+        assert "radialGradient" in svg
+        assert "<image" not in svg
+
+    def test_background_image_gets_a_strong_bottom_scrim_for_text_legibility(self):
+        svg = self._render(title="X", background_image=self.SAMPLE_DATA_URI)
+        assert "linearGradient" in svg
+        assert 'stop-opacity="0.9' in svg or 'stop-opacity="0.96"' in svg
+
+    def test_title_and_byline_render_over_a_real_image(self):
+        svg = self._render(
+            title="Notiwise vs. Google Calendar's Default Reminders",
+            author="Full Bright", date="July 14, 2026",
+            background_image=self.SAMPLE_DATA_URI,
+        )
+        assert "Notiwise" in svg
+        assert "Full Bright" in svg
+        assert "July 14, 2026" in svg

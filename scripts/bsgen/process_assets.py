@@ -284,7 +284,13 @@ def _render_blog_hero_fragment(data: dict, width: int, height: int, colors: dict
         )
 
     title_lines = [(title, 34, "800")]
-    title_y = int(height * 0.62) if (author or date) else int(height * 0.58)
+    # Anchored low, well inside the scrim's near-opaque zone (see
+    # _background_defs_and_rects' scrim gradient) — a real photo can have
+    # ANY content at the vertical center, so the text must sit where the
+    # scrim guarantees a dark, legible background regardless of what's
+    # behind it (found 2026-08-06: an earlier, higher position collided
+    # directly with a real screenshot's own UI text underneath).
+    title_y = int(height * 0.73) if (author or date) else int(height * 0.75)
     title_block = _wrap_and_stack(
         title_lines, width, width // 2, title_y,
         max_width_ratio=0.84, text_color=colors["text"], anchor="middle", max_lines=3,
@@ -293,7 +299,7 @@ def _render_blog_hero_fragment(data: dict, width: int, height: int, colors: dict
     byline = ""
     if author or date:
         byline_text = " · ".join(t for t in (author, date) if t)
-        byline = _text_el(width // 2, int(height * 0.84), byline_text, 15, "500",
+        byline = _text_el(width // 2, int(height * 0.91), byline_text, 15, "500",
                           colors["accent"], opacity=0.9)
 
     return badge + title_block + byline
@@ -532,23 +538,61 @@ _FRAGMENT_RENDERERS = {
 
 
 def _background_defs_and_rects(asset_type: str, width: int, height: int, colors: dict,
-                                asset_id: str) -> tuple[str, str]:
+                                asset_id: str, background_image: str | None = None) -> tuple[str, str]:
     """Return (defs, rects) for the card background. Every type except
     blog-hero uses the standard flat gradient + diagonal-stripe pattern.
 
     blog-hero is meant to sit ON a real photo (background_image, per the SAM
-    spec — see _render_blog_hero_fragment's docstring) — a flat diagonal
-    stripe pattern reads as "generated placeholder", not "photo banner", so
-    even in placeholder mode (no real photo available yet) it gets a
-    radial-glow + vignette treatment instead: darker corners, a soft glow
-    behind where the title sits, approximating a moody photo without
-    inventing any new colors (still only bg/bg2/accent from the resolved
-    brand palette — real design tokens, per CLAUDE.md's design-system rule).
+    spec — see _render_blog_hero_fragment's docstring). Two sub-cases:
+
+    1. `background_image` provided (a `data:` URI — this offline SVG
+       generator does no network fetching of its own; a caller resolves a
+       URL to a data URI before calling generate_placeholder_svg, same as
+       any other pre-fetch step in a real pipeline) — embed the real image
+       full-bleed with a bottom-weighted dark scrim so the title/byline text
+       stays legible over ANY photo content, then no vignette/glow needed.
+    2. No image available (the common placeholder-mode case) — a flat
+       diagonal stripe pattern reads as "generated placeholder", not "photo
+       banner", so this falls back to a radial-glow + vignette treatment
+       instead: darker corners, a soft glow behind where the title sits,
+       approximating a moody photo without inventing any new colors (still
+       only bg/bg2/accent from the resolved brand palette — real design
+       tokens, per CLAUDE.md's design-system rule).
     """
     bg, bg2, accent = colors["bg"], colors.get("bg2", colors["bg"]), colors["accent"]
     safe_id = html_module.escape(asset_id)
 
     if asset_type == "blog-hero":
+        if background_image:
+            escaped_src = html_module.escape(background_image, quote=True)
+            # Steep, front-loaded scrim: title/byline sit at 70-89% of the
+            # card height (see _render_blog_hero_fragment), so opacity must
+            # already be near-solid well before that — a real photo/
+            # screenshot can have bright content or its own text ANYWHERE,
+            # and text-over-photo only reads reliably against a guaranteed-
+            # dark zone, not a smooth gradient that's still translucent at
+            # the exact height the text occupies (found 2026-08-06: the
+            # first version's title collided directly with a real
+            # screenshot's own UI text underneath it, both illegible).
+            defs = f"""
+    <linearGradient id="scrim-{safe_id}" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="25%" stop-color="#000000" stop-opacity="0.16"/>
+      <stop offset="42%" stop-color="#000000" stop-opacity="0.38"/>
+      <stop offset="56%" stop-color="#000000" stop-opacity="0.75"/>
+      <stop offset="72%" stop-color="#000000" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.96"/>
+    </linearGradient>
+    <clipPath id="clip-{safe_id}">
+      <rect width="{width}" height="{height}"/>
+    </clipPath>"""
+            rects = f"""
+  <g clip-path="url(#clip-{safe_id})">
+    <image href="{escaped_src}" xlink:href="{escaped_src}" x="0" y="0" width="{width}" height="{height}" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <rect width="{width}" height="{height}" fill="url(#scrim-{safe_id})"/>"""
+            return defs, rects
+
         defs = f"""
     <radialGradient id="glow-{safe_id}" cx="50%" cy="55%" r="75%">
       <stop offset="0%" stop-color="{bg2}"/>
@@ -594,7 +638,9 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
     asset_type = data.get("type", "asset")
     renderer = _FRAGMENT_RENDERERS.get(asset_type, _render_headline_fragment)
     fragment = renderer(data, width, height, colors)
-    bg_defs, bg_rects = _background_defs_and_rects(asset_type, width, height, colors, asset_id)
+    bg_defs, bg_rects = _background_defs_and_rects(
+        asset_type, width, height, colors, asset_id, background_image=data.get("background_image"),
+    )
 
     # Asset type is recorded as an XML comment for debugging, not a visible
     # on-image badge — the visible corner badge (rendering literal internal
@@ -614,7 +660,7 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
         f'<!-- bsgen:asset render_mode=placeholder id={html_module.escape(asset_id)} -->'
     )
 
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
   <!-- bsgen:asset placeholder | id={html_module.escape(asset_id)} | brand={html_module.escape(brand)} -->
   <defs>{bg_defs}
   </defs>{bg_rects}
