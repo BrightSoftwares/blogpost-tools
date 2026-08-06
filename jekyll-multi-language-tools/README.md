@@ -10,6 +10,95 @@
 
 ## Tools Included
 
+### 0. `detect_post_languages.py` (SP14.5-1)
+
+**Purpose:** Read-only audit of a Jekyll site's `_posts/`, `_pages/`,
+`_products/` collections — reports which files already comply with the
+`<collection>/<lang>/` folder architecture, which need to be moved, and which
+need a `lang:` frontmatter field added or guessed from content.
+
+**Use Case:**
+- Phase 1 of the SP14.5 blog migration: run before `migrate_jekyll_repo.py`
+  to know exactly what will move.
+- Post-migration audit: run again after a migration to confirm 100%
+  compliance (exit code 0) or spot regressions.
+
+**Usage:**
+```bash
+# Human-readable report to stdout
+python detect_post_languages.py /path/to/jekyll-site
+
+# Machine-readable JSON, for feeding into migrate_jekyll_repo.py
+python detect_post_languages.py /path/to/jekyll-site --format json --output report.json
+```
+
+**Features:**
+- Classifies every file as `COMPLIANT`, `NEEDS_MOVE`, `NEEDS_FRONTMATTER`,
+  `MIXED` (language conflict/anomaly), or `UNKNOWN` (needs manual review).
+- Uses the `lang:` frontmatter field when present; falls back to the optional
+  `langdetect` package on the post body when absent (degrades gracefully —
+  reports `UNKNOWN` with a note — if `langdetect` isn't installed).
+- Never writes to the site directory.
+- Exit code 0 = fully compliant, 1 = action items found (dry-run signal),
+  usable as a CI gate.
+
+**Requirements (optional):**
+```bash
+pip install langdetect  # only needed for content-based detection fallback
+```
+
+---
+
+### 0b. `migrate_jekyll_repo.py` (SP14.5-3)
+
+**Purpose:** Apply the mechanical steps of the multi-language migration
+checklist — folder restructure (`git mv`, preserves history) + `lang:`/`ref:`
+frontmatter — to a single blog repo. Codifies the recipe validated by hand on
+the eagles-techs.com pilot migration, per the Solutions Catalog batch-recipe
+protocol (probe repo 1 → capture recipe → script repos 2-N).
+
+**Use Case:**
+- Migrating the remaining blogs (SP14.5-8 through -16) onto the new
+  architecture without hand-editing hundreds of posts per repo.
+
+**Usage:**
+```bash
+# Dry-run (default, safe — prints the plan, changes nothing)
+python migrate_jekyll_repo.py /path/to/jekyll-site
+
+# Actually perform the moves + frontmatter fixups
+python migrate_jekyll_repo.py /path/to/jekyll-site --apply
+
+# Tag the current HEAD as a rollback anchor first
+python migrate_jekyll_repo.py /path/to/jekyll-site --apply --tag-backup
+```
+
+**Features:**
+- Defaults to dry-run; `--apply` required to write anything.
+- `git mv`, never a plain filesystem move — preserves file history.
+- Adds `lang:`/`ref:` frontmatter only when missing — never overwrites an
+  existing value.
+- Skips (never guesses) anything the detector flagged `UNKNOWN` or `MIXED` —
+  those need a human decision.
+- Idempotent: safe to run twice; the second run is a no-op once everything is
+  compliant. Verified against a fixture repo (moved 1 file first run, 0 on
+  re-run) and read-only-validated against the already-migrated
+  eagles-techs.com pilot (0 changes needed).
+- Before/after markdown file count check — refuses to report success if any
+  file appears lost.
+
+**Explicitly out of scope** (left to review, see script docstring): editing
+`_config.yml` `defaults:`/`collections:` (schema differs per repo), the
+shared-includes submodule setup (URL/path is NOT uniform across repos — see
+`ACT_SETUP.md` sibling note and the flagged divergence in
+`951.156.AINOTE...#SP14.4: Migration Checklist`), e-commerce setup, git
+push/PR creation.
+
+**See also:** [`ACT_SETUP.md`](ACT_SETUP.md) for local `act` testing before
+pushing a migration branch (SP14.5-2).
+
+---
+
 ### 1. `generate_redirects.py`
 
 **Purpose:** Generate 301 redirects from old date-based URLs to new SEO-friendly permalinks.
