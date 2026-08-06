@@ -122,7 +122,8 @@ def date_from_filename(post_path: Path) -> str:
     return m.group(1) if m else datetime.now().strftime("%Y-%m-%d")
 
 
-def wrap_label_to_width(text: str, font_size: int, max_width: int, max_lines: int = 3) -> list[str]:
+def wrap_label_to_width(text: str, font_size: int, max_width: int, max_lines: int = 3,
+                        extra_char_px: float = 0.0) -> list[str]:
     """Word-wrap text into lines that fit max_width at font_size, capped at max_lines.
 
     SVG has no layout engine, so this uses a standard average-character-width
@@ -132,10 +133,20 @@ def wrap_label_to_width(text: str, font_size: int, max_width: int, max_lines: in
     ellipsis-truncated if content still doesn't fit within max_lines — this
     is a placeholder, not final art, so a hard cap is the right tradeoff over
     unbounded overflow.
+
+    `extra_char_px` adds a fixed per-character allowance on top of the base
+    estimate — needed for text rendered with CSS `letter-spacing`, which
+    widens every character by a fixed amount the base heuristic doesn't
+    know about. Without it, a label that's letter-spaced AND close to the
+    per-line character budget can be judged as "fits on one line" by this
+    function while visibly overflowing the actual rendered SVG (found
+    2026-08-06 building a QA gallery: a 94-char stat_label under the
+    94-char default estimate but rendered with letter-spacing="2px"
+    overflowed both edges of a 1200px card without ever wrapping).
     """
     if not text:
         return []
-    avg_char_width = font_size * 0.55
+    avg_char_width = font_size * 0.55 + extra_char_px
     max_chars = max(1, int(max_width / avg_char_width))
 
     words = text.split()
@@ -199,10 +210,21 @@ def _wrap_and_stack(lines_specs: list[tuple[str, int, str]], width: int, center_
     budget (e.g. a table cell inside a fixed-height row band).
     """
     text_max_width = int(width * max_width_ratio)
+    # letter_spacing widens every character by a fixed amount the base
+    # wrap_label_to_width() estimate doesn't otherwise know about — feed it
+    # through so text using letter-spacing actually wraps instead of
+    # silently overflowing (see wrap_label_to_width's docstring).
+    extra_char_px = 0.0
+    if letter_spacing:
+        try:
+            extra_char_px = float(str(letter_spacing).rstrip("px"))
+        except ValueError:
+            extra_char_px = 0.0
     physical = []
     for i, (line, font_size, weight) in enumerate(lines_specs):
         ml = max_lines if max_lines is not None else (3 if i == 0 else 2)
-        for wrapped in wrap_label_to_width(line, font_size, text_max_width, max_lines=ml):
+        for wrapped in wrap_label_to_width(line, font_size, text_max_width, max_lines=ml,
+                                           extra_char_px=extra_char_px):
             physical.append((wrapped, font_size, weight))
 
     y_start = center_y - (len(physical) - 1) * (line_height // 2)

@@ -41,6 +41,16 @@ class TestWrapLabelToWidth:
     def test_empty_text_returns_no_lines(self):
         assert wrap_label_to_width("", 32, 1000) == []
 
+    def test_extra_char_px_narrows_the_effective_line_budget(self):
+        # A text that fits on one line at 0 extra px per char must wrap to
+        # more lines once a per-character allowance (letter-spacing) is
+        # added — same text, same width, different extra_char_px.
+        text = "This is a moderately long line of sample text here"
+        without_spacing = wrap_label_to_width(text, 16, 400, extra_char_px=0.0)
+        with_spacing = wrap_label_to_width(text, 16, 400, extra_char_px=4.0)
+        assert len(with_spacing) >= len(without_spacing)
+        assert len(with_spacing) > 1
+
 
 class TestGeneratePlaceholderSvg:
     def _svg_text_lines(self, svg: str) -> list[str]:
@@ -122,9 +132,37 @@ class TestGeneratePlaceholderSvg:
         svg = generate_placeholder_svg(data, 1200, 630, "asset-1")
         label_lines = re.findall(r'font-size="16"[^>]*>([^<]+)</text>', svg)
         assert len(label_lines) > 1
-        max_chars = int((1200 * 0.8) / (16 * 0.55))
+        # +2 accounts for the stat_label's letter-spacing="2px" widening
+        # every character beyond the base per-char estimate (see the
+        # letter-spacing-aware wrapping test below for the bug this guards).
+        max_chars = int((1200 * 0.8) / (16 * 0.55 + 2))
         for line in label_lines:
             assert len(line) <= max_chars + 1
+
+    def test_stat_label_wrapping_accounts_for_letter_spacing(self):
+        # Regression (found 2026-08-06 via the screenshot loop, reviewing a
+        # QA gallery render): wrap_label_to_width's width estimate didn't
+        # add letter-spacing's per-character widening, so a label just
+        # under the NAIVE (no-letter-spacing) character budget was judged
+        # "fits on one line" and rendered as a single <text> overflowing
+        # both edges of the card — never wrapped at all, unlike the
+        # extreme-length label above which was long enough to trigger
+        # wrapping regardless of the miscalculation.
+        data = {
+            "type": "stat_card",
+            "brand": "bright-softwares",
+            "stat_value": "87%",
+            "stat_label": (
+                "of enterprise engineering teams report improved review "
+                "turnaround after adopting async tooling"
+            ),
+        }
+        svg = generate_placeholder_svg(data, 1200, 630, "asset-1")
+        label_lines = re.findall(r'font-size="16"[^>]*>([^<]+)</text>', svg)
+        assert len(label_lines) > 1, (
+            "94-char label with letter-spacing=2px must wrap onto 2+ lines, "
+            "not render as one line overflowing the card"
+        )
 
 
 class TestTypeAwareComposition:

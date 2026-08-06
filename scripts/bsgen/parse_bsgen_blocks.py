@@ -75,6 +75,28 @@ def parse_block_body(raw_yaml: str, block_type: str, index: int) -> dict | None:
         return None
 
 
+def normalize_asset_aliases(data: dict) -> dict:
+    """Accept `title`/`subtitle` as aliases for `headline`/`subheadline` on
+    hero_image/social_card asset blocks.
+
+    Found 2026-08-06 building a QA gallery of sample renders: real content
+    across this repo is genuinely inconsistent about which field name it
+    uses (some drafts write `headline:`/`subheadline:`, others write
+    `title:`/`subtitle:` for the exact same hero_image/social_card shape) —
+    the latter silently failed validation ("missing 'headline'") and the
+    block was skipped entirely, leaving a raw unprocessed fence in the
+    published post with NO image ever generated. Rather than force every
+    piece of content to match one exact spelling, accept both — `headline`
+    wins if both happen to be present.
+    """
+    if data.get("type") in ("hero_image", "social_card"):
+        if "headline" not in data and "title" in data:
+            data = {**data, "headline": data["title"]}
+        if "subheadline" not in data and "subtitle" in data:
+            data = {**data, "subheadline": data["subtitle"]}
+    return data
+
+
 def validate_asset(data: dict, index: int) -> list[str]:
     """Return list of validation error messages for a bsgen:asset block."""
     errors = []
@@ -268,6 +290,9 @@ def parse_file(post_path: Path, filter_type: str | None = None) -> dict:
         data = parse_block_body(raw_body, raw_type, index)
         if data is None:
             continue
+
+        if raw_type == "asset":
+            data = normalize_asset_aliases(data)
 
         errors = VALIDATORS[raw_type](data, index)
         result["validation_errors"].extend(errors)
