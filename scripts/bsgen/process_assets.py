@@ -186,18 +186,23 @@ def _text_el(x, y, text, font_size, weight="400", fill="#FFFFFF", anchor="middle
 def _wrap_and_stack(lines_specs: list[tuple[str, int, str]], width: int, center_x: int,
                     center_y: int, max_width_ratio: float = 0.86, line_height: int = 40,
                     text_color: str = "#FFFFFF", anchor: str = "middle",
-                    letter_spacing: str | None = None) -> str:
+                    letter_spacing: str | None = None, max_lines: int | None = None) -> str:
     """Word-wrap a list of (text, font_size, weight) logical lines to fit `width`,
     then stack the resulting physical lines centered on (center_x, center_y).
 
     Shared wrapping logic used by every fragment below — this is what fixes the
     original bug (fixed-character truncation instead of width-aware wrapping).
+
+    `max_lines=None` keeps the original per-spec default (3 lines for the
+    first logical line, 2 for the rest — sized for headline/subheadline
+    pairs); pass an explicit cap when a caller has a tighter, known space
+    budget (e.g. a table cell inside a fixed-height row band).
     """
     text_max_width = int(width * max_width_ratio)
     physical = []
     for i, (line, font_size, weight) in enumerate(lines_specs):
-        max_lines = 3 if i == 0 else 2
-        for wrapped in wrap_label_to_width(line, font_size, text_max_width, max_lines=max_lines):
+        ml = max_lines if max_lines is not None else (3 if i == 0 else 2)
+        for wrapped in wrap_label_to_width(line, font_size, text_max_width, max_lines=ml):
             physical.append((wrapped, font_size, weight))
 
     y_start = center_y - (len(physical) - 1) * (line_height // 2)
@@ -337,53 +342,86 @@ def _render_before_after_fragment(data: dict, width: int, height: int, colors: d
     return divider + captions + left + right + arrow + footer
 
 
+def _cell_text(row, idx: int) -> str:
+    """Best-effort access into a row's cell at position `idx`. Tolerates both
+    the documented list/tuple row shape and a dict row (an easy YAML mistake
+    that validate_asset's length-only check lets through — see the
+    comparison_table crash fix below)."""
+    if isinstance(row, (list, tuple)):
+        return str(row[idx]) if idx < len(row) else ""
+    if isinstance(row, dict):
+        values = list(row.values())
+        return str(values[idx]) if idx < len(values) else ""
+    return str(row) if idx == 0 else ""
+
+
 def _render_table_fragment(data: dict, width: int, height: int, colors: dict) -> str:
-    """comparison_table: a real N-row table (title + 2 column headers + up
-    to 4 row labels), not a placeholder "Before"/"After" split. A full data
-    table (long cell text in 3 columns) doesn't fit legibly on a card this
-    size, so this shows the actual column headers plus the row subjects
-    (column 1 of each row) as a scannable checklist — honest about what a
-    social-card-sized image can convey, rather than cramming unreadable text."""
+    """comparison_table: a real N-row, 2-column comparison. Each row shows
+    its subject PLUS both the left/right cell text — an earlier version
+    dropped columns 1/2 entirely to fit the card, leaving just a bare list of
+    row subjects with no actual comparison content, which communicated
+    nothing (human reviewer feedback: "I don't understand the message this
+    image brings"). Cell text is capped at 2 wrapped lines per cell to stay
+    legible within a fixed-height row band."""
     title = str(data.get("table_title", "Comparison"))
     columns = data.get("columns") or []
     rows = [r for r in (data.get("rows") or []) if r]
 
     left_header = str(columns[1]) if len(columns) > 1 else "Before"
     right_header = str(columns[2]) if len(columns) > 2 else "After"
-    # A row is expected to be a list/tuple (validate_asset only checks
-    # length, not shape) — a content author writing `rows:` as a list of
-    # mappings instead would otherwise raise an uncaught KeyError here and
-    # crash the whole post's processing, not just this one block (code
-    # review finding, 2026-08-06).
-    row_labels = [
-        str(r[0]) if isinstance(r, (list, tuple)) and r
-        else str(next(iter(r.values()), "")) if isinstance(r, dict)
-        else str(r)
+    row_items = [
+        (_cell_text(r, 0), _cell_text(r, 1), _cell_text(r, 2))
         for r in rows[:4]
     ]
 
     heading = _wrap_and_stack(
-        [(title, 20, "700")], width, width // 2, int(height * 0.14),
-        max_width_ratio=0.86, text_color=colors["text"],
+        [(title, 20, "700")], width, width // 2, int(height * 0.12),
+        max_width_ratio=0.86, text_color=colors["text"], max_lines=2,
     )
-    divider = (
-        f'<line x1="{width//2}" y1="{int(height*0.22)}" x2="{width//2}" '
-        f'y2="{int(height*0.30)}" stroke="{colors["accent"]}" stroke-width="1.5" opacity="0.5"/>'
-    )
-    left_h = _text_el(width // 4, int(height * 0.28), left_header, 16, "600",
-                      colors["text"], opacity=0.75)
-    right_h = _text_el((width * 3) // 4, int(height * 0.28), right_header, 16, "600",
-                       colors["accent"], opacity=0.95)
 
-    row_y_start = int(height * 0.44)
-    row_gap = max(32, int((height * 0.42) / max(1, len(row_labels))))
+    header_y = int(height * 0.20)
+    left_h = _text_el(width // 4, header_y, left_header, 15, "600",
+                      colors["text"], opacity=0.75, letter_spacing="0.5px")
+    right_h = _text_el((width * 3) // 4, header_y, right_header, 15, "600",
+                       colors["accent"], opacity=0.95, letter_spacing="0.5px")
+
+    row_top = int(height * 0.27)
+    row_bottom = int(height * 0.88)
+    n = max(len(row_items), 1)
+    row_h = (row_bottom - row_top) / n
+
+    divider = (
+        f'<line x1="{width//2}" y1="{row_top - 8}" x2="{width//2}" '
+        f'y2="{row_bottom}" stroke="{colors["accent"]}" stroke-width="1.5" opacity="0.4"/>'
+    )
+
+    left_col_x = width // 4
+    right_col_x = (width * 3) // 4
+    col_max_width = int(width * 0.42)
+
     rows_svg = ""
-    for i, label in enumerate(row_labels):
-        y = row_y_start + i * row_gap
+    for i, (label, left_val, right_val) in enumerate(row_items):
+        band_top = row_top + row_h * i
+        label_y = int(band_top + row_h * 0.24)
+        cell_y = int(band_top + row_h * 0.62)
+        rows_svg += _text_el(width // 2, label_y, label, 14, "700",
+                             colors["text"], opacity=0.9)
         rows_svg += _wrap_and_stack(
-            [(f"• {label}", 18, "500")], width, width // 2, y,
-            max_width_ratio=0.8, text_color=colors["text"], line_height=24,
+            [(left_val, 13, "500")], col_max_width, left_col_x, cell_y,
+            max_width_ratio=0.9, text_color=colors["text"], line_height=17,
+            max_lines=2,
         )
+        rows_svg += _wrap_and_stack(
+            [(right_val, 13, "500")], col_max_width, right_col_x, cell_y,
+            max_width_ratio=0.9, text_color=colors["accent"], line_height=17,
+            max_lines=2,
+        )
+        if i < n - 1:
+            sep_y = int(row_top + row_h * (i + 1))
+            rows_svg += (
+                f'<line x1="{int(width*0.08)}" y1="{sep_y}" x2="{int(width*0.92)}" '
+                f'y2="{sep_y}" stroke="{colors["text"]}" stroke-width="1" opacity="0.08"/>'
+            )
 
     return heading + divider + left_h + right_h + rows_svg
 

@@ -173,6 +173,24 @@ class TestTypeAwareComposition:
         assert "Generic (Fails)" in svg
         assert "Specific (Passes)" in svg
 
+    def test_comparison_table_renders_the_actual_cell_content_not_just_labels(self):
+        # Regression (found 2026-08-06, human reviewer feedback on the
+        # rendered image): the previous fix above only showed the row
+        # SUBJECT ("Data access") and silently dropped both actual cell
+        # values ("We access Gmail data" / "We view specific labels") — a
+        # comparison table with no comparison in it doesn't communicate
+        # anything ("I don't understand the message this image brings").
+        svg = self._render(
+            "comparison_table",
+            table_title="What Google reviews",
+            columns=["Section", "Generic (Fails)", "Specific (Passes)"],
+            rows=[
+                ["Data access", "We access Gmail data", "We view specific labels"],
+            ],
+        )
+        assert "We access Gmail data" in svg
+        assert "We view specific labels" in svg
+
     def test_comparison_table_caps_at_four_rows(self):
         rows = [[f"Row {i}", "a", "b"] for i in range(10)]
         svg = self._render("comparison_table", table_title="Many rows",
