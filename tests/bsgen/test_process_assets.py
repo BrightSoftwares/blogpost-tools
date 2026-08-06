@@ -377,3 +377,91 @@ class TestProcessPathTraversal:
         assert output_dir in written[0].parents
         # Nothing was written into (or under) the traversal target.
         assert not any((tmp_path / ".github" / "workflows").glob("*.svg"))
+
+
+class TestBlogHeroFragment:
+    """Regression (found 2026-08-06): `type: blog-hero` appears in 14 real
+    bsgen:asset blocks on corporate-website (per the SAM spec's
+    template_id=blog-hero: title/author/date/category/background_image) but
+    had no renderer at all — silently fell through to the plain
+    centered-headline default, and its actual field name (`title`, not
+    `headline`) meant even that produced blank text. Also had no background
+    treatment of its own despite being spec'd to sit on a real photo."""
+
+    def _render(self, **extra) -> str:
+        data = {"type": "blog-hero", "brand": "bright-softwares", **extra}
+        return generate_placeholder_svg(data, 1200, 630, "asset-blog-hero")
+
+    def test_title_field_renders(self):
+        svg = self._render(title="The $50,000 Lie That Almost Killed My Gmail Addon")
+        assert "The $50,000 Lie That Almost Killed My Gmail Addon" in svg
+
+    def test_theme_field_renders_as_category_badge(self):
+        # Real content uses `theme`, the SAM spec calls the field
+        # `category` — both must work.
+        svg = self._render(title="X", theme="technical")
+        assert "TECHNICAL" in svg
+
+    def test_category_field_also_works(self):
+        svg = self._render(title="X", category="Engineering")
+        assert "ENGINEERING" in svg
+
+    def test_no_badge_when_no_category_or_theme(self):
+        svg = self._render(title="X")
+        # No stray empty pill rect group for the badge.
+        assert svg.count("<rect") < self._render(title="X", theme="technical").count("<rect")
+
+    def test_author_and_date_render_as_byline(self):
+        svg = self._render(title="X", author="Full Bright", date="August 6, 2026")
+        assert "Full Bright" in svg
+        assert "August 6, 2026" in svg
+        assert "·" in svg
+
+    def test_no_byline_when_author_and_date_absent(self):
+        svg = self._render(title="X")
+        assert "·" not in svg
+
+    def test_has_a_distinct_photo_style_background_not_the_flat_stripe_pattern(self):
+        # The whole point of this type: it should NOT look like every other
+        # flat-gradient-plus-diagonal-stripe placeholder card.
+        blog_hero_svg = self._render(title="X")
+        headline_svg = generate_placeholder_svg(
+            {"type": "hero_image", "brand": "bright-softwares", "headline": "X"},
+            1200, 630, "asset-headline",
+        )
+        assert "radialGradient" in blog_hero_svg
+        assert "stripes-" not in blog_hero_svg
+        assert "stripes-" in headline_svg
+
+    def test_long_title_wraps_within_three_lines(self):
+        svg = self._render(
+            title=(
+                "Reading Before Writing: What a Pre-Development Codebase "
+                "Review Actually Found in the Pilotflow Codebase"
+            ),
+        )
+        title_lines = re.findall(r'font-size="34"[^>]*>([^<]+)</text>', svg)
+        assert 1 < len(title_lines) <= 3
+
+    def test_missing_output_formats_and_id_do_not_crash_process(self, tmp_path: Path):
+        # Real content never sets id/output_formats for this type (see
+        # parse_bsgen_blocks.validate_asset's blog-hero exemption) — must
+        # still process end to end, defaulting both.
+        post = tmp_path / "post.md"
+        post.write_text(
+            "---\ntitle: Test\ntags: [test]\npipeline_state: bsgen_processing\n---\n\n"
+            "```bsgen:asset\n"
+            "type: blog-hero\n"
+            "slug: test-post\n"
+            "brand: bright-softwares\n"
+            "title: \"Test Title\"\n"
+            "theme: technical\n"
+            "```\n",
+            encoding="utf-8",
+        )
+        output_dir = tmp_path / "assets"
+        exit_code = process(post, output_dir)
+        assert exit_code == 0
+        written = list(output_dir.glob("*.svg"))
+        assert len(written) == 1
+        assert "test-post" in written[0].name

@@ -75,6 +75,30 @@ SAMPLE_DATA_BY_TYPE = {
     },
 }
 
+# blog-hero (added 2026-08-06, previously undiscovered — see
+# _render_blog_hero_fragment's docstring): kept as a SEPARATE dict, appended
+# after the main SAMPLE_DATA_BY_TYPE combos below rather than inserted into
+# that dict, so it doesn't reshuffle the numbering of an already-reviewed
+# gallery — new entries append at the end, existing numbers never move.
+BLOG_HERO_SAMPLES = [
+    {
+        "type": "blog-hero",
+        "title": "The $50,000 Lie That Almost Killed My Gmail Addon",
+        "theme": "technical",
+        "slug": "the-50000-lie-that-almost-killed-my-gmail-addon",
+    },
+    {
+        "type": "blog-hero",
+        "title": (
+            "Reading Before Writing: What a Pre-Development Codebase Review "
+            "Actually Found in the Pilotflow Codebase"
+        ),
+        "category": "Engineering",
+        "author": "Full Bright",
+        "date": "August 6, 2026",
+    },
+]
+
 # (brand, palette) combos to render per type. Types are only rendered for
 # brands where the combo is meaningful: every type gets both bright-softwares
 # palettes (the only brand currently in live use) and both luminous palettes
@@ -89,6 +113,15 @@ for brand in ("bright-softwares", "luminous"):
             COMBOS.append((type_key, brand, palette))
 for brand in ("personal", "ieatmyhealth", "moda-by-flora", "eagles-techs"):
     COMBOS.append(("hero_image", brand, "hero"))
+
+# blog-hero: appended last (not interleaved above) to keep #1-24's numbering
+# stable across re-runs. bright-softwares + luminous, both palettes, both
+# sample payloads (with/without author+date) — the 4 single-palette brands
+# already got their brand-render smoke check via hero_image above.
+for brand in ("bright-softwares", "luminous"):
+    for palette in BRAND_PALETTES[brand]:
+        for sample_index in range(len(BLOG_HERO_SAMPLES)):
+            COMBOS.append((("blog-hero", sample_index), brand, palette))
 
 
 def add_number_badge(svg: str, number: int) -> str:
@@ -113,23 +146,30 @@ def main():
 
     manifest = []
     for i, (type_key, brand, palette) in enumerate(COMBOS, 1):
-        data = dict(SAMPLE_DATA_BY_TYPE[type_key])
+        if isinstance(type_key, tuple):
+            # blog-hero's two sample payloads — see BLOG_HERO_SAMPLES.
+            base_type, sample_index = type_key
+            data = dict(BLOG_HERO_SAMPLES[sample_index])
+            label_type_key = f"blog-hero-{sample_index + 1}"
+        else:
+            data = dict(SAMPLE_DATA_BY_TYPE[type_key])
+            label_type_key = type_key
         data["brand"] = brand
         data["palette"] = palette
         svg = generate_placeholder_svg(data, WIDTH, HEIGHT, f"gallery-{i}")
         svg = add_number_badge(svg, i)
 
-        filename = f"{i:02d}-{type_key}-{brand}-{palette}.svg"
+        filename = f"{i:02d}-{label_type_key}-{brand}-{palette}.svg"
         (out_dir / filename).write_text(svg, encoding="utf-8")
 
         manifest.append({
             "number": i,
             "file": filename,
-            "type": type_key,
+            "type": label_type_key,
             "brand": brand,
             "palette": palette,
         })
-        print(f"OK: #{i:02d} {type_key} / {brand} / {palette} -> {filename}")
+        print(f"OK: #{i:02d} {label_type_key} / {brand} / {palette} -> {filename}")
 
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"\n{len(manifest)} images written to {out_dir}")

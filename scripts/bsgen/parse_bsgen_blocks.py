@@ -100,9 +100,21 @@ def normalize_asset_aliases(data: dict) -> dict:
 def validate_asset(data: dict, index: int) -> list[str]:
     """Return list of validation error messages for a bsgen:asset block."""
     errors = []
-    for field in ("id", "type", "brand", "output_formats"):
+    for field in ("type", "brand"):
         if field not in data:
             errors.append(f"asset #{index}: missing required field '{field}'")
+
+    # blog-hero is exempt from the id/output_formats requirement other types
+    # have: real content (found 2026-08-06, 14 blocks on corporate-website)
+    # never sets either — process_assets.py already falls back to a
+    # generated id for any type, and defaults blog-hero's output_formats to
+    # a standard og_card size (see DEFAULT_BLOG_HERO_OUTPUT_FORMATS there).
+    # Previously this hard-required both, so every real blog-hero block
+    # failed validation and was silently skipped — no image ever generated.
+    if data.get("type") != "blog-hero":
+        for field in ("id", "output_formats"):
+            if field not in data:
+                errors.append(f"asset #{index}: missing required field '{field}'")
 
     if "brand" in data and data["brand"] not in VALID_BRANDS:
         errors.append(f"asset #{index}: unknown brand '{data['brand']}' (must be one of {sorted(VALID_BRANDS)})")
@@ -135,6 +147,9 @@ def validate_asset(data: dict, index: int) -> list[str]:
     elif asset_type in ("social_card", "hero_image"):
         if "headline" not in data:
             errors.append(f"asset #{index} ({asset_type}): missing 'headline'")
+    elif asset_type == "blog-hero":
+        if "title" not in data and "headline" not in data:
+            errors.append(f"asset #{index} (blog-hero): missing 'title'")
 
     return errors
 

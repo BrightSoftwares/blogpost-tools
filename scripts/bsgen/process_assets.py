@@ -93,6 +93,11 @@ BRAND_PALETTES = {
 DEFAULT_BRAND = "bright-softwares"
 DEFAULT_PALETTE = "hero"
 
+# blog-hero content never sets output_formats (see validate_asset's
+# blog-hero exemption in parse_bsgen_blocks.py) — a single standard OG-card
+# size is the sane default for a full-bleed featured-image type.
+DEFAULT_BLOG_HERO_OUTPUT_FORMATS = [{"og_card": "1200x630"}]
+
 
 def resolve_palette(brand: str, palette: str | None) -> dict:
     """Resolve (brand, palette) to a color dict, falling back gracefully.
@@ -243,6 +248,55 @@ def _render_headline_fragment(data: dict, width: int, height: int, colors: dict)
     if data.get("subheadline"):
         lines.append((str(data["subheadline"]), 20, "400"))
     return _wrap_and_stack(lines, width, width // 2, height // 2, text_color=colors["text"])
+
+
+def _render_blog_hero_fragment(data: dict, width: int, height: int, colors: dict) -> str:
+    """blog-hero: a magazine-style banner meant to sit on a real photo
+    (`background_image`, per the SAM spec's template_id=blog-hero contract —
+    title/author/date/category/background_image/brand_colors). SAM isn't
+    live yet and no post ever supplies background_image, so this is a
+    placeholder for the LAYOUT (category badge, title anchored low, byline
+    row) over the photo-simulated background _background_defs_and_rects()
+    already drew — not an attempt to fake a real photo.
+
+    Found 2026-08-06: `type: blog-hero` appears in 14 real bsgen:asset
+    blocks on corporate-website but had NO renderer at all (fell through to
+    the plain centered-headline default, and its actual field —
+    `title`/`theme`, not `headline` — meant even that produced blank text).
+    Content also uses `theme` where the spec calls the field `category`;
+    both are accepted here since the real-world data uses `theme`.
+    """
+    title = str(data.get("title") or data.get("headline") or "")
+    category = str(data.get("category") or data.get("theme") or "").title()
+    author = str(data.get("author", ""))
+    date = str(data.get("date", ""))
+
+    badge = ""
+    if category:
+        badge_width = max(90, len(category) * 11 + 40)
+        badge = (
+            f'<rect x="{int(width*0.06)}" y="{int(height*0.10)}" width="{badge_width}" '
+            f'height="34" rx="17" fill="{colors["accent"]}"/>'
+            + _text_el(
+                int(width * 0.06) + badge_width // 2, int(height * 0.10) + 17,
+                category.upper(), 13, "700", colors["bg"], letter_spacing="1px",
+            )
+        )
+
+    title_lines = [(title, 34, "800")]
+    title_y = int(height * 0.62) if (author or date) else int(height * 0.58)
+    title_block = _wrap_and_stack(
+        title_lines, width, width // 2, title_y,
+        max_width_ratio=0.84, text_color=colors["text"], anchor="middle", max_lines=3,
+    )
+
+    byline = ""
+    if author or date:
+        byline_text = " · ".join(t for t in (author, date) if t)
+        byline = _text_el(width // 2, int(height * 0.84), byline_text, 15, "500",
+                          colors["accent"], opacity=0.9)
+
+    return badge + title_block + byline
 
 
 def _render_pullquote_fragment(data: dict, width: int, height: int, colors: dict) -> str:
@@ -473,7 +527,56 @@ _FRAGMENT_RENDERERS = {
     "before_after": _render_comparison_fragment,
     "social_card": _render_headline_fragment,
     "hero_image": _render_headline_fragment,
+    "blog-hero": _render_blog_hero_fragment,
 }
+
+
+def _background_defs_and_rects(asset_type: str, width: int, height: int, colors: dict,
+                                asset_id: str) -> tuple[str, str]:
+    """Return (defs, rects) for the card background. Every type except
+    blog-hero uses the standard flat gradient + diagonal-stripe pattern.
+
+    blog-hero is meant to sit ON a real photo (background_image, per the SAM
+    spec — see _render_blog_hero_fragment's docstring) — a flat diagonal
+    stripe pattern reads as "generated placeholder", not "photo banner", so
+    even in placeholder mode (no real photo available yet) it gets a
+    radial-glow + vignette treatment instead: darker corners, a soft glow
+    behind where the title sits, approximating a moody photo without
+    inventing any new colors (still only bg/bg2/accent from the resolved
+    brand palette — real design tokens, per CLAUDE.md's design-system rule).
+    """
+    bg, bg2, accent = colors["bg"], colors.get("bg2", colors["bg"]), colors["accent"]
+    safe_id = html_module.escape(asset_id)
+
+    if asset_type == "blog-hero":
+        defs = f"""
+    <radialGradient id="glow-{safe_id}" cx="50%" cy="55%" r="75%">
+      <stop offset="0%" stop-color="{bg2}"/>
+      <stop offset="55%" stop-color="{bg}"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+    <radialGradient id="vignette-{safe_id}" cx="50%" cy="50%" r="75%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+    </radialGradient>"""
+        rects = f"""
+  <rect width="{width}" height="{height}" fill="url(#glow-{safe_id})"/>
+  <rect width="{width}" height="{height}" fill="url(#vignette-{safe_id})"/>
+  <rect width="{width}" height="{height}" fill="{accent}" opacity="0.04"/>"""
+        return defs, rects
+
+    defs = f"""
+    <linearGradient id="bggrad-{safe_id}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="{bg}"/>
+      <stop offset="100%" stop-color="{bg2}"/>
+    </linearGradient>
+    <pattern id="stripes-{safe_id}" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="20" height="40" fill="{accent}" opacity="0.05"/>
+    </pattern>"""
+    rects = f"""
+  <rect width="{width}" height="{height}" fill="url(#bggrad-{safe_id})"/>
+  <rect width="{width}" height="{height}" fill="url(#stripes-{safe_id})"/>"""
+    return defs, rects
 
 
 def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str) -> str:
@@ -486,11 +589,12 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
     """
     brand = data.get("brand", DEFAULT_BRAND)
     colors = resolve_palette(brand, data.get("palette"))
-    bg, bg2, accent = colors["bg"], colors.get("bg2", colors["bg"]), colors["accent"]
+    accent = colors["accent"]
 
     asset_type = data.get("type", "asset")
     renderer = _FRAGMENT_RENDERERS.get(asset_type, _render_headline_fragment)
     fragment = renderer(data, width, height, colors)
+    bg_defs, bg_rects = _background_defs_and_rects(asset_type, width, height, colors, asset_id)
 
     # Asset type is recorded as an XML comment for debugging, not a visible
     # on-image badge — the visible corner badge (rendering literal internal
@@ -512,17 +616,8 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
   <!-- bsgen:asset placeholder | id={html_module.escape(asset_id)} | brand={html_module.escape(brand)} -->
-  <defs>
-    <linearGradient id="bggrad-{html_module.escape(asset_id)}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="{bg}"/>
-      <stop offset="100%" stop-color="{bg2}"/>
-    </linearGradient>
-    <pattern id="stripes-{html_module.escape(asset_id)}" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <rect width="20" height="40" fill="{accent}" opacity="0.05"/>
-    </pattern>
-  </defs>
-  <rect width="{width}" height="{height}" fill="url(#bggrad-{html_module.escape(asset_id)})"/>
-  <rect width="{width}" height="{height}" fill="url(#stripes-{html_module.escape(asset_id)})"/>
+  <defs>{bg_defs}
+  </defs>{bg_rects}
   <rect x="2" y="2" width="{width-4}" height="{height-4}" rx="4" fill="none" stroke="{accent}" stroke-width="2" opacity="0.3"/>
   {type_badge}
   {fragment}
@@ -648,9 +743,14 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
             continue
 
         data = block["data"]
-        raw_asset_id = data.get("id", f"asset-{block['index']}")
+        # blog-hero content never sets `id` — prefer its `slug` field (a
+        # nicer, still-content-controlled default) over the generic
+        # positional fallback other types use.
+        raw_asset_id = data.get("id") or data.get("slug") or f"asset-{block['index']}"
         asset_id = sanitize_asset_id(raw_asset_id)
-        output_formats = data.get("output_formats", [])
+        output_formats = data.get("output_formats") or (
+            DEFAULT_BLOG_HERO_OUTPUT_FORMATS if data.get("type") == "blog-hero" else []
+        )
 
         if use_sam:
             urls = process_with_sam_api(data, asset_id, sam_api_url, sam_api_key)

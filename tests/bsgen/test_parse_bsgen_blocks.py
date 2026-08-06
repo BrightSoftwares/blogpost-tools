@@ -73,3 +73,24 @@ class TestParseFileAppliesAliasNormalization:
         block = result["blocks"]["asset"][0]
         assert block["data"]["headline"] == "The CASA Certification Myth"
         assert block["data"]["subheadline"] == "$50K is the ceiling."
+
+
+class TestBlogHeroValidationExemption:
+    """blog-hero real content never sets id/output_formats (see
+    process_assets.py's DEFAULT_BLOG_HERO_OUTPUT_FORMATS + slug-based id
+    fallback) — validate_asset must not hard-require them for this type."""
+
+    def test_blog_hero_without_id_or_output_formats_is_valid(self):
+        data = {"type": "blog-hero", "brand": "bright-softwares", "title": "X"}
+        assert validate_asset(data, 1) == []
+
+    def test_blog_hero_still_requires_title_or_headline(self):
+        data = {"type": "blog-hero", "brand": "bright-softwares"}
+        errors = validate_asset(data, 1)
+        assert any("title" in e for e in errors)
+
+    def test_other_types_still_require_id_and_output_formats(self):
+        data = {"type": "hero_image", "brand": "bright-softwares", "headline": "X"}
+        errors = validate_asset(data, 1)
+        assert any("'id'" in e for e in errors)
+        assert any("'output_formats'" in e for e in errors)
