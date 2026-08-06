@@ -29,15 +29,23 @@ def render_callout(data: dict) -> str:
     css_type = ctype.lower()
 
     if ctype == "STAT":
-        stat_value = html.escape(str(data.get("stat_value", "")))
-        stat_label = html.escape(str(data.get("stat_label", "")))
+        # A STAT block is valid (per validate_callout) with either a
+        # stat_value+stat_label pair or a content-only fallback — only emit
+        # the stat spans when both values are actually present, otherwise
+        # degrade to a plain content paragraph rather than two empty <span>s.
+        has_stat_pair = "stat_value" in data and "stat_label" in data
         content = html.escape(str(data.get("content", "")))
-        inner = (
-            f'<span class="bs-callout__stat-value">{stat_value}</span>'
-            f'<span class="bs-callout__stat-label">{stat_label}</span>'
-        )
-        if content:
-            inner += f'\n<p class="bs-callout__content">{content}</p>'
+        if has_stat_pair:
+            stat_value = html.escape(str(data["stat_value"]))
+            stat_label = html.escape(str(data["stat_label"]))
+            inner = (
+                f'<span class="bs-callout__stat-value">{stat_value}</span>'
+                f'<span class="bs-callout__stat-label">{stat_label}</span>'
+            )
+            if content:
+                inner += f'\n<p class="bs-callout__content">{content}</p>'
+        else:
+            inner = f'<p class="bs-callout__content">{content}</p>'
 
     elif ctype == "QUOTE":
         quote_text = html.escape(str(data.get("quote_text", "")))

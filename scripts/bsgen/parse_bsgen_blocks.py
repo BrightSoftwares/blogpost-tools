@@ -125,7 +125,7 @@ def validate_callout(data: dict, index: int) -> list[str]:
         return errors
     if ctype not in ("TIP", "WARNING", "SHORTCUT", "STAT", "QUOTE"):
         errors.append(f"callout #{index}: unknown type '{ctype}'")
-    if ctype in ("TIP", "WARNING", "SHORTCUT", "STAT"):
+    if ctype in ("TIP", "WARNING", "SHORTCUT"):
         if "content" not in data:
             errors.append(f"callout #{index} ({ctype}): missing 'content'")
         elif len(str(data["content"])) > CALLOUT_CONTENT_SOFT_LIMIT:
@@ -138,9 +138,29 @@ def validate_callout(data: dict, index: int) -> list[str]:
                 file=sys.stderr,
             )
     if ctype == "STAT":
-        for f in ("stat_value", "stat_label"):
-            if f not in data:
-                errors.append(f"callout #{index} (STAT): missing '{f}'")
+        # Regression (found 2026-08-06): this used to hard-require BOTH
+        # 'content' (checked above, before this branch existed as a separate
+        # elif) AND the stat_value/stat_label pair. A content-drafting
+        # session wrote a STAT block with only `content` (no stat_value/
+        # stat_label) — a legitimate, renderable callout — and it was
+        # rejected as a validation error, leaving the raw ```bsgen:callout```
+        # fence unprocessed in the published post. A STAT block is valid if
+        # it has EITHER a complete stat_value+stat_label pair OR a content
+        # fallback — only reject it if it has neither.
+        has_stat_pair = "stat_value" in data and "stat_label" in data
+        has_content = "content" in data
+        if not has_stat_pair and not has_content:
+            errors.append(
+                f"callout #{index} (STAT): needs either both 'stat_value' and "
+                f"'stat_label', or a 'content' fallback — has neither"
+            )
+        elif has_content and len(str(data["content"])) > CALLOUT_CONTENT_SOFT_LIMIT:
+            print(
+                f"WARNING: callout #{index} (STAT): 'content' is "
+                f"{len(str(data['content']))} chars (soft guideline: "
+                f"{CALLOUT_CONTENT_SOFT_LIMIT}); rendering anyway",
+                file=sys.stderr,
+            )
     if ctype == "QUOTE":
         for f in ("quote_text", "attribution"):
             if f not in data:

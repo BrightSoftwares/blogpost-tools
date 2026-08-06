@@ -97,3 +97,56 @@ def test_missing_content_callout_still_exits_two(tmp_path: Path) -> None:
     )
     # A genuinely invalid callout (missing content) must still be a hard error.
     assert process_callouts.process(post) == 2
+
+
+# Regression (found 2026-08-06, human reviewer feedback on a live draft): a
+# STAT callout written with only `content` (no stat_value/stat_label) failed
+# validation and was left as a raw, unrendered ```bsgen:callout``` fence in
+# published content — exactly the "type: STAT content: ..." leak the human
+# reviewer flagged. A STAT block should render (degrading to a plain content
+# paragraph) whenever it has content OR a stat_value+stat_label pair; it
+# should only be rejected when it has neither.
+
+def test_stat_callout_with_only_content_is_not_a_validation_error() -> None:
+    errors = validate_callout(
+        {"type": "STAT", "content": "1 day of review -> 3 problems prevented"},
+        index=1,
+    )
+    assert errors == [], "a STAT block with only 'content' must render, not be rejected"
+
+
+def test_stat_callout_with_neither_content_nor_stat_pair_is_still_an_error() -> None:
+    errors = validate_callout({"type": "STAT"}, index=1)
+    assert any("needs either" in e for e in errors)
+
+
+def test_stat_callout_with_only_stat_value_missing_label_is_still_an_error() -> None:
+    errors = validate_callout({"type": "STAT", "stat_value": "42%"}, index=1)
+    assert any("needs either" in e for e in errors)
+
+
+def test_process_renders_content_only_stat_callout_and_exits_zero(tmp_path: Path) -> None:
+    content = "1 focused day of pre-development review prevented 3 compounding problems"
+    post = _write_post(tmp_path, "STAT", content)
+
+    assert process_callouts.process(post) == 0
+    rendered = post.read_text(encoding="utf-8")
+    assert "bs-callout bs-callout--stat" in rendered
+    assert "```bsgen:callout" not in rendered  # the exact leak this regresses against
+    assert content in rendered
+    # No empty stat-value/stat-label spans when there was never a stat pair to render.
+    assert 'class="bs-callout__stat-value"' not in rendered
+    assert 'class="bs-callout__stat-label"' not in rendered
+
+
+def test_process_renders_full_stat_callout_with_spans(tmp_path: Path) -> None:
+    post = tmp_path / "post.md"
+    post.write_text(
+        "---\ntitle: t\n---\n\n```bsgen:callout\ntype: STAT\n"
+        'stat_value: "42%"\nstat_label: "faster"\n```\n',
+        encoding="utf-8",
+    )
+    assert process_callouts.process(post) == 0
+    rendered = post.read_text(encoding="utf-8")
+    assert 'class="bs-callout__stat-value">42%<' in rendered
+    assert 'class="bs-callout__stat-label">faster<' in rendered
