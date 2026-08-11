@@ -125,13 +125,19 @@ def score_by_tags(current_fm: dict, candidate: dict) -> int:
     return len(current_tags & cand_tags) * 2 + len(current_cats & cand_cats) * 3
 
 
+# Module-level (not local to score_by_keywords) so other scripts scoring
+# title/keyword overlap — e.g. check_post_integrity.py's duplicate-topic
+# heuristic — can reuse the same stopword list instead of drifting out of
+# sync with their own copy.
+STOP_WORDS = {
+    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to",
+    "for", "of", "with", "by", "from", "is", "it", "as", "be", "was",
+    "are", "were", "this", "that", "i", "you", "we", "they", "my", "your"
+}
+
+
 def score_by_keywords(current_fm: dict, candidate: dict) -> float:
     """Score by title + description keyword overlap (TF-IDF-lite)."""
-    STOP_WORDS = {
-        "a", "an", "the", "and", "or", "but", "in", "on", "at", "to",
-        "for", "of", "with", "by", "from", "is", "it", "as", "be", "was",
-        "are", "were", "this", "that", "i", "you", "we", "they", "my", "your"
-    }
 
     def tokenize(text: str) -> Counter:
         words = re.findall(r"[a-z0-9]+", text.lower())

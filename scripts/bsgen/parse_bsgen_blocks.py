@@ -75,12 +75,46 @@ def parse_block_body(raw_yaml: str, block_type: str, index: int) -> dict | None:
         return None
 
 
+def normalize_asset_aliases(data: dict) -> dict:
+    """Accept `title`/`subtitle` as aliases for `headline`/`subheadline` on
+    hero_image/social_card asset blocks.
+
+    Found 2026-08-06 building a QA gallery of sample renders: real content
+    across this repo is genuinely inconsistent about which field name it
+    uses (some drafts write `headline:`/`subheadline:`, others write
+    `title:`/`subtitle:` for the exact same hero_image/social_card shape) —
+    the latter silently failed validation ("missing 'headline'") and the
+    block was skipped entirely, leaving a raw unprocessed fence in the
+    published post with NO image ever generated. Rather than force every
+    piece of content to match one exact spelling, accept both — `headline`
+    wins if both happen to be present.
+    """
+    if data.get("type") in ("hero_image", "social_card"):
+        if "headline" not in data and "title" in data:
+            data = {**data, "headline": data["title"]}
+        if "subheadline" not in data and "subtitle" in data:
+            data = {**data, "subheadline": data["subtitle"]}
+    return data
+
+
 def validate_asset(data: dict, index: int) -> list[str]:
     """Return list of validation error messages for a bsgen:asset block."""
     errors = []
-    for field in ("id", "type", "brand", "output_formats"):
+    for field in ("type", "brand"):
         if field not in data:
             errors.append(f"asset #{index}: missing required field '{field}'")
+
+    # blog-hero is exempt from the id/output_formats requirement other types
+    # have: real content (found 2026-08-06, 14 blocks on corporate-website)
+    # never sets either — process_assets.py already falls back to a
+    # generated id for any type, and defaults blog-hero's output_formats to
+    # a standard og_card size (see DEFAULT_BLOG_HERO_OUTPUT_FORMATS there).
+    # Previously this hard-required both, so every real blog-hero block
+    # failed validation and was silently skipped — no image ever generated.
+    if data.get("type") != "blog-hero":
+        for field in ("id", "output_formats"):
+            if field not in data:
+                errors.append(f"asset #{index}: missing required field '{field}'")
 
     if "brand" in data and data["brand"] not in VALID_BRANDS:
         errors.append(f"asset #{index}: unknown brand '{data['brand']}' (must be one of {sorted(VALID_BRANDS)})")
@@ -113,6 +147,9 @@ def validate_asset(data: dict, index: int) -> list[str]:
     elif asset_type in ("social_card", "hero_image"):
         if "headline" not in data:
             errors.append(f"asset #{index} ({asset_type}): missing 'headline'")
+    elif asset_type == "blog-hero":
+        if "title" not in data and "headline" not in data:
+            errors.append(f"asset #{index} (blog-hero): missing 'title'")
 
     return errors
 
@@ -125,7 +162,7 @@ def validate_callout(data: dict, index: int) -> list[str]:
         return errors
     if ctype not in ("TIP", "WARNING", "SHORTCUT", "STAT", "QUOTE"):
         errors.append(f"callout #{index}: unknown type '{ctype}'")
-    if ctype in ("TIP", "WARNING", "SHORTCUT", "STAT"):
+    if ctype in ("TIP", "WARNING", "SHORTCUT"):
         if "content" not in data:
             errors.append(f"callout #{index} ({ctype}): missing 'content'")
         elif len(str(data["content"])) > CALLOUT_CONTENT_SOFT_LIMIT:
@@ -138,9 +175,29 @@ def validate_callout(data: dict, index: int) -> list[str]:
                 file=sys.stderr,
             )
     if ctype == "STAT":
-        for f in ("stat_value", "stat_label"):
-            if f not in data:
-                errors.append(f"callout #{index} (STAT): missing '{f}'")
+        # Regression (found 2026-08-06): this used to hard-require BOTH
+        # 'content' (checked above, before this branch existed as a separate
+        # elif) AND the stat_value/stat_label pair. A content-drafting
+        # session wrote a STAT block with only `content` (no stat_value/
+        # stat_label) — a legitimate, renderable callout — and it was
+        # rejected as a validation error, leaving the raw ```bsgen:callout```
+        # fence unprocessed in the published post. A STAT block is valid if
+        # it has EITHER a complete stat_value+stat_label pair OR a content
+        # fallback — only reject it if it has neither.
+        has_stat_pair = "stat_value" in data and "stat_label" in data
+        has_content = "content" in data
+        if not has_stat_pair and not has_content:
+            errors.append(
+                f"callout #{index} (STAT): needs either both 'stat_value' and "
+                f"'stat_label', or a 'content' fallback — has neither"
+            )
+        elif has_content and len(str(data["content"])) > CALLOUT_CONTENT_SOFT_LIMIT:
+            print(
+                f"WARNING: callout #{index} (STAT): 'content' is "
+                f"{len(str(data['content']))} chars (soft guideline: "
+                f"{CALLOUT_CONTENT_SOFT_LIMIT}); rendering anyway",
+                file=sys.stderr,
+            )
     if ctype == "QUOTE":
         for f in ("quote_text", "attribution"):
             if f not in data:
@@ -248,6 +305,9 @@ def parse_file(post_path: Path, filter_type: str | None = None) -> dict:
         data = parse_block_body(raw_body, raw_type, index)
         if data is None:
             continue
+
+        if raw_type == "asset":
+            data = normalize_asset_aliases(data)
 
         errors = VALIDATORS[raw_type](data, index)
         result["validation_errors"].extend(errors)
