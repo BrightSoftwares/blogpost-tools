@@ -288,6 +288,55 @@ class TestTypeAwareComposition:
             "expected 4 visually distinct fragments, got duplicates"
         )
 
+    def test_framework_matrix_renders_a_2x2_grid_not_generic_headline(self):
+        svg = self._render(
+            "framework_matrix",
+            title="Where to spend the next quarter.",
+            lede="A simple 2x2 to triage feature ideas.",
+            quadrants=[
+                {"title": "Breakthroughs.", "body": "Fund the top one or two.", "tone": "positive"},
+                {"title": "Heavy stones.", "body": "Question why they're still here.", "tone": "neutral"},
+                {"title": "Quick wins.", "body": "Ship these first.", "tone": "neutral"},
+                {"title": "Drift.", "body": "Fine to leave running.", "tone": "negative"},
+            ],
+        )
+        # All 4 quadrant titles present (a generic headline fragment would
+        # only show data.get("headline"), which framework_matrix never sets).
+        for title in ("Breakthroughs", "Heavy stones", "Quick wins", "Drift"):
+            assert title in svg
+        # The 2x2 divider lines that distinguish this from a plain card.
+        assert svg.count("<line ") >= 2
+
+    def test_principles_list_renders_numbered_items_not_generic_headline(self):
+        svg = self._render(
+            "principles_list",
+            kicker="A field guide",
+            title="Three principles for shipping intelligent software.",
+            items=[
+                {"number": "01", "title": "Signal over noise.", "body": "Remove a dashboard."},
+                {"number": "02", "title": "Clarity at scale.", "body": "Explain it in a sentence."},
+                {"number": "03", "title": "Light, not heat.", "body": "Lower the temperature."},
+            ],
+        )
+        for title in ("Signal over noise", "Clarity at scale", "Light, not heat"):
+            assert title in svg
+        assert "A FIELD GUIDE" in svg  # kicker, uppercased
+        assert "01" in svg and "02" in svg and "03" in svg
+
+    def test_framework_matrix_and_principles_list_are_distinct_from_headline_fallback(self):
+        headline_svg = self._render("hero_image", headline="Some headline")
+        matrix_svg = self._render(
+            "framework_matrix", title="T", lede="L",
+            quadrants=[{"title": f"Q{i}", "body": "b", "tone": "neutral"} for i in range(4)],
+        )
+        list_svg = self._render(
+            "principles_list", kicker="K", title="T",
+            items=[{"number": "01", "title": "I1", "body": "b"}, {"number": "02", "title": "I2", "body": "b"}],
+        )
+        assert matrix_svg != headline_svg
+        assert list_svg != headline_svg
+        assert matrix_svg != list_svg
+
 
 class TestResolvePalette:
     def test_known_brand_and_palette_resolves_exact_match(self):

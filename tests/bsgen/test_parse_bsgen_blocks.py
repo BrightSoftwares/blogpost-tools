@@ -94,3 +94,105 @@ class TestBlogHeroValidationExemption:
         errors = validate_asset(data, 1)
         assert any("'id'" in e for e in errors)
         assert any("'output_formats'" in e for e in errors)
+
+
+class TestFrameworkMatrixValidation:
+    """SP-P5: framework_matrix (Smart Assets Manager template_id=framework-matrix)."""
+
+    VALID_QUADRANTS = [
+        {"label": "a", "title": "a", "body": "a", "tone": "positive"},
+        {"label": "b", "title": "b", "body": "b", "tone": "neutral"},
+        {"label": "c", "title": "c", "body": "c", "tone": "neutral"},
+        {"label": "d", "title": "d", "body": "d", "tone": "negative"},
+    ]
+
+    def _base(self, **overrides):
+        data = {
+            "id": "x", "type": "framework_matrix", "brand": "bright-softwares",
+            "output_formats": [{"og_card": "1200x630"}],
+            "title": "Where to spend the next quarter.",
+            "lede": "A simple 2x2 to triage feature ideas.",
+            "quadrants": list(self.VALID_QUADRANTS),
+        }
+        data.update(overrides)
+        return data
+
+    def test_valid_block_passes(self):
+        assert validate_asset(self._base(), 1) == []
+
+    def test_missing_title_fails(self):
+        data = self._base()
+        del data["title"]
+        errors = validate_asset(data, 1)
+        assert any("framework_matrix" in e and "title" in e for e in errors)
+
+    def test_missing_lede_fails(self):
+        data = self._base()
+        del data["lede"]
+        errors = validate_asset(data, 1)
+        assert any("framework_matrix" in e and "lede" in e for e in errors)
+
+    def test_missing_quadrants_fails(self):
+        data = self._base()
+        del data["quadrants"]
+        errors = validate_asset(data, 1)
+        assert any("framework_matrix" in e and "quadrants" in e for e in errors)
+
+    def test_wrong_quadrant_count_fails(self):
+        data = self._base(quadrants=self.VALID_QUADRANTS[:3])
+        errors = validate_asset(data, 1)
+        assert any("exactly 4 entries" in e for e in errors)
+
+    def test_five_quadrants_also_fails(self):
+        data = self._base(quadrants=self.VALID_QUADRANTS + [self.VALID_QUADRANTS[0]])
+        errors = validate_asset(data, 1)
+        assert any("exactly 4 entries" in e for e in errors)
+
+
+class TestPrinciplesListValidation:
+    """SP-P5: principles_list (Smart Assets Manager template_id=numbered-list-editorial)."""
+
+    VALID_ITEMS = [
+        {"number": "01", "title": "Signal over noise.", "body": "x"},
+        {"number": "02", "title": "Clarity at scale.", "body": "x"},
+        {"number": "03", "title": "Light, not heat.", "body": "x"},
+    ]
+
+    def _base(self, **overrides):
+        data = {
+            "id": "x", "type": "principles_list", "brand": "bright-softwares",
+            "output_formats": [{"og_card": "1200x630"}],
+            "kicker": "A field guide",
+            "title": "Three principles for shipping intelligent software.",
+            "items": list(self.VALID_ITEMS),
+        }
+        data.update(overrides)
+        return data
+
+    def test_valid_block_passes(self):
+        assert validate_asset(self._base(), 1) == []
+
+    def test_two_items_is_valid(self):
+        assert validate_asset(self._base(items=self.VALID_ITEMS[:2]), 1) == []
+
+    def test_missing_kicker_fails(self):
+        data = self._base()
+        del data["kicker"]
+        errors = validate_asset(data, 1)
+        assert any("principles_list" in e and "kicker" in e for e in errors)
+
+    def test_missing_items_fails(self):
+        data = self._base()
+        del data["items"]
+        errors = validate_asset(data, 1)
+        assert any("principles_list" in e and "items" in e for e in errors)
+
+    def test_one_item_fails(self):
+        data = self._base(items=self.VALID_ITEMS[:1])
+        errors = validate_asset(data, 1)
+        assert any("2-3 entries" in e for e in errors)
+
+    def test_four_items_fails(self):
+        data = self._base(items=self.VALID_ITEMS + [self.VALID_ITEMS[0]])
+        errors = validate_asset(data, 1)
+        assert any("2-3 entries" in e for e in errors)
