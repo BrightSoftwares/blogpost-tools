@@ -10,7 +10,7 @@ on:
       generatenewkeywordsuggestions_keywordseed: 
         required: false
         type: string
-        default: /github/workspace/_drafts/keywords.csv
+        default: /github/workspace/_seo/keyword-generation/keywords.csv
       generatenewkeywordsuggestions_keywordsuggestionsgenerationfolder: 
         required: false
         type: string
@@ -98,7 +98,7 @@ on:
       suggestionstoblogpost10_100_keyword_seed: 
         required: false
         type: string
-        default: /github/workspace/_drafts/keywords.csv
+        default: /github/workspace/_seo/keyword-generation/keywords.csv
       suggestionstoblogpost10_100_batch_size: 
         required: false
         type: string
@@ -122,7 +122,7 @@ on:
       suggestionstoblogpost100_500_keywordseed: 
         required: false
         type: string
-        default: /github/workspace/_drafts/keywords.csv
+        default: /github/workspace/_seo/keyword-generation/keywords.csv
       suggestionstoblogpost100_500_batchsize: 
         required: false
         type: string
@@ -206,7 +206,7 @@ jobs:
       - name: Generate new keyword suggestions
         uses: BrightSoftwares/blogpost-tools/keyword-suggestion@main
         with:
-          keyword_seed: ${{ inputs.generatenewkeywordsuggestions_keywordseed }} # /github/workspace/_drafts/keywords.csv
+          keyword_seed: ${{ inputs.generatenewkeywordsuggestions_keywordseed }} # /github/workspace/_seo/keyword-generation/keywords.csv
           keyword_suggestions_generation_folder: ${{ inputs.generatenewkeywordsuggestions_keywordsuggestionsgenerationfolder }} # /github/workspace/_drafts
           drafts_path: ${{ inputs.generatenewkeywordsuggestions_draftspath }} # /github/workspace/_drafts/
           keyword_suggestions_blogpost_file: ${{ inputs.generatenewkeywordsuggestions_keywordsuggestionsblogpostfile }} # keyword_suggestions_merged_blogpost_candidates.csv
@@ -261,7 +261,7 @@ jobs:
           keyword_suggestions_generation_folder: ${{ inputs.suggestionstoblogpost10_100_keyword_suggestions_generation_folder }} # /github/workspace/_drafts
           keyword_suggestion: ${{ inputs.suggestionstoblogpost10_100_keyword_suggestion }} # kw_blogpost_candidates_10_100.csv
           drafts_path: ${{ inputs.suggestionstoblogpost10_100_drafts_path }} # /github/workspace/_drafts/
-          keyword_seed: ${{ inputs.suggestionstoblogpost10_100_keyword_seed }} # /github/workspace/_drafts/keywords.csv
+          keyword_seed: ${{ inputs.suggestionstoblogpost10_100_keyword_seed }} # /github/workspace/_seo/keyword-generation/keywords.csv
           batch_size: ${{ inputs.suggestionstoblogpost10_100_batch_size }} # 5
           language: ${{ inputs.suggestionstoblogpost10_100_language }} # fr
           
@@ -271,7 +271,7 @@ jobs:
           keyword_suggestions_generation_folder: ${{ inputs.suggestionstoblogpost100_500_keywordsuggestionsgenerationfolder }} # /github/workspace/_drafts
           keyword_suggestion: ${{ inputs.suggestionstoblogpost100_500_keywordsuggestion }} # kw_blogpost_candidates_100_500.csv
           drafts_path: ${{ inputs.suggestionstoblogpost100_500_draftspath }} # /github/workspace/_drafts/
-          keyword_seed: ${{ inputs.suggestionstoblogpost100_500_keywordseed }} # /github/workspace/_drafts/keywords.csv
+          keyword_seed: ${{ inputs.suggestionstoblogpost100_500_keywordseed }} # /github/workspace/_seo/keyword-generation/keywords.csv
           batch_size: ${{ inputs.suggestionstoblogpost100_500_batchsize }} # 5
           language: ${{ inputs.suggestionstoblogpost100_500_language }} # fr
           

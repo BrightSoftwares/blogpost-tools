@@ -150,6 +150,24 @@ def validate_asset(data: dict, index: int) -> list[str]:
     elif asset_type == "blog-hero":
         if "title" not in data and "headline" not in data:
             errors.append(f"asset #{index} (blog-hero): missing 'title'")
+    elif asset_type == "framework_matrix":
+        for f in ("title", "lede", "quadrants"):
+            if f not in data:
+                errors.append(f"asset #{index} (framework_matrix): missing '{f}'")
+        if "quadrants" in data and len(data["quadrants"]) != 4:
+            errors.append(
+                f"asset #{index} (framework_matrix): 'quadrants' must have exactly 4 entries, "
+                f"got {len(data['quadrants'])}"
+            )
+    elif asset_type == "principles_list":
+        for f in ("kicker", "title", "items"):
+            if f not in data:
+                errors.append(f"asset #{index} (principles_list): missing '{f}'")
+        if "items" in data and not (2 <= len(data["items"]) <= 3):
+            errors.append(
+                f"asset #{index} (principles_list): 'items' must have 2-3 entries, "
+                f"got {len(data['items'])}"
+            )
 
     return errors
 

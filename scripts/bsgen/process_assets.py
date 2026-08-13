@@ -523,6 +523,110 @@ def _render_comparison_fragment(data: dict, width: int, height: int, colors: dic
     return _render_table_fragment(data, width, height, colors)
 
 
+def _render_framework_matrix_fragment(data: dict, width: int, height: int, colors: dict) -> str:
+    """framework_matrix (SP-P5): a title/lede header over a real 2x2 grid of
+    quadrant title+body text — not a plain headline card. Matches SAM's
+    `framework-matrix` template shape (title, lede, 4 quadrants each with
+    label/title/body/tone) but stays a text-only placeholder like every
+    other fragment here; SAM itself renders the colored tiles/icons."""
+    title = str(data.get("title", ""))
+    lede = str(data.get("lede", ""))
+    quadrants = [q for q in (data.get("quadrants") or []) if q][:4]
+
+    heading = _wrap_and_stack(
+        [(title, 22, "700")], width, width // 2, int(height * 0.14),
+        max_width_ratio=0.86, text_color=colors["text"], max_lines=2,
+    )
+    lede_block = ""
+    if lede:
+        lede_block = _wrap_and_stack(
+            [(lede, 13, "400")], width, width // 2, int(height * 0.24),
+            max_width_ratio=0.8, text_color=colors["text"], line_height=17,
+            max_lines=2,
+        )
+
+    divider = (
+        f'<line x1="0" y1="{height//2}" x2="{width}" y2="{height//2}" '
+        f'stroke="{colors["accent"]}" stroke-width="1" opacity="0.3"/>'
+        f'<line x1="{width//2}" y1="{int(height*0.32)}" x2="{width//2}" y2="{int(height*0.92)}" '
+        f'stroke="{colors["accent"]}" stroke-width="1" opacity="0.3"/>'
+    )
+
+    cells = ""
+    positions = [
+        (width // 4, int(height * 0.46)), (width * 3 // 4, int(height * 0.46)),
+        (width // 4, int(height * 0.72)), (width * 3 // 4, int(height * 0.72)),
+    ]
+    for (cx, cy), q in zip(positions, quadrants):
+        q_title = str(q.get("title", ""))
+        q_body = str(q.get("body", ""))
+        tone = str(q.get("tone", "neutral"))
+        title_color = colors["accent"] if tone == "positive" else colors["text"]
+        cells += _wrap_and_stack(
+            [(q_title, 15, "700")], width // 2, cx, cy,
+            max_width_ratio=0.85, text_color=title_color, max_lines=1,
+        )
+        if q_body:
+            cells += _wrap_and_stack(
+                [(q_body, 11, "400")], width // 2, cx, cy + 22,
+                max_width_ratio=0.8, text_color=colors["text"], line_height=14,
+                max_lines=2,
+            )
+
+    return heading + lede_block + divider + cells
+
+
+def _render_principles_list_fragment(data: dict, width: int, height: int, colors: dict) -> str:
+    """principles_list (SP-P5): kicker + title over a stacked numbered list
+    (2-3 items) — matches SAM's `numbered-list-editorial` template shape."""
+    kicker = str(data.get("kicker", "")).upper()
+    title = str(data.get("title", ""))
+    items = [it for it in (data.get("items") or []) if it][:3]
+
+    kicker_block = ""
+    if kicker:
+        kicker_block = _text_el(width // 2, int(height * 0.10), kicker, 12, "700",
+                                colors["accent"], opacity=0.9, letter_spacing="1.5px")
+    heading = _wrap_and_stack(
+        [(title, 22, "700")], width, width // 2, int(height * 0.20),
+        max_width_ratio=0.84, text_color=colors["text"], max_lines=2,
+    )
+
+    n = max(len(items), 1)
+    row_top = int(height * 0.34)
+    row_bottom = int(height * 0.90)
+    row_h = (row_bottom - row_top) / n
+    rows_svg = ""
+    for i, item in enumerate(items):
+        number = str(item.get("number", f"{i + 1:02d}"))
+        item_title = str(item.get("title", ""))
+        item_body = str(item.get("body", ""))
+        band_top = row_top + row_h * i
+        num_y = int(band_top + row_h * 0.28)
+        title_y = int(band_top + row_h * 0.52)
+        body_y = int(band_top + row_h * 0.74)
+        rows_svg += _text_el(int(width * 0.10), num_y, number, 18, "700",
+                             colors["accent"], anchor="start", style="italic")
+        rows_svg += _wrap_and_stack(
+            [(item_title, 16, "700")], width, int(width * 0.10) + 60, title_y,
+            max_width_ratio=0.78, text_color=colors["text"], anchor="start", max_lines=1,
+        )
+        if item_body:
+            rows_svg += _wrap_and_stack(
+                [(item_body, 12, "400")], width, int(width * 0.10) + 60, body_y,
+                max_width_ratio=0.75, text_color=colors["text"], anchor="start",
+                line_height=15, max_lines=2,
+            )
+        if i < n - 1:
+            sep_y = int(row_top + row_h * (i + 1))
+            rows_svg += (
+                f'<line x1="{int(width*0.08)}" y1="{sep_y}" x2="{int(width*0.92)}" '
+                f'y2="{sep_y}" stroke="{colors["text"]}" stroke-width="1" opacity="0.1"/>'
+            )
+
+    return kicker_block + heading + rows_svg
+
+
 # asset `type` -> fragment renderer. Anything not listed falls back to the
 # headline treatment (the safest default: just centered text, no assumptions
 # about fields that type doesn't provide).
@@ -534,6 +638,8 @@ _FRAGMENT_RENDERERS = {
     "social_card": _render_headline_fragment,
     "hero_image": _render_headline_fragment,
     "blog-hero": _render_blog_hero_fragment,
+    "framework_matrix": _render_framework_matrix_fragment,
+    "principles_list": _render_principles_list_fragment,
 }
 
 
