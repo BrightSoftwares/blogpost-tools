@@ -57,18 +57,63 @@ def slug_from_filepath(post_path: Path) -> str:
     return m.group(1) if m else name
 
 
-def url_from_filepath(post_path: Path, site_url: str, language: str) -> str:
-    """Build a canonical URL for a post file."""
+def find_site_config(posts_dir: Path) -> dict:
+    """Walk upward from posts_dir looking for the site's _config.yml."""
+    for parent in [posts_dir] + list(posts_dir.parents):
+        candidate = parent / "_config.yml"
+        if candidate.exists():
+            try:
+                return yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+            except Exception:
+                return {}
+    return {}
+
+
+def site_posts_permalink(config: dict) -> str | None:
+    """Extract the posts collection's permalink template from _config.yml, if any.
+
+    Supports both the standard Jekyll top-level `permalink:` and a `posts:`
+    block with its own `permalink:` (the pattern corporate-website uses).
+    """
+    posts_block = config.get("posts")
+    if isinstance(posts_block, dict) and posts_block.get("permalink"):
+        return posts_block["permalink"]
+    if isinstance(config.get("permalink"), str):
+        return config["permalink"]
+    return None
+
+
+def url_from_filepath(post_path: Path, site_url: str, language: str, config: dict | None = None) -> str:
+    """Build a canonical URL for a post file, matching the site's real permalink."""
     slug = slug_from_filepath(post_path)
-    # Try to read permalink from frontmatter first
+    # Try to read permalink from the post's own frontmatter first (explicit override)
     try:
         content = post_path.read_text(encoding="utf-8")
         fm = extract_frontmatter(content)
         if "permalink" in fm:
             return site_url.rstrip("/") + "/" + fm["permalink"].lstrip("/")
     except Exception:
-        pass
-    # Default Jekyll URL pattern: /lang/YYYY/MM/DD/slug/
+        fm = {}
+
+    template = site_posts_permalink(config or {})
+    if template:
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})-", post_path.stem)
+        y, mo, d = (m.group(1), m.group(2), m.group(3)) if m else ("", "", "")
+        categories = fm.get("categories") or []
+        category = categories[0] if categories else "uncategorized"
+        path = (
+            template
+            .replace(":categories", category)
+            .replace(":year", y)
+            .replace(":month", mo)
+            .replace(":day", d)
+            .replace(":slug", slug)
+            .replace(":title", slug)
+        )
+        return site_url.rstrip("/") + "/" + path.strip("/") + "/"
+
+    # No site config found -- fall back to the old date-based guess
+    # (kept for repos without a discoverable _config.yml, to avoid a hard regression).
     m = re.match(r"^(\d{4})-(\d{2})-(\d{2})-", post_path.stem)
     if m:
         y, mo, d = m.group(1), m.group(2), m.group(3)
@@ -78,13 +123,14 @@ def url_from_filepath(post_path: Path, site_url: str, language: str) -> str:
 
 def load_posts_index(posts_dir: Path, site_url: str, language: str) -> list[dict]:
     """Load frontmatter + URL for all posts in the directory."""
+    config = find_site_config(posts_dir)
     index = []
     for post_file in sorted(posts_dir.glob("*.md")):
         try:
             content = post_file.read_text(encoding="utf-8")
             fm = extract_frontmatter(content)
             slug = slug_from_filepath(post_file)
-            url = url_from_filepath(post_file, site_url, language)
+            url = url_from_filepath(post_file, site_url, language, config)
             index.append({
                 "path": post_file,
                 "slug": slug,
