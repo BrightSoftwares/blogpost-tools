@@ -1,12 +1,16 @@
 """
 process_social.py
 
-Extracts bsgen:social blocks from a Markdown post to JSON files,
-then removes the blocks from the post (they live inside <!-- SOCIAL --> comments).
+Extracts bsgen:social blocks from a Markdown post to JSON files, then
+replaces each extracted block in the post with a dormant, HTML-commented
+copy of its original fence (they live inside <!-- SOCIAL --> comments).
 
 Output files: <output_dir>/YYYY-MM-DD-{slug}-{platform}-{post_type}.json
-The bsgen:social fence (and the enclosing <!-- SOCIAL --> section if empty) is
-removed from the post file.
+The bsgen:social fence is replaced in-place by a dormant copy (see
+parse_bsgen_blocks.wrap_dormant_source) — it is not deleted. Because the
+dormant copy is non-empty, the enclosing <!-- SOCIAL --> markers are no
+longer "empty" and are intentionally left in place around it. To
+re-extract: delete the dormant comment wrapper to restore a live fence.
 
 Usage:
     python process_social.py <post_file> <output_dir>
@@ -24,7 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_bsgen_blocks import parse_file
+from parse_bsgen_blocks import parse_file, wrap_dormant_source
 
 
 def slug_from_filename(post_path: Path) -> str:
@@ -89,9 +93,13 @@ def process(post_path: Path, output_dir: Path) -> int:
         print(f"OK: extracted social #{block['index']} → {out_file}", file=sys.stderr)
         extracted += 1
 
-        # Remove block from content
+        # Replace block with a dormant, commented-out copy of the source —
+        # extraction is reversible by comment/uncomment, not a permanent
+        # deletion. This also means the enclosing <!-- SOCIAL --> markers
+        # (if present) are no longer "empty" and are intentionally left in
+        # place around the dormant copy by the cleanup regexes below.
         if block["raw"] in content:
-            content = content.replace(block["raw"], "", 1)
+            content = content.replace(block["raw"], wrap_dormant_source(block["raw"]), 1)
 
     # Clean up empty <!-- SOCIAL --> ... <!-- /SOCIAL --> sections
     content = re.sub(

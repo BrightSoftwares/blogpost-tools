@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "bsgen"
 import process_callouts  # noqa: E402
 from parse_bsgen_blocks import (  # noqa: E402
     CALLOUT_CONTENT_SOFT_LIMIT,
+    parse_file,
     validate_callout,
 )
 
@@ -80,7 +81,10 @@ def test_process_renders_over_length_callout_and_exits_zero(tmp_path: Path) -> N
 
     rendered = post.read_text(encoding="utf-8")
     assert "bs-callout bs-callout--warning" in rendered
-    assert "bsgen:callout" not in rendered  # fence was replaced
+    # The raw fence is preserved as a dormant, HTML-commented copy (reversible
+    # by comment/uncomment) rather than deleted outright — so the literal
+    # text may still appear, but it must not be re-parsed as a live block.
+    assert parse_file(post, filter_type="callout")["blocks"]["callout"] == []
     assert long_content in rendered  # content preserved in full, not truncated
 
 
@@ -132,7 +136,10 @@ def test_process_renders_content_only_stat_callout_and_exits_zero(tmp_path: Path
     assert process_callouts.process(post) == 0
     rendered = post.read_text(encoding="utf-8")
     assert "bs-callout bs-callout--stat" in rendered
-    assert "```bsgen:callout" not in rendered  # the exact leak this regresses against
+    # The raw fence is preserved as a dormant, HTML-commented copy rather
+    # than deleted — assert it is inert (not re-parsed as live), which is
+    # the property the original "leak" regression actually cared about.
+    assert parse_file(post, filter_type="callout")["blocks"]["callout"] == []
     assert content in rendered
     # No empty stat-value/stat-label spans when there was never a stat pair to render.
     assert 'class="bs-callout__stat-value"' not in rendered

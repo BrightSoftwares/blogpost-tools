@@ -48,6 +48,22 @@ BSGEN_FENCE_RE = re.compile(
     re.DOTALL
 )
 
+# Matches HTML comments, used to find spans that should be treated as inert.
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def _dormant_spans(content: str) -> list[tuple[int, int]]:
+    """Return (start, end) spans of every HTML comment in content.
+
+    Rendered posts keep a dormant copy of the original bsgen:TYPE fence
+    wrapped in an HTML comment (see process_assets.py etc.) so a human can
+    revert a render by deleting the rendered output and un-wrapping the
+    comment — restoring a live fence with zero retyping. Without this,
+    BSGEN_FENCE_RE would match that dormant copy too, causing it to be
+    reprocessed (and duplicated) on every subsequent run.
+    """
+    return [m.span() for m in HTML_COMMENT_RE.finditer(content)]
+
 
 def extract_frontmatter(content: str) -> dict:
     """Extract YAML frontmatter from a Jekyll post."""
@@ -291,6 +307,24 @@ VALIDATORS = {
 }
 
 
+def wrap_dormant_source(raw_block: str) -> str:
+    """Wrap an original bsgen:TYPE fence in an HTML comment so a render is
+    reversible by comment/uncomment instead of git archaeology.
+
+    Called by all four processors in place of discarding `block["raw"]`.
+    To undo a render: delete the rendered output lines, then delete the
+    `<!--`/`-->` wrapper lines around the fence below — the fence itself
+    needs no retyping, `parse_file()` treats anything inside an HTML
+    comment as inert (see `_dormant_spans`).
+    """
+    return (
+        "<!-- bsgen source (delete this comment wrapper to regenerate; "
+        "delete the rendered output below it first)\n"
+        f"{raw_block}\n"
+        "-->"
+    )
+
+
 def parse_file(post_path: Path, filter_type: str | None = None) -> dict:
     content = post_path.read_text(encoding="utf-8")
     frontmatter = extract_frontmatter(content)
@@ -304,8 +338,14 @@ def parse_file(post_path: Path, filter_type: str | None = None) -> dict:
     }
 
     counts = {t: 0 for t in VALID_BLOCK_TYPES}
+    comment_spans = _dormant_spans(content)
 
     for match in BSGEN_FENCE_RE.finditer(content):
+        start = match.start()
+        if any(cs <= start < ce for cs, ce in comment_spans):
+            # Dormant source copy inside an HTML comment — not a live block.
+            continue
+
         raw_type = match.group(1).lower()
         raw_body = match.group(2)
         raw_full = match.group(0)

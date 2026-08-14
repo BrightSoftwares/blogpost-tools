@@ -16,7 +16,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "bsgen"))
 
-from parse_bsgen_blocks import normalize_asset_aliases, validate_asset, parse_file  # noqa: E402
+from parse_bsgen_blocks import (  # noqa: E402
+    normalize_asset_aliases,
+    validate_asset,
+    parse_file,
+    wrap_dormant_source,
+)
 
 
 class TestNormalizeAssetAliases:
@@ -196,3 +201,59 @@ class TestPrinciplesListValidation:
         data = self._base(items=self.VALID_ITEMS + [self.VALID_ITEMS[0]])
         errors = validate_asset(data, 1)
         assert any("2-3 entries" in e for e in errors)
+
+
+class TestDormantSourceReversibility:
+    """A render must be reversible by comment/uncomment, not git archaeology.
+
+    All four bsgen processors preserve the original ```bsgen:TYPE fence as a
+    dormant copy wrapped in an HTML comment (wrap_dormant_source), placed
+    ahead of the rendered output, instead of discarding it. parse_file()
+    must treat anything inside an HTML comment as inert so the dormant copy
+    is never re-processed — and un-wrapping it (deleting the comment
+    markers) must restore a live, parseable block with zero retyping.
+    """
+
+    RAW_BLOCK = (
+        '```bsgen:callout\ntype: TIP\ncontent: "hello world"\n```'
+    )
+
+    def _post(self, body: str) -> str:
+        return f"---\ntitle: t\n---\n\nIntro.\n\n{body}\n\nOutro.\n"
+
+    def test_live_block_is_parsed(self, tmp_path):
+        post = tmp_path / "post.md"
+        post.write_text(self._post(self.RAW_BLOCK), encoding="utf-8")
+        result = parse_file(post, filter_type="callout")
+        assert len(result["blocks"]["callout"]) == 1
+
+    def test_dormant_wrapped_block_is_not_reparsed_as_live(self, tmp_path):
+        rendered = '<div class="bs-callout bs-callout--tip">rendered</div>'
+        replacement = f"{wrap_dormant_source(self.RAW_BLOCK)}\n{rendered}"
+        post = tmp_path / "post.md"
+        post.write_text(self._post(replacement), encoding="utf-8")
+        result = parse_file(post, filter_type="callout")
+        assert result["blocks"]["callout"] == []
+        # The literal fence text is still present (that's the point — it's
+        # recoverable), just inert while wrapped.
+        assert "bsgen:callout" in post.read_text(encoding="utf-8")
+
+    def test_unwrapping_the_comment_restores_a_live_block(self, tmp_path):
+        rendered = '<div class="bs-callout bs-callout--tip">rendered</div>'
+        replacement = f"{wrap_dormant_source(self.RAW_BLOCK)}\n{rendered}"
+        post = tmp_path / "post.md"
+        post.write_text(self._post(replacement), encoding="utf-8")
+
+        # Simulate a human undo: delete the rendered line and the comment
+        # wrapper lines around the dormant fence, leaving the bare fence.
+        lines = post.read_text(encoding="utf-8").split("\n")
+        undone = [
+            line for line in lines
+            if not line.startswith("<!-- bsgen source")
+            and line.strip() != "-->"
+            and line != rendered
+        ]
+        post.write_text("\n".join(undone), encoding="utf-8")
+
+        result = parse_file(post, filter_type="callout")
+        assert len(result["blocks"]["callout"]) == 1
