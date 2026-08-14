@@ -13,10 +13,16 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "bsgen"))
 
-from process_assets import generate_placeholder_svg, wrap_label_to_width, process  # noqa: E402
+from process_assets import (  # noqa: E402
+    generate_placeholder_svg,
+    wrap_label_to_width,
+    process,
+    SAM_BRIDGE_SUPPORTED_TYPES,
+)
 
 
 class TestWrapLabelToWidth:
@@ -557,3 +563,101 @@ class TestBlogHeroBackgroundImage:
         assert "Notiwise" in svg
         assert "Full Bright" in svg
         assert "July 14, 2026" in svg
+
+
+class TestSamBridgeRouting:
+    """Per-type live/offline routing (added with the bsgen live-API bridge).
+
+    SAM_BRIDGE_SUPPORTED_TYPES types call process_with_sam_api() when
+    BSGEN_SAM_API_URL/KEY are set; unsupported types (comparison_table,
+    before_after) always use the offline placeholder path, even with the
+    env vars set — see 230.005.PRJ...md's bridge plan for the rationale.
+    """
+
+    def _make_post(self, tmp_path: Path, block_yaml: str) -> Path:
+        posts_dir = tmp_path / "en" / "_posts"
+        posts_dir.mkdir(parents=True, exist_ok=True)
+        post = posts_dir / "2026-08-13-test-post.md"
+        post.write_text(
+            "---\n"
+            "title: Test post\n"
+            "tags: [test]\n"
+            "pipeline_state: bsgen_processing\n"
+            "---\n\n"
+            "Intro text.\n\n"
+            "```bsgen:asset\n"
+            f"{block_yaml}"
+            "```\n",
+            encoding="utf-8",
+        )
+        return post
+
+    def test_supported_type_calls_sam_api_when_configured(self, tmp_path: Path, monkeypatch):
+        assert "hero_image" in SAM_BRIDGE_SUPPORTED_TYPES
+        monkeypatch.setenv("BSGEN_SAM_API_URL", "https://sam.example.com")
+        monkeypatch.setenv("BSGEN_SAM_API_KEY", "test-key")
+        post = self._make_post(
+            tmp_path,
+            'id: "hero-1"\n'
+            "type: hero_image\n"
+            "brand: bright-softwares\n"
+            'headline: "hello"\n'
+            "output_formats:\n"
+            '  - og_card: "1200x630"\n',
+        )
+        output_dir = tmp_path / "assets" / "images" / "bsgen"
+
+        with patch("process_assets.process_with_sam_api") as mock_sam:
+            mock_sam.return_value = {"og_card": "https://res.cloudinary.com/demo/hero-1.png"}
+            process(post, output_dir)
+
+        mock_sam.assert_called_once()
+        called_data = mock_sam.call_args[0][0]
+        assert called_data["type"] == "hero_image"
+        # No placeholder SVG should have been written for a live-routed asset.
+        assert not list(output_dir.glob("*.svg"))
+
+    def test_unsupported_type_uses_placeholder_even_when_sam_configured(
+        self, tmp_path: Path, monkeypatch
+    ):
+        assert "comparison_table" not in SAM_BRIDGE_SUPPORTED_TYPES
+        monkeypatch.setenv("BSGEN_SAM_API_URL", "https://sam.example.com")
+        monkeypatch.setenv("BSGEN_SAM_API_KEY", "test-key")
+        post = self._make_post(
+            tmp_path,
+            'id: "table-1"\n'
+            "type: comparison_table\n"
+            "brand: bright-softwares\n"
+            'table_title: "Before vs after"\n'
+            'columns: ["Metric", "Before", "After"]\n'
+            'rows:\n  - ["Time", "4h", "20m"]\n'
+            "output_formats:\n"
+            '  - og_card: "1200x630"\n',
+        )
+        output_dir = tmp_path / "assets" / "images" / "bsgen"
+
+        with patch("process_assets.process_with_sam_api") as mock_sam:
+            process(post, output_dir)
+
+        mock_sam.assert_not_called()
+        assert len(list(output_dir.glob("*.svg"))) == 1
+
+    def test_no_routing_calls_sam_when_env_vars_unset(self, tmp_path: Path, monkeypatch):
+        monkeypatch.delenv("BSGEN_SAM_API_URL", raising=False)
+        monkeypatch.delenv("BSGEN_SAM_API_KEY", raising=False)
+        post = self._make_post(
+            tmp_path,
+            'id: "hero-2"\n'
+            "type: hero_image\n"
+            "brand: bright-softwares\n"
+            'headline: "hello"\n'
+            "output_formats:\n"
+            '  - og_card: "1200x630"\n',
+        )
+        output_dir = tmp_path / "assets" / "images" / "bsgen"
+
+        with patch("process_assets.process_with_sam_api") as mock_sam:
+            process(post, output_dir)
+
+        mock_sam.assert_not_called()
+        assert len(list(output_dir.glob("*.svg"))) == 1
