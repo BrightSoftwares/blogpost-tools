@@ -22,6 +22,11 @@ Exit codes:
     0 = success
     1 = fatal error
     2 = some wikilinks dangled (resolved with fallback, not a hard failure)
+
+Reversibility: the original ```bsgen:related fence is kept as a dormant,
+HTML-commented copy immediately before the rendered "Related reading"
+module (see parse_bsgen_blocks.wrap_dormant_source). To revert: delete
+the rendered module and un-wrap the comment around the dormant fence.
 """
 
 import sys
@@ -32,7 +37,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_bsgen_blocks import parse_file, extract_frontmatter
+from parse_bsgen_blocks import parse_file, extract_frontmatter, wrap_dormant_source
 
 try:
     import yaml
@@ -317,7 +322,8 @@ def process(post_path: Path, posts_dir: Path, site_url: str, language: str = "en
         html_module_str = render_related_module(resolved_links)
 
         if block["raw"] in content:
-            content = content.replace(block["raw"], html_module_str, 1)
+            replacement = f"{wrap_dormant_source(block['raw'])}\n{html_module_str}"
+            content = content.replace(block["raw"], replacement, 1)
             print(f"OK: replaced related #{block['index']} with {len(resolved_links)} link(s)", file=sys.stderr)
         else:
             print(f"WARNING: related #{block['index']} raw text not found in file", file=sys.stderr)

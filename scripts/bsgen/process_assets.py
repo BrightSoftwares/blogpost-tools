@@ -44,6 +44,14 @@ Exit codes:
     0 = success
     1 = fatal error
     2 = some blocks failed (validation errors or API failures)
+
+Reversibility: rendering an asset block does not discard its source. The
+original ```bsgen:asset fence is preserved as a dormant copy wrapped in an
+HTML comment (parse_bsgen_blocks.wrap_dormant_source), placed immediately
+before the rendered output. parse_file() treats anything inside an HTML
+comment as inert, so the dormant copy is never re-processed. To revert a
+render: delete the rendered output lines, then delete the `<!--`/`-->`
+wrapper lines around the dormant fence — no retyping needed.
 """
 
 import sys
@@ -55,7 +63,7 @@ from pathlib import Path
 from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_bsgen_blocks import parse_file, extract_frontmatter
+from parse_bsgen_blocks import parse_file, extract_frontmatter, wrap_dormant_source
 
 try:
     import yaml
@@ -972,7 +980,8 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
 
         # Add placeholder note + JSON manifest of all URLs as HTML comment
         urls_comment = f"\n<!-- bsgen:asset urls {json.dumps(urls)} -->"
-        replacement = f"{PLACEHOLDER_NOTE}\n{figure_tag}{urls_comment}"
+        dormant_source = wrap_dormant_source(block["raw"])
+        replacement = f"{dormant_source}\n{PLACEHOLDER_NOTE}\n{figure_tag}{urls_comment}"
 
         if block["raw"] in content:
             content = content.replace(block["raw"], replacement, 1)

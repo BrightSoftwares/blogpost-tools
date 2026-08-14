@@ -11,6 +11,11 @@ Exit codes:
     0 = success
     1 = file not found or fatal error
     2 = validation errors in blocks (blocks with errors are skipped, not replaced)
+
+Reversibility: the original ```bsgen:callout fence is kept as a dormant,
+HTML-commented copy immediately before the rendered <div> (see
+parse_bsgen_blocks.wrap_dormant_source). To revert: delete the rendered
+<div> and un-wrap the comment around the dormant fence.
 """
 
 import sys
@@ -20,7 +25,7 @@ from pathlib import Path
 
 # Allow running standalone or as part of the package
 sys.path.insert(0, str(Path(__file__).parent))
-from parse_bsgen_blocks import parse_file
+from parse_bsgen_blocks import parse_file, wrap_dormant_source
 
 
 def render_callout(data: dict) -> str:
@@ -92,7 +97,8 @@ def process(post_path: Path) -> int:
             print(f"WARNING: callout #{block['index']} raw text not found in file — may have been modified", file=sys.stderr)
             continue
 
-        content = content.replace(block["raw"], html_div, 1)
+        replacement = f"{wrap_dormant_source(block['raw'])}\n{html_div}"
+        content = content.replace(block["raw"], replacement, 1)
         replacements += 1
         print(f"OK: replaced callout #{block['index']} (type={block['data'].get('type')})", file=sys.stderr)
 
