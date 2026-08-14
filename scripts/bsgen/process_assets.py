@@ -4,9 +4,15 @@ process_assets.py
 Processes bsgen:asset blocks. When Smart Assets Manager (SAM) is live,
 POSTs each block to the SAM API and replaces the block with a Markdown image tag.
 
-Current mode (SAM not yet live): generates branded SVG placeholder images,
-saves them to <output_dir>, and replaces blocks with local image references.
-Set BSGEN_SAM_API_URL + BSGEN_SAM_API_KEY env vars to switch to live mode.
+Set BSGEN_SAM_API_URL + BSGEN_SAM_API_KEY env vars to enable live mode: POSTs
+to `{BSGEN_SAM_API_URL}/api/v1/bsgen/generate` (Bearer BSGEN_SAM_API_KEY),
+which must equal the deployed SAM instance's BSGEN_BRIDGE_API_KEY. Live mode
+is per-type, not global — only types in SAM_BRIDGE_SUPPORTED_TYPES below
+route through the API; the rest (comparison_table, before_after, blog-hero)
+always use the offline path, generating branded SVG placeholder images saved
+to <output_dir> with local image references, regardless of whether the env
+vars are set. See 230.005.PRJ...md's bsgen live-API bridge plan (my-obsidian)
+for the mapping table and why those types have no live template yet.
 
 Each asset `type` gets its own visual composition (see `_render_*_fragment`
 below) rather than one generic "centered text on a rectangle" template for
@@ -777,13 +783,33 @@ def generate_placeholder_svg(data: dict, width: int, height: int, asset_id: str)
 </svg>"""
 
 
+# bsgen types with a confirmed live-bridge template mapping in Smart Assets
+# Manager (see backend/app/templates/bsgen_mapping.py there, and 230.005.PRJ
+# ...md's bsgen live-API bridge plan for the mapping table). comparison_table
+# and before_after have no REGISTRY template that fits their shape yet, so
+# they always use the offline placeholder path below, even when
+# BSGEN_SAM_API_URL/KEY are set — this makes live-mode rollout per-type
+# rather than a single global switch, so partial support ships as partial
+# support instead of an all-or-nothing gate. blog-hero keeps its own
+# well-developed offline-only path (see DEFAULT_BLOG_HERO_OUTPUT_FORMATS
+# above) and is deliberately excluded too.
+SAM_BRIDGE_SUPPORTED_TYPES = frozenset({
+    "pullquote",
+    "stat_card",
+    "social_card",
+    "hero_image",
+    "framework_matrix",
+    "principles_list",
+})
+
+
 def process_with_sam_api(data: dict, asset_id: str, api_url: str, api_key: str) -> dict | None:
     """POST block to SAM API. Returns {format_name: url} dict or None on failure."""
     try:
         import urllib.request
         payload = json.dumps({"block": data, "asset_id": asset_id}).encode()
         req = urllib.request.Request(
-            f"{api_url.rstrip('/')}/api/v1/generate",
+            f"{api_url.rstrip('/')}/api/v1/bsgen/generate",
             data=payload,
             headers={
                 "Content-Type": "application/json",
@@ -878,7 +904,7 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
 
     sam_api_url = os.environ.get("BSGEN_SAM_API_URL", "")
     sam_api_key = os.environ.get("BSGEN_SAM_API_KEY", "")
-    use_sam = bool(sam_api_url and sam_api_key)
+    sam_configured = bool(sam_api_url and sam_api_key)
 
     slug = slug_from_filename(post_path)
     date_str = date_from_filename(post_path)
@@ -904,7 +930,9 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
             DEFAULT_BLOG_HERO_OUTPUT_FORMATS if data.get("type") == "blog-hero" else []
         )
 
-        if use_sam:
+        use_sam_for_block = sam_configured and data.get("type") in SAM_BRIDGE_SUPPORTED_TYPES
+
+        if use_sam_for_block:
             urls = process_with_sam_api(data, asset_id, sam_api_url, sam_api_key)
             if not urls:
                 print(f"ERROR: SAM API failed for asset '{asset_id}' — aborting", file=sys.stderr)
@@ -964,7 +992,11 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
     content = update_frontmatter_field(content, "pipeline_state", "visual_review_needed")
 
     post_path.write_text(content, encoding="utf-8")
-    print(f"INFO: asset processing complete for {post_path} (SAM={'live' if use_sam else 'placeholder'})", file=sys.stderr)
+    print(
+        f"INFO: asset processing complete for {post_path} "
+        f"(SAM={'configured (per-type routing)' if sam_configured else 'not configured — placeholder only'})",
+        file=sys.stderr,
+    )
 
     return 2 if errors_found else 0
 
