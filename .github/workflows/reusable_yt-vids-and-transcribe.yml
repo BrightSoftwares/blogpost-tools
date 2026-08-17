@@ -18,7 +18,7 @@ on:
       keyword_seed:
         required: false
         type: string
-        default: "/github/workspace/_drafts/keywords.csv"
+        default: "/github/workspace/_seo/keyword-generation/keywords.csv"
       batch_size:
         required: false
         type: string
@@ -71,7 +71,7 @@ on:
       keyword_seed:
         required: false
         type: string
-        default: "/github/workspace/_drafts/keywords.csv"
+        default: "/github/workspace/_seo/keyword-generation/keywords.csv"
       batch_size:
         required: false
         type: string
