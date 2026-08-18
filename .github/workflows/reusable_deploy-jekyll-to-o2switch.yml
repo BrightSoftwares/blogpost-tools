@@ -113,8 +113,8 @@ on:
         description: 'FTP password for o2switch'
         required: true
 
-      github_token:
-        description: 'Token for the Jekyll build action (pass secrets.GITHUB_TOKEN)'
+      jekyll_build_token:
+        description: 'Token for the Jekyll build action (pass secrets.GITHUB_TOKEN) — cannot be named github_token, that collides with the reserved GITHUB_TOKEN name'
         required: false
 
       submodule_ssh_key:
@@ -190,7 +190,7 @@ jobs:
       - name: Build Jekyll site
         uses: BrightSoftwares/blogpost-tools/jekyll-action@main
         with:
-          token: ${{ secrets.github_token }}
+          token: ${{ secrets.jekyll_build_token }}
           jekyll_src: ${{ inputs.jekyll_src }}
           jekyll_env: ${{ inputs.jekyll_env }}
           build_dir: ${{ inputs.build_dir }}
