@@ -15,14 +15,13 @@ on:
       hosting_provider:
         description: 'Hosting provider'
         required: true
-        type: choice
-        options:
-          - 'o2switch'
-          - 'aws'
-          - 'gcp'
-          - 'azure'
-          - 'netlify'
-          - 'vercel'
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'o2switch'
+        #  - 'aws'
+        #  - 'gcp'
+        #  - 'azure'
+        #  - 'netlify'
+        #  - 'vercel'
 
       # Common inputs for all providers
       app_type:

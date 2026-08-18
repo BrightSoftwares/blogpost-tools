@@ -16,13 +16,12 @@ on:
       deployment_target:
         description: 'GCP deployment target'
         required: true
-        type: choice
-        options:
-          - 'cloud-run'       # Serverless containers
-          - 'app-engine'      # Platform as a Service
-          - 'cloud-functions' # Serverless functions
-          - 'gce'             # Compute Engine VM
-          - 'cloud-storage'   # Static website
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'cloud-run'       # Serverless containers
+        #  - 'app-engine'      # Platform as a Service
+        #  - 'cloud-functions' # Serverless functions
+        #  - 'gce'             # Compute Engine VM
+        #  - 'cloud-storage'   # Static website
 
       gcp_project_id:
         description: 'GCP Project ID'
@@ -38,13 +37,12 @@ on:
       app_type:
         description: 'Application type'
         required: false
-        type: choice
-        options:
-          - 'nodejs'
-          - 'python'
-          - 'go'
-          - 'docker'
-          - 'static-site'
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'nodejs'
+        #  - 'python'
+        #  - 'go'
+        #  - 'docker'
+        #  - 'static-site'
         default: 'nodejs'
 
       source_directory:

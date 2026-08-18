@@ -30,7 +30,7 @@ jobs:
   process-related:
     runs-on: ubuntu-latest
     outputs:
-      links_resolved: ${{ jobs.process-related.outputs.links_resolved }}
+      links_resolved: ${{ steps.run.outputs.links_resolved }}
 
     steps:
       - name: Checkout caller repo
