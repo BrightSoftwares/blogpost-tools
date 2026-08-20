@@ -74,7 +74,7 @@ jobs:
           fi
 
           if [ -d "${{ inputs.posts_dir }}" ]; then
-            python _blogpost-tools/scripts/seo_links_populator.py \
+            python3 _blogpost-tools/scripts/seo_links_populator.py \
               --dir "${{ inputs.posts_dir }}" \
               --min-links ${{ inputs.min_links }} \
               --max-links ${{ inputs.max_links }} \
@@ -92,7 +92,7 @@ jobs:
           fi
 
           if [ -d "${{ inputs.drafts_dir }}" ]; then
-            python _blogpost-tools/scripts/seo_links_populator.py \
+            python3 _blogpost-tools/scripts/seo_links_populator.py \
               --dir "${{ inputs.drafts_dir }}" \
               --min-links ${{ inputs.min_links }} \
               --max-links ${{ inputs.max_links }} \
