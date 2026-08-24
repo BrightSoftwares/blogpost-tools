@@ -55,6 +55,22 @@ DEFAULT_COLLECTIONS = ["_posts", "_pages", "_products"]
 DEFAULT_LANGUAGES = ["en", "fr"]
 MIN_CONFIDENCE = 0.70  # below this, content-detected lang is UNKNOWN not a guess
 
+# Jekyll accepts both extensions interchangeably for posts/pages/collection
+# items (`.markdown` is the default `jekyll new` scaffold extension). Any
+# single-extension glob silently drops the other — see
+# `sp14-5-10-markdown-glob-gap`: a live `.markdown` post on keke.li never
+# appeared in a detection report at all, not COMPLIANT, not flagged.
+MARKDOWN_EXTENSIONS = ("*.md", "*.markdown")
+
+
+def _md_files(directory: Path) -> list[Path]:
+    """Sorted list of markdown files directly under `directory`, matching
+    every extension in MARKDOWN_EXTENSIONS (never just one)."""
+    files: list[Path] = []
+    for pattern in MARKDOWN_EXTENSIONS:
+        files.extend(directory.glob(pattern))
+    return sorted(files)
+
 
 @dataclass
 class PostEntry:
@@ -163,7 +179,7 @@ def scan_collection(site_dir: Path, collection: str, languages: list[str]) -> li
         lang_dir = collection_dir / lang
         if not lang_dir.is_dir():
             continue
-        for post_path in sorted(lang_dir.glob("*.md")):
+        for post_path in _md_files(lang_dir):
             entry = _build_entry(site_dir, collection, post_path, languages)
             entry.detected_lang = lang
             if entry.frontmatter_lang and entry.frontmatter_lang != lang:
@@ -178,7 +194,7 @@ def scan_collection(site_dir: Path, collection: str, languages: list[str]) -> li
             entries.append(entry)
 
     # 2) Flat files directly under the collection (not yet split by language).
-    for post_path in sorted(collection_dir.glob("*.md")):
+    for post_path in _md_files(collection_dir):
         entry = _build_entry(site_dir, collection, post_path, languages)
 
         if entry.frontmatter_lang and entry.frontmatter_lang in languages:
