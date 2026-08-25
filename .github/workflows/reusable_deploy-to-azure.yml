@@ -16,12 +16,11 @@ on:
       deployment_target:
         description: 'Azure deployment target'
         required: true
-        type: choice
-        options:
-          - 'app-service'          # Web Apps
-          - 'container-instances'  # Azure Container Instances
-          - 'functions'            # Azure Functions
-          - 'static-web-apps'      # Static websites
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'app-service'          # Web Apps
+        #  - 'container-instances'  # Azure Container Instances
+        #  - 'functions'            # Azure Functions
+        #  - 'static-web-apps'      # Static websites
 
       azure_subscription_id:
         description: 'Azure subscription ID'
@@ -42,12 +41,11 @@ on:
       app_type:
         description: 'Application type'
         required: false
-        type: choice
-        options:
-          - 'nodejs'
-          - 'python'
-          - 'dotnet'
-          - 'docker'
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'nodejs'
+        #  - 'python'
+        #  - 'dotnet'
+        #  - 'docker'
         default: 'nodejs'
 
       source_directory:

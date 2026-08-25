@@ -223,6 +223,7 @@ def count_md_files(site_dir: Path, collections: list[str]) -> int:
         collection_dir = site_dir / collection
         if collection_dir.exists():
             total += len(list(collection_dir.rglob("*.md")))
+            total += len(list(collection_dir.rglob("*.markdown")))
     return total
 
 

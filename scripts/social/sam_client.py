@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 
 import requests
@@ -10,6 +11,12 @@ import requests
 logger = logging.getLogger(__name__)
 
 _RETRY_DELAYS = [1, 2, 4]
+
+# The `smart-assets.bright-softwares.com` custom domain has no DNS record
+# (confirmed 2026-08-22 CI scan: NameResolutionError on every call). Default
+# to the known-working Render URL instead; SAM_API_URL still overrides it if
+# the custom domain is ever provisioned.
+_DEFAULT_SAM_API_BASE = os.environ.get("SAM_API_URL", "https://smart-assets-manager.onrender.com")
 
 
 def generate_social_card(
@@ -19,7 +26,7 @@ def generate_social_card(
     excerpt: str | None,
     social_stat: str | None,
     brand_colors: dict,
-    api_base: str = "https://smart-assets.bright-softwares.com",
+    api_base: str = _DEFAULT_SAM_API_BASE,
 ) -> dict:
     """Call Smart Assets Manager deterministic generation endpoint.
 

@@ -107,14 +107,60 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clone common includes submodule
+      - name: Checkout declared submodules
         if: ${{ inputs.use_common_includes }}
-        uses: actions/checkout@v4
-        with:
-          repository: BrightSoftwares/jekyll-theme-common-includes
-          path: ${{ inputs.common_includes_path }}
-          ssh-key: ${{ secrets.submodule_ssh_key }}
-          persist-credentials: false
+        env:
+          SUBMODULE_SSH_KEY: ${{ secrets.submodule_ssh_key }}
+          COMMON_INCLUDES_PATH: ${{ inputs.common_includes_path }}
+        run: |
+          set -euo pipefail
+
+          # Set up the shared SSH deploy key (same key used for every declared submodule).
+          if [ -n "${SUBMODULE_SSH_KEY}" ]; then
+            mkdir -p ~/.ssh
+            echo "${SUBMODULE_SSH_KEY}" > ~/.ssh/submodule_deploy_key
+            chmod 600 ~/.ssh/submodule_deploy_key
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/submodule_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+          fi
+
+          clone_one() {
+            # $1 = destination path, $2 = https:// clone URL (casing preserved exactly as declared)
+            local dest="$1"
+            local https_url="$2"
+            # Rewrite to SSH form without touching org/repo casing (avoids the
+            # BrightSoftwares/ vs brightsoftwares/ footgun a blanket insteadOf rewrite would hit).
+            local ssh_url
+            ssh_url=$(echo "$https_url" | sed -E 's#^https://github\.com/#git@github.com:#')
+            case "$ssh_url" in
+              *.git) : ;;
+              *) ssh_url="${ssh_url}.git" ;;
+            esac
+            echo "Checking out submodule -> ${dest} from ${ssh_url}"
+            rm -rf "${dest}"
+            mkdir -p "$(dirname "${dest}")"
+            git clone --depth 1 "${ssh_url}" "${dest}"
+          }
+
+          if [ -f .gitmodules ]; then
+            echo "Found .gitmodules — checking out every declared submodule."
+            found_any=0
+            while read -r key path; do
+              [ -z "${key}" ] && continue
+              found_any=1
+              name=$(echo "${key}" | sed -E 's/^submodule\.(.*)\.path$/\1/')
+              url=$(git config -f .gitmodules --get "submodule.${name}.url")
+              clone_one "${path}" "${url}"
+            done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$')
+            if [ "${found_any}" -eq 0 ]; then
+              echo ".gitmodules exists but declares no submodules — falling back to legacy common-includes checkout."
+              clone_one "${COMMON_INCLUDES_PATH}" "https://github.com/BrightSoftwares/jekyll-theme-common-includes"
+            fi
+          else
+            echo "No .gitmodules in caller repo — falling back to legacy common-includes checkout."
+            clone_one "${COMMON_INCLUDES_PATH}" "https://github.com/BrightSoftwares/jekyll-theme-common-includes"
+          fi
+
+          rm -f ~/.ssh/submodule_deploy_key
 
       - name: Cache bundle dependencies
         if: ${{ inputs.enable_cache }}

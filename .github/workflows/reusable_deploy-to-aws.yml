@@ -16,13 +16,12 @@ on:
       deployment_target:
         description: 'AWS deployment target'
         required: true
-        type: choice
-        options:
-          - 's3-cloudfront' # Static website
-          - 'ec2'           # EC2 instance
-          - 'ecs-fargate'   # ECS with Fargate
-          - 'lambda'        # Lambda function
-          - 'elastic-beanstalk'
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 's3-cloudfront' # Static website
+        #  - 'ec2'           # EC2 instance
+        #  - 'ecs-fargate'   # ECS with Fargate
+        #  - 'lambda'        # Lambda function
+        #  - 'elastic-beanstalk'
 
       aws_region:
         description: 'AWS region'
@@ -33,12 +32,11 @@ on:
       app_type:
         description: 'Application type'
         required: false
-        type: choice
-        options:
-          - 'static-site'
-          - 'nodejs'
-          - 'python'
-          - 'docker'
+        type: string  # allowed values (workflow_call doesn't support type: choice):
+        #  - 'static-site'
+        #  - 'nodejs'
+        #  - 'python'
+        #  - 'docker'
         default: 'nodejs'
 
       source_directory:
