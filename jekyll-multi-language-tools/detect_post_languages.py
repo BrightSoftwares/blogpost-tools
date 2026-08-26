@@ -216,16 +216,27 @@ def scan_collection(site_dir: Path, collection: str, languages: list[str]) -> li
             if check_mixed_language(body):
                 entry.status = "MIXED"
                 entry.notes.append("first-half/second-half language detection disagree")
-            elif lang and confidence >= MIN_CONFIDENCE:
+            elif lang and confidence >= MIN_CONFIDENCE and lang in languages:
                 entry.status = "NEEDS_FRONTMATTER"
                 entry.target_lang = lang
                 entry.notes.append(
                     f"no 'lang:' field; content-detected '{lang}' (confidence {confidence})"
                 )
-                if lang not in languages:
-                    entry.notes.append(
-                        f"detected lang '{lang}' not in known --languages list, verify manually"
-                    )
+            elif lang and confidence >= MIN_CONFIDENCE:
+                # langdetect is confident but landed outside the declared --languages
+                # allow-list (e.g. short/ambiguous text misclassified as 'it'/'de'/'no').
+                # Never auto-migrate into a language folder the site doesn't declare —
+                # treat as UNKNOWN so migrate_jekyll_repo.py skips it (status contract
+                # above: UNKNOWN/MIXED are always skipped) rather than silently creating
+                # an out-of-scope <collection>/<lang>/ folder. Found 2026-08-26: 6 false
+                # positives across 2 repos (modabyflora-corporate, joyousbyflora-posts).
+                entry.detected_lang = lang
+                entry.status = "UNKNOWN"
+                entry.notes.append(
+                    f"content-detected '{lang}' (confidence {confidence}) is outside the "
+                    f"declared --languages list {languages} — likely a short-text false "
+                    f"positive; verify manually rather than auto-migrating"
+                )
             else:
                 entry.status = "UNKNOWN"
                 if not HAS_LANGDETECT:

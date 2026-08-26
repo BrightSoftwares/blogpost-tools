@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "jekyll-multi-language-tools"))
 
+import detect_post_languages  # noqa: E402
 from detect_post_languages import _md_files, scan_collection  # noqa: E402
 
 
@@ -88,3 +89,62 @@ class TestScanCollectionMarkdownExtension:
             "2026-01-01-post-one.md",
             "2026-01-02-post-two.markdown",
         }
+
+
+NO_FRONTMATTER_BODY = """---
+categories: [Something]
+---
+Some short product blurb with no lang field at all.
+"""
+
+
+class TestOutOfScopeLanguageIsNeverAutoMigrated:
+    """Regression (found 2026-08-26 migrating modabyflora-corporate and
+    joyousbyflora-posts, 6 instances across 2 repos): a confident langdetect
+    result outside the declared --languages list (e.g. 'it'/'de'/'no' from a
+    short French product blurb) used to be reported NEEDS_FRONTMATTER, which
+    migrate_jekyll_repo.py auto-applies — silently creating an out-of-scope
+    <collection>/<lang>/ folder for content that was actually French. Any
+    detected language not in the declared list must downgrade to UNKNOWN,
+    which migrate_jekyll_repo.py always skips.
+    """
+
+    def test_confident_out_of_scope_language_becomes_unknown(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            detect_post_languages,
+            "detect_language_content",
+            lambda text: ("it", 0.95),
+        )
+        site_dir = tmp_path
+        posts_dir = site_dir / "_products"
+        posts_dir.mkdir()
+        (posts_dir / "short-french-product.md").write_text(
+            NO_FRONTMATTER_BODY, encoding="utf-8"
+        )
+
+        entries = scan_collection(site_dir, "_products", ["en", "fr"])
+
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.status == "UNKNOWN"
+        assert entry.detected_lang == "it"
+        assert any("outside the declared" in n for n in entry.notes)
+
+    def test_confident_in_scope_language_still_needs_frontmatter(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            detect_post_languages,
+            "detect_language_content",
+            lambda text: ("fr", 0.95),
+        )
+        site_dir = tmp_path
+        posts_dir = site_dir / "_products"
+        posts_dir.mkdir()
+        (posts_dir / "clear-french-product.md").write_text(
+            NO_FRONTMATTER_BODY, encoding="utf-8"
+        )
+
+        entries = scan_collection(site_dir, "_products", ["en", "fr"])
+
+        assert len(entries) == 1
+        assert entries[0].status == "NEEDS_FRONTMATTER"
+        assert entries[0].target_lang == "fr"
