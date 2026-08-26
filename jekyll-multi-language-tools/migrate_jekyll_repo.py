@@ -210,6 +210,15 @@ def ensure_data_stub(site_dir: Path, relative_path: str, stub_content: str, dry_
     path = site_dir / relative_path
     if path.exists():
         return False
+    # Jekyll populates site.data.<name> from EITHER _data/<name>.yml OR a
+    # _data/<name>/ directory of per-file entries — the two forms collide
+    # (undefined precedence) if both exist. Skip stub creation when the
+    # directory form is already present, even though path.exists() above
+    # is False for it (different path, same Jekyll data key).
+    sibling_dir = path.with_suffix("")
+    if sibling_dir.is_dir():
+        print(f"  SKIP stub: {relative_path} (found existing {sibling_dir.relative_to(site_dir)}/ directory — would collide)")
+        return False
     print(f"  CREATE stub: {relative_path}")
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
