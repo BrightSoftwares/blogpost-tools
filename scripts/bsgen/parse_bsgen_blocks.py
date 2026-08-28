@@ -264,10 +264,17 @@ def validate_social(data: dict, index: int) -> list[str]:
         slides = data.get("slides", [])
         if len(slides) > 6:
             errors.append(f"social #{index} (carousel): too many slides ({len(slides)}, max 6)")
-        if slides and slides[0].get("type") != "hook_slide":
-            errors.append(f"social #{index} (carousel): slide 1 must be hook_slide")
-        if slides and slides[-1].get("type") != "cta_slide":
-            errors.append(f"social #{index} (carousel): last slide must be cta_slide")
+        if slides and not all(isinstance(s, dict) for s in slides):
+            errors.append(
+                f"social #{index} (carousel): each slide must be an object with "
+                "'slide'/'type'/'headline'/'subtext' fields, not a plain string "
+                "(see bsgen-syntax-reference.md carousel example)"
+            )
+        elif slides:
+            if slides[0].get("type") != "hook_slide":
+                errors.append(f"social #{index} (carousel): slide 1 must be hook_slide")
+            if slides[-1].get("type") != "cta_slide":
+                errors.append(f"social #{index} (carousel): last slide must be cta_slide")
 
     elif post_type == "thread":
         tweets = data.get("tweets", [])

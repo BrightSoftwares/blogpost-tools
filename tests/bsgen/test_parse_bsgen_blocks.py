@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "bsgen"
 from parse_bsgen_blocks import (  # noqa: E402
     normalize_asset_aliases,
     validate_asset,
+    validate_social,
     parse_file,
     wrap_dormant_source,
 )
@@ -257,3 +258,71 @@ class TestDormantSourceReversibility:
 
         result = parse_file(post, filter_type="callout")
         assert len(result["blocks"]["callout"]) == 1
+
+
+class TestValidateSocialCarouselCrash:
+    """Regression: found 2026-08-26 drafting a new SLA-monitoring post.
+
+    validate_social() did `slides[0].get("type")` unconditionally for
+    `post_type: carousel`, raising AttributeError('str' object has no
+    attribute 'get') when `slides` is a flat list of strings instead of a
+    list of {slide, type, headline, subtext} dicts. process_social.py has
+    no try/except around parse_file(), so this uncaught exception crashed
+    the whole script (exit code 1 = FATAL to bsgen-pipeline.yml), not just
+    the one carousel block — even though every other malformed-block case
+    is designed to degrade to a skip-with-error (validation_errors),
+    never a crash.
+    """
+
+    def _base(self, **overrides):
+        data = {
+            "platform": "linkedin",
+            "post_type": "carousel",
+            "source_section": "intro",
+            "brand": "bright-softwares",
+            "total_slides": 3,
+        }
+        data.update(overrides)
+        return data
+
+    def test_flat_string_slides_does_not_crash(self):
+        # This is the exact shape that crashed in production: slides is a
+        # plain list of strings, not a list of dicts.
+        data = self._base(slides=["Hook text", "Middle text", "CTA text"])
+        errors = validate_social(data, 1)
+        assert any("must be an object" in e for e in errors)
+
+    def test_valid_dict_slides_still_passes(self):
+        data = self._base(
+            slides=[
+                {"slide": 1, "type": "hook_slide", "headline": "h", "subtext": "s"},
+                {"slide": 2, "type": "cta_slide", "headline": "h2", "subtext": "s2"},
+            ]
+        )
+        errors = validate_social(data, 1)
+        assert errors == []
+
+    def test_mixed_dict_and_string_slides_does_not_crash(self):
+        data = self._base(
+            slides=[
+                {"slide": 1, "type": "hook_slide", "headline": "h", "subtext": "s"},
+                "a stray string slide",
+            ]
+        )
+        errors = validate_social(data, 1)
+        assert any("must be an object" in e for e in errors)
+
+    def test_wrong_first_slide_type_still_reported_when_slides_are_dicts(self):
+        data = self._base(
+            slides=[
+                {"slide": 1, "type": "not_hook", "headline": "h", "subtext": "s"},
+                {"slide": 2, "type": "cta_slide", "headline": "h2", "subtext": "s2"},
+            ]
+        )
+        errors = validate_social(data, 1)
+        assert any("slide 1 must be hook_slide" in e for e in errors)
+
+    def test_empty_slides_does_not_crash(self):
+        data = self._base(slides=[])
+        errors = validate_social(data, 1)
+        assert isinstance(errors, list)
