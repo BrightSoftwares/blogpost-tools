@@ -72,15 +72,15 @@ jobs:
 
       - name: Run SEO index checker
         run: |
-          LIMIT_ARG=""
+          LIMIT_ARGS=()
           if [ "${{ inputs.limit }}" != "0" ]; then
-            LIMIT_ARG="--limit ${{ inputs.limit }}"
+            LIMIT_ARGS=(--limit "${{ inputs.limit }}")
           fi
           python .blogpost-tools/seo-index-checker/src/seo_index_checker.py \
             --site-url "${{ inputs.site_url }}" \
             --sitemap-path "${{ inputs.sitemap_path }}" \
             --output-dir "${{ inputs.output_dir }}" \
-            $LIMIT_ARG
+            "${LIMIT_ARGS[@]}"
 
       - name: Commit and push report
         if: inputs.commit_changes
