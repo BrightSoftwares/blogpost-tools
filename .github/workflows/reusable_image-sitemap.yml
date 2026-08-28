@@ -1,4 +1,4 @@
-name: Reusable SEO Index Check
+name: Reusable Image Sitemap Generator
 
 on:
   workflow_call:
@@ -6,20 +6,20 @@ on:
       site_url:
         required: true
         type: string
-        description: "Base URL of the site to check (e.g. https://bright-softwares.com)"
+        description: "Base URL of the site to crawl (e.g. https://bright-softwares.com)"
       sitemap_path:
         required: false
         type: string
         default: "/sitemap.xml"
-      output_dir:
+      output:
         required: false
         type: string
-        default: "_seo_reports"
+        default: "image-sitemap.xml"
       limit:
         required: false
         type: number
         default: 0
-        description: "Process at most N sitemap URLs (0 = no limit)"
+        description: "Process at most N page-sitemap URLs (0 = no limit)"
       commit_changes:
         required: false
         type: boolean
@@ -36,10 +36,10 @@ on:
         required: false
         type: string
         default: "/sitemap.xml"
-      output_dir:
+      output:
         required: false
         type: string
-        default: "_seo_reports"
+        default: "image-sitemap.xml"
       limit:
         required: false
         type: number
@@ -50,7 +50,7 @@ on:
         default: true
 
 jobs:
-  seo-index-check:
+  image-sitemap:
     runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
     timeout-minutes: 30
     steps:
@@ -64,34 +64,34 @@ jobs:
           path: .blogpost-tools
           token: ${{ secrets.GH_TOKEN || github.token }}
 
-      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+      - name: Verify Python (system interpreter — self-hosted runner)
         run: python3 --version
 
       - name: Install dependencies
-        run: pip install -r .blogpost-tools/seo-index-checker/requirements.txt --break-system-packages 2>/dev/null || pip install -r .blogpost-tools/seo-index-checker/requirements.txt
+        run: pip install -r .blogpost-tools/image-sitemap-generator/requirements.txt --break-system-packages 2>/dev/null || pip install -r .blogpost-tools/image-sitemap-generator/requirements.txt
 
-      - name: Run SEO index checker
+      - name: Generate image sitemap
         run: |
           LIMIT_ARGS=()
           if [ "${{ inputs.limit }}" != "0" ]; then
             LIMIT_ARGS=(--limit "${{ inputs.limit }}")
           fi
-          python .blogpost-tools/seo-index-checker/src/seo_index_checker.py \
+          python .blogpost-tools/image-sitemap-generator/src/generate_image_sitemap.py \
             --site-url "${{ inputs.site_url }}" \
             --sitemap-path "${{ inputs.sitemap_path }}" \
-            --output-dir "${{ inputs.output_dir }}" \
+            --output "${{ inputs.output }}" \
             "${LIMIT_ARGS[@]}"
 
-      - name: Commit and push report
+      - name: Commit and push image sitemap
         if: inputs.commit_changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "${{ inputs.output_dir }}"
+          git add "${{ inputs.output }}"
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore(seo): index-check report for ${{ inputs.site_url }}"
+            git commit -m "chore(seo): regenerate image sitemap for ${{ inputs.site_url }}"
             git push
           fi
 
