@@ -1,0 +1,100 @@
+name: Reusable Image Sitemap Generator
+
+on:
+  workflow_call:
+    inputs:
+      site_url:
+        required: true
+        type: string
+        description: "Base URL of the site to crawl (e.g. https://bright-softwares.com)"
+      sitemap_path:
+        required: false
+        type: string
+        default: "/sitemap.xml"
+      output:
+        required: false
+        type: string
+        default: "image-sitemap.xml"
+      limit:
+        required: false
+        type: number
+        default: 0
+        description: "Process at most N page-sitemap URLs (0 = no limit)"
+      commit_changes:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GH_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      site_url:
+        required: true
+        type: string
+      sitemap_path:
+        required: false
+        type: string
+        default: "/sitemap.xml"
+      output:
+        required: false
+        type: string
+        default: "image-sitemap.xml"
+      limit:
+        required: false
+        type: number
+        default: 0
+      commit_changes:
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  image-sitemap:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v7
+
+      - name: Checkout blogpost-tools
+        uses: actions/checkout@v7
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Verify Python (system interpreter — self-hosted runner)
+        run: python3 --version
+
+      - name: Install dependencies
+        run: pip install -r .blogpost-tools/image-sitemap-generator/requirements.txt --break-system-packages 2>/dev/null || pip install -r .blogpost-tools/image-sitemap-generator/requirements.txt
+
+      - name: Generate image sitemap
+        run: |
+          LIMIT_ARG=""
+          if [ "${{ inputs.limit }}" != "0" ]; then
+            LIMIT_ARG="--limit ${{ inputs.limit }}"
+          fi
+          python .blogpost-tools/image-sitemap-generator/src/generate_image_sitemap.py \
+            --site-url "${{ inputs.site_url }}" \
+            --sitemap-path "${{ inputs.sitemap_path }}" \
+            --output "${{ inputs.output }}" \
+            $LIMIT_ARG
+
+      - name: Commit and push image sitemap
+        if: inputs.commit_changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.output }}"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(seo): regenerate image sitemap for ${{ inputs.site_url }}"
+            git push
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf .blogpost-tools
