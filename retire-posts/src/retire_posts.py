@@ -20,34 +20,14 @@ from typing import Optional
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "common"))
+from frontmatter_utils import parse_frontmatter, write_frontmatter  # noqa: E402
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 _POST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
 _SKIP_DIRS = {"_layouts", "_includes", "_sass", ".git", ".github", "node_modules", ".jekyll-cache"}
-
-
-def parse_frontmatter(content: str) -> tuple[dict, str]:
-    """Return (frontmatter_dict, body) from a Jekyll file's content."""
-    m = FRONTMATTER_RE.match(content)
-    if not m:
-        return {}, content
-    try:
-        fm = yaml.safe_load(m.group(1)) or {}
-    except yaml.YAMLError:
-        # Frontmatter contains unparseable content (e.g. wikilinks [[...]] or bare ? chars)
-        fm = {}
-    if not isinstance(fm, dict):
-        fm = {}
-    body = content[m.end():]
-    return fm, body
-
-
-def write_frontmatter(fm: dict, body: str) -> str:
-    """Serialize frontmatter dict + body back to a Jekyll file string."""
-    fm_str = yaml.dump(fm, allow_unicode=True, default_flow_style=False, sort_keys=False)
-    return f"---\n{fm_str}---\n{body}"
 
 
 def _derive_post_url(md_file: Path, fm: dict) -> Optional[str]:

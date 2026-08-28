@@ -43,6 +43,12 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+from frontmatter_utils import (  # noqa: E402
+    extract_frontmatter_text as extract_frontmatter,
+    get_frontmatter_value,
+)
+
 try:
     from langdetect import DetectorFactory, detect_langs
 
@@ -109,23 +115,6 @@ def parse_args():
         "--format", choices=["md", "json"], default="md", help="Report format (default: md)"
     )
     return parser.parse_args()
-
-
-def extract_frontmatter(content: str) -> tuple[str, str]:
-    """Split content into frontmatter text and body (mirrors translate_posts.py)."""
-    if not content.startswith("---"):
-        return "", content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return "", content
-    return parts[1], parts[2]
-
-
-def get_frontmatter_value(fm_text: str, field_name: str) -> str:
-    match = re.search(
-        rf"^{re.escape(field_name)}:\s*[\"']?(.+?)[\"']?\s*$", fm_text, re.MULTILINE
-    )
-    return match.group(1) if match else ""
 
 
 def strip_liquid_and_markdown(body: str) -> str:

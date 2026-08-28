@@ -13,25 +13,14 @@ Scoring criteria:
 
 import os
 import re
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import glob
 
-
-def parse_frontmatter(content: str) -> Dict[str, str]:
-    """Extract frontmatter from markdown file."""
-    match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
-    if not match:
-        return {}
-
-    frontmatter = {}
-    for line in match.group(1).split('\n'):
-        if ':' in line:
-            key, value = line.split(':', 1)
-            frontmatter[key.strip()] = value.strip().strip('"')
-
-    return frontmatter
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+from frontmatter_utils import parse_frontmatter_flat as parse_frontmatter  # noqa: E402
 
 
 def extract_subprojects(content: str, filename: str) -> List[Dict]:

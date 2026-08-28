@@ -15,10 +15,14 @@ Usage:
 
 import os
 import re
+import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+from frontmatter_utils import parse_frontmatter_flat_with_body as extract_frontmatter  # noqa: E402
 
 
 def parse_post_filename(filename: str) -> Optional[Dict[str, str]]:
@@ -35,23 +39,6 @@ def parse_post_filename(filename: str) -> Optional[Dict[str, str]]:
         'day': day,
         'slug': slug
     }
-
-
-def extract_frontmatter(content: str) -> tuple[Dict[str, str], str, str]:
-    """Extract and parse frontmatter from post content."""
-    match = re.match(r'^---\n(.*?)\n---\n(.*)$', content, re.DOTALL)
-    if not match:
-        return {}, '', content
-
-    frontmatter_str, remaining_content = match.groups()
-    frontmatter = {}
-
-    for line in frontmatter_str.split('\n'):
-        if ':' in line:
-            key, value = line.split(':', 1)
-            frontmatter[key.strip()] = value.strip().strip('"').strip("'")
-
-    return frontmatter, frontmatter_str, remaining_content
 
 
 def generate_old_url(lang: str, year: str, month: str, day: str, slug: str) -> str:

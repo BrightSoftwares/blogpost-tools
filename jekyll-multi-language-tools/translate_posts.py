@@ -28,6 +28,12 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+from frontmatter_utils import (  # noqa: E402
+    extract_frontmatter_text as extract_frontmatter,
+    get_frontmatter_value,
+)
+
 HEADING_TRANSLATIONS = {
     "Introduction": "Introduction",
     "Conclusion": "Conclusion",
@@ -83,24 +89,6 @@ def find_posts(site_dir: Path, lang: str) -> list[Path]:
     if not lang_dir.exists():
         return []
     return sorted(lang_dir.glob("*.md"))
-
-
-def extract_frontmatter(content: str) -> tuple[str, str]:
-    """Split content into frontmatter text and body."""
-    if not content.startswith("---"):
-        return "", content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return "", content
-    return parts[1], parts[2]
-
-
-def get_frontmatter_value(fm_text: str, field: str) -> str:
-    """Extract a single frontmatter field value."""
-    match = re.search(
-        rf"^{re.escape(field)}:\s*[\"']?(.+?)[\"']?\s*$", fm_text, re.MULTILINE
-    )
-    return match.group(1) if match else ""
 
 
 def find_untranslated(

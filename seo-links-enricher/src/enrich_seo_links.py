@@ -21,7 +21,12 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "common"))
+from frontmatter_utils import (  # noqa: E402
+    parse_frontmatter_with_offsets as extract_frontmatter,
+    write_frontmatter as rebuild_frontmatter,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,22 +39,6 @@ WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 MIN_LINKS = 2
 MAX_LINKS = 5
 REQUEST_DELAY = 0.5
-
-
-def extract_frontmatter(content: str) -> tuple[dict, str, int, int]:
-    match = re.match(r"^---\n(.*?\n)---\n", content, re.DOTALL)
-    if not match:
-        return {}, content, -1, -1
-    fm_text = match.group(1)
-    fm = yaml.safe_load(fm_text) or {}
-    start = 0
-    end = match.end()
-    return fm, content[end:], start, end
-
-
-def rebuild_frontmatter(fm: dict, body: str) -> str:
-    fm_text = yaml.dump(fm, default_flow_style=False, allow_unicode=True, sort_keys=False)
-    return f"---\n{fm_text}---\n{body}"
 
 
 def extract_topics(fm: dict, body: str) -> list[str]:
