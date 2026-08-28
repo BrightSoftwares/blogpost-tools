@@ -878,6 +878,19 @@ def render_figure_tag(asset_id: str, img_url: str, post_path: Path, content: str
     return f"![{escaped_alt}]({img_url})"
 
 
+def get_frontmatter_field(content: str, key: str) -> str | None:
+    """Read a single scalar field from YAML frontmatter (regex-based, matches
+    update_frontmatter_field's own parsing — no full YAML parse needed)."""
+    fm_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+    if not fm_match:
+        return None
+    pattern = re.compile(rf"^{re.escape(key)}\s*:\s*(.*)$", re.MULTILINE)
+    m = pattern.search(fm_match.group(1))
+    if not m:
+        return None
+    return m.group(1).strip().strip('"').strip("'")
+
+
 def update_frontmatter_field(content: str, key: str, value: str) -> str:
     """Update or add a field in the YAML frontmatter."""
     fm_match = re.match(r"^(---\s*\n)(.*?)(---\s*\n)", content, re.DOTALL)
@@ -906,6 +919,27 @@ def process(post_path: Path, output_dir: Path, site_url: str = "") -> int:
 
     if not asset_blocks:
         print(f"INFO: no bsgen:asset blocks found in {post_path}", file=sys.stderr)
+        # Regression (found 2026-08-26, bsgen-processing-stuck-state-20260826):
+        # this early return used to leave pipeline_state untouched, so a post
+        # that entered this run already at bsgen_processing (set by the
+        # workflow's "Mark post as bsgen_processing" step) — either because
+        # it has zero bsgen:asset blocks at all, or because a re-trigger
+        # found every asset block already dormant/processed from a prior
+        # run — stayed stuck at bsgen_processing forever. No error surfaced;
+        # looked identical to "still processing" to a human. Advance it the
+        # same way a normal processing run does below, but ONLY away from
+        # bsgen_processing specifically — never touch a post that hasn't
+        # entered this pipeline (no pipeline_state / some other value) or
+        # one already past this point (visual_review_ok, bsgen_error).
+        content = post_path.read_text(encoding="utf-8")
+        if get_frontmatter_field(content, "pipeline_state") == "bsgen_processing":
+            content = update_frontmatter_field(content, "pipeline_state", "visual_review_needed")
+            post_path.write_text(content, encoding="utf-8")
+            print(
+                f"INFO: advanced {post_path} from bsgen_processing to "
+                "visual_review_needed (no asset blocks left to process)",
+                file=sys.stderr,
+            )
         return 0
 
     output_dir.mkdir(parents=True, exist_ok=True)

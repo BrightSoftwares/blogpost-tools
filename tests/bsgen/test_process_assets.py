@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "bsgen"
 
 from process_assets import (  # noqa: E402
     generate_placeholder_svg,
+    get_frontmatter_field,
     wrap_label_to_width,
     process,
     SAM_BRIDGE_SUPPORTED_TYPES,
@@ -661,3 +662,82 @@ class TestSamBridgeRouting:
 
         mock_sam.assert_not_called()
         assert len(list(output_dir.glob("*.svg"))) == 1
+
+
+class TestStrandedProcessingStateAdvance:
+    """Regression: found 2026-08-26 (bsgen-processing-stuck-state-20260826).
+
+    process()'s early return for "no bsgen:asset blocks to process" used to
+    leave pipeline_state untouched. corporate-website commit 27f17f46d set a
+    post's pipeline_state: bsgen_processing, the workflow run completed with
+    conclusion success, but the post's asset blocks were all already dormant
+    (nothing left to process) so this early return fired and no later commit
+    ever advanced pipeline_state again — the post was stuck at
+    bsgen_processing indefinitely, indistinguishable from "still running".
+    """
+
+    def _make_post(self, tmp_path: Path, pipeline_state: str | None, body: str = "") -> Path:
+        post = tmp_path / "2026-08-18-test-post.md"
+        fm_lines = ["title: Test post"]
+        if pipeline_state is not None:
+            fm_lines.append(f"pipeline_state: {pipeline_state}")
+        post.write_text(
+            "---\n" + "\n".join(fm_lines) + "\n---\n\nNo asset blocks here.\n" + body,
+            encoding="utf-8",
+        )
+        return post
+
+    def test_advances_from_bsgen_processing_when_no_asset_blocks(self, tmp_path: Path):
+        post = self._make_post(tmp_path, "bsgen_processing")
+        output_dir = tmp_path / "assets"
+
+        exit_code = process(post, output_dir)
+
+        assert exit_code == 0
+        content = post.read_text(encoding="utf-8")
+        assert get_frontmatter_field(content, "pipeline_state") == "visual_review_needed"
+
+    def test_does_not_touch_post_with_no_pipeline_state(self, tmp_path: Path):
+        post = self._make_post(tmp_path, None)
+        output_dir = tmp_path / "assets"
+
+        process(post, output_dir)
+
+        content = post.read_text(encoding="utf-8")
+        assert get_frontmatter_field(content, "pipeline_state") is None
+
+    def test_does_not_downgrade_visual_review_ok(self, tmp_path: Path):
+        post = self._make_post(tmp_path, "visual_review_ok")
+        output_dir = tmp_path / "assets"
+
+        process(post, output_dir)
+
+        content = post.read_text(encoding="utf-8")
+        assert get_frontmatter_field(content, "pipeline_state") == "visual_review_ok"
+
+    def test_does_not_touch_bsgen_error(self, tmp_path: Path):
+        post = self._make_post(tmp_path, "bsgen_error")
+        output_dir = tmp_path / "assets"
+
+        process(post, output_dir)
+
+        content = post.read_text(encoding="utf-8")
+        assert get_frontmatter_field(content, "pipeline_state") == "bsgen_error"
+
+
+class TestGetFrontmatterField:
+    def test_reads_simple_scalar(self, tmp_path: Path):
+        content = "---\ntitle: X\npipeline_state: bsgen_processing\n---\nbody\n"
+        assert get_frontmatter_field(content, "pipeline_state") == "bsgen_processing"
+
+    def test_returns_none_for_missing_key(self, tmp_path: Path):
+        content = "---\ntitle: X\n---\nbody\n"
+        assert get_frontmatter_field(content, "pipeline_state") is None
+
+    def test_returns_none_for_missing_frontmatter(self, tmp_path: Path):
+        content = "no frontmatter here\n"
+        assert get_frontmatter_field(content, "pipeline_state") is None
+
+    def test_strips_quotes(self, tmp_path: Path):
+        content = '---\npipeline_state: "bsgen_error"\n---\nbody\n'
+        assert get_frontmatter_field(content, "pipeline_state") == "bsgen_error"
