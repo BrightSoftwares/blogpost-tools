@@ -22,6 +22,9 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+from frontmatter_utils import parse_frontmatter_yaml_lite as parse_frontmatter  # noqa: E402
+
 
 WIKIDATA_SEARCH_URL = "https://www.wikidata.org/w/api.php"
 WIKIDATA_ENTITY_URL = "https://www.wikidata.org/wiki/{qid}"
@@ -180,50 +183,6 @@ SINGLE_KEYWORDS = {
     "scrum": "Q724344",
     "kanban": "Q134861",
 }
-
-
-def parse_frontmatter(content: str) -> tuple[dict | None, str, str]:
-    """Return (frontmatter_dict, raw_frontmatter, body) or (None, '', content)."""
-    if not content.startswith("---"):
-        return None, "", content
-
-    second = content.index("---", 3)
-    raw_fm = content[3:second].strip()
-    body = content[second + 3:]
-
-    fm: dict = {}
-    current_key = ""
-    current_list: list | None = None
-
-    for line in raw_fm.split("\n"):
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        if stripped.startswith("- ") and current_list is not None:
-            current_list.append(stripped[2:].strip())
-            continue
-
-        if current_list is not None:
-            fm[current_key] = current_list
-            current_list = None
-
-        if ":" in stripped:
-            key, _, val = stripped.partition(":")
-            key = key.strip()
-            val = val.strip()
-            current_key = key
-            if val == "":
-                current_list = []
-            elif val.startswith("[") and val.endswith("]"):
-                fm[key] = [v.strip().strip("'\"") for v in val[1:-1].split(",") if v.strip()]
-            else:
-                fm[key] = val.strip("'\"")
-
-    if current_list is not None:
-        fm[current_key] = current_list
-
-    return fm, raw_fm, body
 
 
 def extract_topics(fm: dict, body: str) -> list[str]:

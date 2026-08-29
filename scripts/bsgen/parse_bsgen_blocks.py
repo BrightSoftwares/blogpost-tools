@@ -26,6 +26,9 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pyyaml", "-q"])
     import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "common"))
+from frontmatter_utils import parse_frontmatter_dict as extract_frontmatter  # noqa: E402
+
 
 # Brevity guideline for callout `content`. Callouts render as a flowing HTML
 # <p class="bs-callout__content"> that wraps naturally (see process_callouts.py) —
@@ -63,17 +66,6 @@ def _dormant_spans(content: str) -> list[tuple[int, int]]:
     reprocessed (and duplicated) on every subsequent run.
     """
     return [m.span() for m in HTML_COMMENT_RE.finditer(content)]
-
-
-def extract_frontmatter(content: str) -> dict:
-    """Extract YAML frontmatter from a Jekyll post."""
-    match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
-    if not match:
-        return {}
-    try:
-        return yaml.safe_load(match.group(1)) or {}
-    except yaml.YAMLError:
-        return {}
 
 
 def parse_block_body(raw_yaml: str, block_type: str, index: int) -> dict | None:
