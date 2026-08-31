@@ -92,6 +92,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore(seo): regenerate image sitemap for ${{ inputs.site_url }}"
+            git pull --rebase
             git push
           fi
 
