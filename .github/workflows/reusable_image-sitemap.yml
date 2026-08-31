@@ -17,8 +17,8 @@ on:
         default: "image-sitemap.xml"
       limit:
         required: false
-        type: number
-        default: 0
+        type: string
+        default: "0"
         description: "Process at most N page-sitemap URLs (0 = no limit)"
       commit_changes:
         required: false
