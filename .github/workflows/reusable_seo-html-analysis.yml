@@ -79,8 +79,8 @@ jobs:
             git config user.email github-actions@github.com
             git add .
             git commit -m "generated and changed files"
-            DUPHDR=$(git config --local --get-all http.https://github.com/.extraheader 2>/dev/null | wc -l)
-            [ "$DUPHDR" -gt 1 ] && git config --unset-all http.https://github.com/.extraheader
+            # DUPHDR=$(git config --local --get-all http.https://github.com/.extraheader 2>/dev/null | wc -l)
+            # [ "$DUPHDR" -gt 1 ] && git config --unset-all http.https://github.com/.extraheader
             git pull --rebase
             git push
           fi
