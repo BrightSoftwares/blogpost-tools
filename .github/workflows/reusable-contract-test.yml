@@ -51,3 +51,9 @@ jobs:
     with:
       post_file: ".github/contract-fixtures/sample-post.md"
       working_directory: "."
+
+  smoke-call-markdown-link-check:
+    name: smoke-call-markdown-link-check
+    uses: ./.github/workflows/reusable_markdown-link-check.yml
+    with:
+      posts_dir: ".github/contract-fixtures/markdown-link-check"

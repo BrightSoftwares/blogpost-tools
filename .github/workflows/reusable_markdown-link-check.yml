@@ -1,0 +1,112 @@
+name: Reusable Markdown Link Check
+
+# Gate for "controlled internal linking" (t213-21): catches broken internal
+# links between blog posts *before* they publish — a blocking check, unlike
+# the advisory markdown-linting/ Docker action already wired into
+# reusable-auto-internal-linking.yml (which runs with continue-on-error: true
+# and never fails the build).
+#
+# Two complementary checks, both scoped to internal links only:
+#   1. markdownlint-cli2 (MD011/MD039/MD042/MD051/MD052) — static link *syntax*
+#      rules, incl. same-file anchor validity (MD051).
+#   2. check-internal-links.js — a thin wrapper around the markdown-link-check
+#      library (not its CLI, which silently exit(1)s with no output if the
+#      config JSON omits a "reporters" key — a real upstream bug hit while
+#      building this) that resolves relative file links against the
+#      filesystem. External http(s)/mailto links are ignored by design: this
+#      check exists to police links *between our own posts*, not to babysit
+#      third-party site uptime in CI (that's a separate, flakier concern).
+#
+# markdownlint-cli2 was chosen over the legacy `markdownlint-cli` (already
+# used, and effectively unmaintained, in markdown-linting/) because it's the
+# actively maintained successor with the same rule set.
+
+on:
+  workflow_call:
+    inputs:
+      posts_dir:
+        required: false
+        type: string
+        default: "_posts"
+        description: "Directory (relative to caller repo root) containing markdown files to check for internal link validity"
+      fail_on_error:
+        required: false
+        type: boolean
+        default: true
+        description: "Fail the job when a broken/malformed internal link is found (set false for dry-run/reporting-only mode)"
+    secrets:
+      GH_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      posts_dir:
+        required: false
+        type: string
+        default: "_posts"
+      fail_on_error:
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v4
+
+      - name: Checkout blogpost-tools (shared lint config + script)
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install markdownlint-cli2 and markdown-link-check
+        working-directory: .blogpost-tools/markdown-link-check
+        run: npm install --no-save
+
+      - name: Check posts_dir exists
+        id: check_dir
+        run: |
+          if [ -d "${{ inputs.posts_dir }}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::posts_dir '${{ inputs.posts_dir }}' does not exist in this repo — skipping link check."
+          fi
+
+      - name: "Markdownlint — link-syntax rules (MD011/MD039/MD042/MD051/MD052)"
+        id: mdlint
+        if: steps.check_dir.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          node .blogpost-tools/markdown-link-check/node_modules/.bin/markdownlint-cli2 \
+            --config .blogpost-tools/markdown-link-check/.markdownlint-cli2.jsonc \
+            "${{ inputs.posts_dir }}/**/*.md"
+
+      - name: "Internal link resolution (relative paths + same-file anchors; external URLs excluded by design)"
+        id: linkcheck
+        if: steps.check_dir.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          node .blogpost-tools/markdown-link-check/check-internal-links.js "${{ inputs.posts_dir }}"
+
+      - name: Fail if any check found broken internal links
+        if: |
+          steps.check_dir.outputs.exists == 'true' &&
+          inputs.fail_on_error &&
+          (steps.mdlint.outcome == 'failure' || steps.linkcheck.outcome == 'failure')
+        run: |
+          echo "::error::Broken internal link(s) found — see the 'Markdownlint' and/or 'Internal link resolution' step logs above."
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf .blogpost-tools
