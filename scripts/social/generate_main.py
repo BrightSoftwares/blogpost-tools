@@ -11,7 +11,7 @@ from pathlib import Path
 
 from yaml_io import load_yaml, save_yaml
 from select_next_post import select_next_post
-from compose_post import compose_post
+from compose_post import compose_post, _derive_excerpt
 from brand_voice_fetcher import fetch_brand_voice, load_brand_voice_from_submodule
 from sam_client import generate_social_card
 from render_calendar import render_calendar
@@ -86,9 +86,15 @@ def main() -> None:
             api_key=api_key,
             template_id=image_style,
             title=post["frontmatter"].get("title", ""),
-            excerpt=post["frontmatter"].get("excerpt"),
+            # Frontmatter rarely sets `excerpt` explicitly (e.g. this post
+            # only has `description`) — fall back to the same
+            # first-paragraph derivation compose_post() uses for post copy,
+            # so the card isn't left blank.
+            excerpt=_derive_excerpt(post),
             social_stat=post["frontmatter"].get("social_stat"),
             brand_colors=brand_colors,
+            cta=post["frontmatter"].get("cta") or config.get("defaults", {}).get("cta", ""),
+            brand_name=config.get("brand", {}).get("name", ""),
         )
     else:
         card = {"landscape_url": "dry-run-placeholder-1200x627", "square_url": "dry-run-placeholder-1200x1200", "credits_used": 0}
