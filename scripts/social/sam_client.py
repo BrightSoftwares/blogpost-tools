@@ -192,6 +192,8 @@ def generate_social_card(
                 asset["name"]: asset.get("secure_url") or asset.get("url")
                 for asset in data.get("assets", [])
             }
+            logger.warning("SAM API response = ", str(data))
+            logger.warning("Sizes = ", str(sizes))
             return {
                 "landscape_url": sizes.get(_LANDSCAPE_SIZE_NAME, ""),
                 "square_url": sizes.get(_SQUARE_SIZE_NAME, ""),
