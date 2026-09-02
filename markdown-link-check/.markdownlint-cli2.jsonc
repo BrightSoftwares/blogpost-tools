@@ -1,0 +1,20 @@
+// Link-syntax rules only (not general prose style — that's markdown-linting/'s job).
+// Runs via reusable_markdown-link-check.yml as the syntax-level half of the
+// "controlled internal linking" gate (t213-21). Complements check-internal-links.js
+// (below), which validates that links actually resolve; this catches malformed
+// link *syntax* markdownlint can see statically:
+//   MD011 no-reversed-links        (text)[url] instead of [text](url)
+//   MD039 no-space-in-links        [ text ](url)
+//   MD042 no-empty-links           [text]() or [text](<>)
+//   MD051 link-fragments           #anchor must match an existing heading in-file
+//   MD052 reference-links-images   [text][ref] must have a matching [ref]: url def
+{
+  "config": {
+    "default": false,
+    "MD011": true,
+    "MD039": true,
+    "MD042": true,
+    "MD051": true,
+    "MD052": true
+  }
+}

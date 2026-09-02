@@ -1,0 +1,9 @@
+{
+  "name": "markdown-link-check-config",
+  "private": true,
+  "description": "Config + wrapper script for the reusable_markdown-link-check.yml gate. Not published.",
+  "dependencies": {
+    "markdown-link-check": "^3.13.6",
+    "markdownlint-cli2": "^0.13.0"
+  }
+}
