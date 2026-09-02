@@ -49,14 +49,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-          token: ${{ secrets.GH_TOKEN || github.token }}
+          token: ${{ github.token }}
 
       - name: Checkout blogpost-tools scripts
         uses: actions/checkout@v4
         with:
           repository: brightsoftwares/blogpost-tools
           path: _blogpost_tools
-          token: ${{ secrets.GH_TOKEN || github.token }}
+          token: ${{ github.token }}
 
       - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
         run: python3 --version
