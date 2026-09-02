@@ -1,5 +1,4 @@
 name: Social Generate (reusable)
-
 on:
   workflow_dispatch:
   workflow_call:
@@ -28,7 +27,6 @@ on:
         required: true
       GH_TOKEN:
         required: true
-
 jobs:
   generate:
     # runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
@@ -43,25 +41,48 @@ jobs:
           submodules: true
           token: ${{ secrets.GH_TOKEN || github.token }}
           persist-credentials: false
-
+          
       - name: Checkout blogpost-tools scripts
         uses: actions/checkout@v4
         with:
           repository: brightsoftwares/blogpost-tools
           path: _blogpost_tools
           token: ${{ secrets.GH_TOKEN || github.token }}
-
+          
       - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
         run: python3 --version
-
-      - name: Install deps
-        run: pip install -r _blogpost_tools/scripts/social/requirements.txt --break-system-packages 2>/dev/null || pip install -r _blogpost_tools/scripts/social/requirements.txt
-
+        
+      - name: Create virtualenv and install dependencies
+        run: |
+          python3 -m venv .venv-social-generate
+          source .venv-social-generate/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r _blogpost_tools/scripts/social/requirements.txt
+          
+      - name: Warm up Smart Assets Manager API
+        run: |
+          SAM_API_URL="${SAM_API_URL:-https://smart-assets-manager.onrender.com}"
+          echo "Warming up $SAM_API_URL ..."
+          MAX_ATTEMPTS=15
+          SLEEP_SECONDS=10
+          for i in $(seq 1 "$MAX_ATTEMPTS"); do
+            RESPONSE="$(curl -s -m 15 "$SAM_API_URL" || true)"
+            if echo "$RESPONSE" | grep -q '"message"[[:space:]]*:[[:space:]]*"Smart Assets Manager API"'; then
+              echo "✅ API is warm (attempt $i/$MAX_ATTEMPTS)"
+              echo "$RESPONSE"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/$MAX_ATTEMPTS: not warm yet, retrying in ${SLEEP_SECONDS}s..."
+            sleep "$SLEEP_SECONDS"
+          done
+          echo "⚠️ API did not report warm status after $MAX_ATTEMPTS attempts — proceeding anyway, generate step may fail"
+          
       - name: Generate next post
         id: gen
         env:
           SMART_ASSETS_API_KEY: ${{ secrets.SMART_ASSETS_API_KEY }}
         run: |
+          source .venv-social-generate/bin/activate
           python _blogpost_tools/scripts/social/generate_main.py \
             --posts-dir "${{ inputs.posts_dir }}" \
             --drafts-dir "${{ inputs.drafts_dir }}" \
@@ -69,6 +90,10 @@ jobs:
             --config-path "${{ inputs.config_path }}" \
             ${{ inputs.target_slug != '' && format('--target-slug "{0}"', inputs.target_slug) || '' }} \
             ${{ inputs.dry_run && '--dry-run' || '' }}
+            
+      - name: Cleanup virtualenv
+        if: always()
+        run: rm -rf .venv-social-generate
 
       - name: Open PR
         if: steps.gen.outputs.has_changes == 'true'
