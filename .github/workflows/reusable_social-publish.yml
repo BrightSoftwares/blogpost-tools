@@ -15,6 +15,17 @@ on:
       config_path:
         type: string
         default: "_data/social_config.yml"
+      # Common includes submodule
+      use_common_includes:
+        description: 'Clone BrightSoftwares/jekyll-theme-common-includes'
+        type: boolean
+        required: false
+        default: true
+      common_includes_path:
+        description: 'Path for common includes'
+        type: string
+        required: false
+        default: '_includes/common'
       dry_run:
         type: boolean
         default: false
@@ -27,6 +38,12 @@ on:
         required: true
       FACEBOOK_PAGE_ID:
         required: true
+      submodule_pat:
+        description: 'Fine-grained GitHub PAT (Contents: Read-only) with access to the private submodule repos (e.g. jekyll-theme-common-includes, shared-site-data). Preferred over submodule_ssh_key — works across multiple repos with a single token. Falls back to submodule_ssh_key if unset or if the PAT clone fails.'
+        required: false
+      submodule_ssh_key:
+        description: 'SSH deploy key for private submodule access. Fallback only, kept during migration to submodule_pat — remove once every caller repo has submodule_pat configured.'
+        required: false
     outputs:
       published_count:
         description: "Number of posts successfully published"
@@ -45,9 +62,90 @@ jobs:
     steps:
       - name: Checkout caller repo
         uses: actions/checkout@v4
-        with:
-          submodules: true
-          token: ${{ github.token }}
+        # with:
+        #   submodules: true
+        #   token: ${{ github.token }}
+
+      - name: Checkout declared submodules
+        if: ${{ inputs.use_common_includes }}
+        env:
+          SUBMODULE_PAT: ${{ secrets.submodule_pat }}
+          SUBMODULE_SSH_KEY: ${{ secrets.submodule_ssh_key }}
+          COMMON_INCLUDES_PATH: ${{ inputs.common_includes_path }}
+        run: |
+          set -euo pipefail
+
+          # Set up the SSH deploy key as a fallback path (still used if no PAT,
+          # or if the PAT clone fails for a given repo).
+          if [ -n "${SUBMODULE_SSH_KEY:-}" ]; then
+            mkdir -p ~/.ssh
+            echo "${SUBMODULE_SSH_KEY}" > ~/.ssh/submodule_deploy_key
+            chmod 600 ~/.ssh/submodule_deploy_key
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/submodule_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+          fi
+
+          clone_one() {
+            # $1 = destination path, $2 = https:// clone URL (casing preserved exactly as declared)
+            local dest="$1"
+            local https_url="$2"
+            case "$https_url" in
+              *.git) : ;;
+              *) https_url="${https_url}.git" ;;
+            esac
+
+            echo "Checking out submodule -> ${dest} from ${https_url}"
+            rm -rf "${dest}"
+            mkdir -p "$(dirname "${dest}")"
+
+            # 1) Preferred: PAT over HTTPS via an auth header, so the token never
+            #    appears in the URL (and thus never in git's own error output).
+            #    Works for both private and public repos with the same token.
+            if [ -n "${SUBMODULE_PAT:-}" ]; then
+              local basic_auth
+              basic_auth=$(printf 'x-access-token:%s' "${SUBMODULE_PAT}" | base64 -w0)
+              if git -c http.extraHeader="AUTHORIZATION: basic ${basic_auth}" \
+                  clone --depth 1 "${https_url}" "${dest}"; then
+                return 0
+              fi
+              echo "PAT clone failed for ${dest}, falling back..."
+              rm -rf "${dest}"
+            fi
+
+            # 2) Fallback: SSH deploy key (legacy path, being phased out).
+            if [ -n "${SUBMODULE_SSH_KEY:-}" ]; then
+              local ssh_url
+              ssh_url=$(echo "$https_url" | sed -E 's#^https://github\.com/#git@github.com:#')
+              echo "Falling back to SSH for ${dest} -> ${ssh_url}"
+              git clone --depth 1 "${ssh_url}" "${dest}"
+              return $?
+            fi
+
+            # 3) Last resort: anonymous HTTPS clone. Only works for public repos.
+            echo "No PAT or SSH key available, attempting anonymous clone for ${dest}"
+            git clone --depth 1 "${https_url}" "${dest}"
+          }
+
+          if [ -f .gitmodules ]; then
+            echo "Found .gitmodules — checking out every declared submodule."
+            found_any=0
+            while read -r key path; do
+              [ -z "${key}" ] && continue
+              found_any=1
+              name=$(echo "${key}" | sed -E 's/^submodule\.(.*)\.path$/\1/')
+              url=$(git config -f .gitmodules --get "submodule.${name}.url")
+              clone_one "${path}" "${url}"
+            done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$')
+            if [ "${found_any}" -eq 0 ]; then
+              echo ".gitmodules exists but declares no submodules — falling back to legacy common-includes checkout."
+              clone_one "${COMMON_INCLUDES_PATH}" "https://github.com/BrightSoftwares/jekyll-theme-common-includes"
+            fi
+          else
+            echo "No .gitmodules in caller repo — falling back to legacy common-includes checkout."
+            clone_one "${COMMON_INCLUDES_PATH}" "https://github.com/BrightSoftwares/jekyll-theme-common-includes"
+          fi
+
+          rm -f ~/.ssh/submodule_deploy_key
+      
       - name: Checkout blogpost-tools scripts
         uses: actions/checkout@v4
         with:
