@@ -192,11 +192,68 @@ def generate_social_card(
                 asset["name"]: asset.get("secure_url") or asset.get("url")
                 for asset in data.get("assets", [])
             }
-            logger.warning("SAM API response = ", str(data))
-            logger.warning("Sizes = ", str(sizes))
+            logger.debug("SAM API response = %s", data)
+            logger.debug("Parsed sizes = %s", sizes)
+
+            # SAM's top-level "success" flag only means the request was
+            # accepted and processed -- it does NOT mean assets were
+            # actually generated and stored. A Cloudinary storage failure
+            # (e.g. missing/misconfigured API key on the SAM side) comes
+            # back as HTTP 200 with `success: true`, `total_generated: 0`,
+            # `assets: []`, and the real failure buried in a per-size
+            # `errors` list. Root cause (2026-09-03, run 33623967098, job
+            # 100227254579): every request hit
+            # "Failed to store in Cloudinary: Failed to upload to
+            # Cloudinary: Must supply api_key" here, `sizes` ended up `{}`,
+            # and this function silently returned empty landscape_url /
+            # square_url -- the caller had no signal anything went wrong
+            # and wrote a social draft with blank image URLs. Treat a
+            # non-empty `errors` list, or zero assets on a non-zero
+            # request, as a hard failure instead of degrading silently.
+            errors = data.get("errors") or []
+            total_requested = data.get("total_requested", len(_CARD_SIZES))
+            total_generated = data.get("total_generated", len(data.get("assets", [])))
+            if errors or (total_requested and not total_generated):
+                logger.error(
+                    "SAM reported success=%s but generated 0 usable assets "
+                    "(requested=%s, generated=%s). generation_id=%s errors=%s",
+                    data.get("success"),
+                    total_requested,
+                    total_generated,
+                    data.get("generation_id"),
+                    errors,
+                )
+                raise RuntimeError(
+                    f"SAM returned HTTP {resp.status_code} but generated 0/"
+                    f"{total_requested} assets (generation_id="
+                    f"{data.get('generation_id')!r}). Per-size errors: {errors}"
+                )
+
+            landscape_url = sizes.get(_LANDSCAPE_SIZE_NAME, "")
+            square_url = sizes.get(_SQUARE_SIZE_NAME, "")
+            if not landscape_url or not square_url:
+                # Belt-and-braces: even if SAM reports success/generated
+                # counts that look fine, refuse to hand back a partial
+                # result silently -- an empty URL here is exactly what
+                # produced empty social images before this fix.
+                logger.error(
+                    "SAM response had no per-size error but is still missing "
+                    "an expected size. landscape_url=%r square_url=%r "
+                    "expected=%s got_keys=%s",
+                    landscape_url,
+                    square_url,
+                    (_LANDSCAPE_SIZE_NAME, _SQUARE_SIZE_NAME),
+                    list(sizes.keys()),
+                )
+                raise RuntimeError(
+                    f"SAM response missing expected sizes: "
+                    f"landscape={landscape_url!r} square={square_url!r} "
+                    f"(got keys {list(sizes.keys())})"
+                )
+
             return {
-                "landscape_url": sizes.get(_LANDSCAPE_SIZE_NAME, ""),
-                "square_url": sizes.get(_SQUARE_SIZE_NAME, ""),
+                "landscape_url": landscape_url,
+                "square_url": square_url,
                 "credits_used": data.get("credits_charged", 0.0),
             }
         except RuntimeError:
