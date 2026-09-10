@@ -5,6 +5,16 @@ import importlib
 dry_run = os.getenv('INPUT_DRY_RUN')
 min_content_nb_characters = int(os.getenv('INPUT_MIN_CONTENT_NB_CHARACTERS', 1000))
 
+# Opt-in only (default OFF): when unset/false, is_ready_for_publication()
+# behaves exactly as it did before the 2026-09-10 is_approved() gate was
+# added -- no publish_status check at all. This keeps the 4 other production
+# callers of this shared action (ieatmyhealth.com, keke.li,
+# olympics-paris2024.com, foolywise.com) completely unaffected, since none
+# of them ever set publish_status in their pipelines. Only a caller that
+# explicitly passes `require_approval: true` (corporate-website) gets the
+# gate. See is_ready_for_publication() below.
+require_approval = os.getenv('INPUT_REQUIRE_APPROVAL', 'false').strip().lower() == 'true'
+
 def is_content_enough(post):
   nb_characters = len(post.content)
   print("is_content_enough >>> nb characters = ", nb_characters)
@@ -107,20 +117,32 @@ def move_to_destination(folder_to_scan, destination, condition_func):
         print("Error, something unexpected occured", str(e))
 
 def is_ready_for_publication(post):
-  # NOTE (2026-09-10): added is_approved() -- this gate previously only
-  # checked content length / pretified / "has an image field", none of
-  # which reflect human review. A post with plausible-looking frontmatter
-  # (true of every AI-authored draft) passed all three regardless of
-  # publish_status, so 25 of 59 non-approved posts were force-published to
-  # _posts/ by run 34062358994 on 2026-09-06. See BrightSoftwares/
-  # corporate-website incident writeup (Daily_notes/2026-09-05.md,
-  # task 🆔 revert-autopublish-1).
-  return (
+  # NOTE (2026-09-10): added an opt-in is_approved() gate -- this check
+  # previously only verified content length / pretified / "has an image
+  # field", none of which reflect human review. A post with plausible-
+  # looking frontmatter (true of every AI-authored draft) passed all three
+  # regardless of publish_status, so 25 of 59 non-approved posts were
+  # force-published to _posts/ by run 34062358994 on 2026-09-06. See
+  # BrightSoftwares/corporate-website incident writeup
+  # (Daily_notes/2026-09-05.md, task 🆔 revert-autopublish-1).
+  #
+  # The is_approved() check is gated behind require_approval (opt-in,
+  # default False) rather than being unconditional: this action is shared
+  # by 4 other production sites (ieatmyhealth.com, keke.li,
+  # olympics-paris2024.com, foolywise.com) whose fully-auto-scheduled
+  # pipelines never set publish_status. Making the gate unconditional would
+  # have silently and permanently halted publishing on all four with no
+  # error. Only callers that explicitly pass `require_approval: true`
+  # (corporate-website) get the new check; every other caller's behavior
+  # is byte-for-byte identical to before this fix.
+  base_ready = (
     is_content_enough(post)
     and is_jekyll_filename_pretified(post)
     and is_unsplash_to_cloudinary(post)
-    and is_approved(post)
   )
+  if not require_approval:
+    return base_ready
+  return base_ready and is_approved(post)
 
 
 src_folder = os.getenv('INPUT_SRC_PATH')

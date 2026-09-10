@@ -109,6 +109,15 @@ on:
       manualpublication_dryrun:
         required: true
         type: boolean
+      manualpublication_requireapproval:
+        description: >
+          Opt-in, default false. Pass true to require frontmatter
+          `publish_status: approved` before a post moves to _posts/. Leave
+          unset for pipelines that never set publish_status (behavior is
+          then byte-for-byte identical to before this input existed).
+        required: false
+        type: boolean
+        default: false
       forced_to_run_on_github:
         required: false
         type: string
@@ -320,6 +329,7 @@ jobs:
           dst_path: ${{ inputs.manualpublication_dstpath }} # /github/workspace/_posts/
           dry_run: ${{ inputs.manualpublication_dryrun }} # false
           function_to_run: move_readyforpublication_to_destination
+          require_approval: ${{ inputs.manualpublication_requireapproval }}
           
       - name: (9) Commit changes if there is any
         run: |

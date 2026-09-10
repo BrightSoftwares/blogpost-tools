@@ -9,7 +9,16 @@ inputs:
     description: The path to the folder where you want to move the files
   function_to_run:
     description: The function you want to run
-  
+  require_approval:
+    description: >
+      Opt-in, default "false". When "true", is_ready_for_publication() also
+      requires frontmatter `publish_status: approved` before moving a post
+      to its destination. Leave unset/false to keep prior behavior exactly
+      (no publish_status check at all) -- required for callers whose
+      pipelines never set publish_status.
+    required: false
+    default: "false"
+
 
 outputs:
   moved_posts:

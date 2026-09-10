@@ -1,0 +1,43 @@
+name: auto-move-to-destination-tests
+
+# Fast, hermetic unit tests for auto-move-to-destination/ (Python,
+# python-frontmatter only — no external services, no self-hosted runner).
+# Added 2026-09-10: pins down is_ready_for_publication()/is_approved()
+# (the require_approval opt-in gate added after the 2026-09-06
+# force-publish incident) so a future edit can't silently regress either
+# half -- the gate enforcing approval when require_approval=true, or the
+# gate staying a complete no-op (identical to pre-fix behavior) for the
+# 4 other production sites that never set require_approval at all.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: auto-move-to-destination-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pytest -r auto-move-to-destination/requirements.txt
+
+      - name: Run auto-move-to-destination unit tests
+        run: pytest auto-move-to-destination/tests -v --tb=short
