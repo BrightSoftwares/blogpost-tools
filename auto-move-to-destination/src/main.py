@@ -58,6 +58,17 @@ def is_youtube_vid_finder(post):
   print("is_youtube_vid_finder >>> youtube_video_id = {}".format(youtube_video_id))
   return youtube_video_id is not None
 
+
+def is_approved(post):
+  # Gate for the 600_auto_scheduled -> _posts move: only a human-approved
+  # post may go live. Missing entirely (2026-09-06 incident: 25/59 posts
+  # with publish_status in {draft, review, changes_requested, superseded}
+  # were force-published because this check did not exist) so this must
+  # fail closed (default False) rather than treat "field absent" as okay.
+  publish_status = post['publish_status'] if 'publish_status' in post else None
+  print("is_approved >>> publish_status = {}".format(publish_status))
+  return publish_status == "approved"
+
 def move_to_destination(folder_to_scan, destination, condition_func):
   if destination is None:
     print("Destination is not set. Exiting")
@@ -96,7 +107,20 @@ def move_to_destination(folder_to_scan, destination, condition_func):
         print("Error, something unexpected occured", str(e))
 
 def is_ready_for_publication(post):
-  return is_content_enough(post) and is_jekyll_filename_pretified(post) and is_unsplash_to_cloudinary(post)
+  # NOTE (2026-09-10): added is_approved() -- this gate previously only
+  # checked content length / pretified / "has an image field", none of
+  # which reflect human review. A post with plausible-looking frontmatter
+  # (true of every AI-authored draft) passed all three regardless of
+  # publish_status, so 25 of 59 non-approved posts were force-published to
+  # _posts/ by run 34062358994 on 2026-09-06. See BrightSoftwares/
+  # corporate-website incident writeup (Daily_notes/2026-09-05.md,
+  # task 🆔 revert-autopublish-1).
+  return (
+    is_content_enough(post)
+    and is_jekyll_filename_pretified(post)
+    and is_unsplash_to_cloudinary(post)
+    and is_approved(post)
+  )
 
 
 src_folder = os.getenv('INPUT_SRC_PATH')
