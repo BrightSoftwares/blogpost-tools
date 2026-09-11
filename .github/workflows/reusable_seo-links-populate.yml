@@ -1,5 +1,33 @@
 name: Reusable SEO Links Populate
 
+# 2026-09-11: `mode` input added, and `--force` is no longer the only way to
+# touch a post that already has links.
+#
+# Until 2026-09-11 the "skip posts that already have seo.links" guard in
+# seo_links_populator.py never fired (the flat frontmatter parser cannot see a
+# nested `seo.links`), so EVERY weekly scheduled run silently rewrote EVERY
+# post's links even with force=false. That is how
+# `2026-11-09-we-built-a-crm-feature-on-ourselves-first-...md` in
+# corporate-website lost its hand-picked link and gained the English pronoun
+# "we" (Q7478101). The guard now works, which means:
+#
+#   mode: populate            → only posts with NO seo.links are touched (default)
+#   mode: replace-irrelevant  → existing links are resolved against Wikidata;
+#                               only links flagged "non-topical" (strong
+#                               negative evidence — pronoun/given-name/
+#                               village/etc.) are auto-replaced. Links with no
+#                               lexical overlap but no red flag either
+#                               ("suspect" — e.g. a real, correct "Zigbee"
+#                               link that just doesn't share a literal word
+#                               with the post's tags) are KEPT, not deleted —
+#                               review those via `reusable_seo-links-audit.yml`
+#                               instead. (Narrowed 2026-09-11, medium-3: pure
+#                               lexical non-overlap was previously enough to
+#                               delete a currently-correct link.)
+#   mode: force               → every post is recomputed from scratch
+#
+# Use `reusable_seo-links-audit.yml` first to see what would change.
+
 on:
   workflow_call:
     inputs:
@@ -14,7 +42,7 @@ on:
         type: string
         default: "en/_drafts/400_refined_content"
       min_links:
-        description: "Minimum Wikidata links per post"
+        description: "Minimum Wikidata links per post (never padded with irrelevant items)"
         required: false
         type: number
         default: 2
@@ -23,8 +51,18 @@ on:
         required: false
         type: number
         default: 4
+      mode:
+        description: "populate | replace-irrelevant | force"
+        required: false
+        type: string
+        default: "populate"
       force:
-        description: "Overwrite existing seo.links"
+        description: "DEPRECATED — use mode: force. Kept so existing callers keep working."
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Print what would change without writing or committing"
         required: false
         type: boolean
         default: false
@@ -65,43 +103,52 @@ jobs:
       - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
         run: python3 --version
 
-      - name: Populate SEO links in posts
-        if: ${{ inputs.scan_posts }}
+      - name: Populate SEO links
         run: |
-          FORCE_FLAG=""
-          if [ "${{ inputs.force }}" = "true" ]; then
-            FORCE_FLAG="--force"
+          MODE="${{ inputs.mode }}"
+          if [ "${{ inputs.force }}" = "true" ] && [ "$MODE" = "populate" ]; then
+            echo "::warning::inputs.force is deprecated — treating this run as mode: force"
+            MODE="force"
           fi
 
-          if [ -d "${{ inputs.posts_dir }}" ]; then
-            python3 _blogpost-tools/scripts/seo_links_populator.py \
-              --dir "${{ inputs.posts_dir }}" \
-              --min-links ${{ inputs.min_links }} \
-              --max-links ${{ inputs.max_links }} \
-              $FORCE_FLAG
+          MODE_FLAG=""
+          case "$MODE" in
+            populate)           MODE_FLAG="" ;;
+            replace-irrelevant) MODE_FLAG="--replace-irrelevant" ;;
+            force)              MODE_FLAG="--force" ;;
+            *) echo "::error::unknown mode '$MODE' (expected populate|replace-irrelevant|force)"; exit 1 ;;
+          esac
+
+          DRY_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          fi
+
+          DIRS=""
+          if [ "${{ inputs.scan_posts }}" = "true" ] && [ -d "${{ inputs.posts_dir }}" ]; then
+            DIRS="$DIRS --dir ${{ inputs.posts_dir }}"
           else
-            echo "Posts directory ${{ inputs.posts_dir }} not found, skipping."
+            echo "Posts directory '${{ inputs.posts_dir }}' not scanned."
           fi
-
-      - name: Populate SEO links in drafts
-        if: ${{ inputs.scan_drafts }}
-        run: |
-          FORCE_FLAG=""
-          if [ "${{ inputs.force }}" = "true" ]; then
-            FORCE_FLAG="--force"
-          fi
-
-          if [ -d "${{ inputs.drafts_dir }}" ]; then
-            python3 _blogpost-tools/scripts/seo_links_populator.py \
-              --dir "${{ inputs.drafts_dir }}" \
-              --min-links ${{ inputs.min_links }} \
-              --max-links ${{ inputs.max_links }} \
-              $FORCE_FLAG
+          if [ "${{ inputs.scan_drafts }}" = "true" ] && [ -d "${{ inputs.drafts_dir }}" ]; then
+            DIRS="$DIRS --dir ${{ inputs.drafts_dir }}"
           else
-            echo "Drafts directory ${{ inputs.drafts_dir }} not found, skipping."
+            echo "Drafts directory '${{ inputs.drafts_dir }}' not scanned."
           fi
+
+          if [ -z "$DIRS" ]; then
+            echo "::warning::Neither posts_dir nor drafts_dir exists in this repository — nothing to do."
+            exit 0
+          fi
+
+          python3 _blogpost-tools/scripts/seo_links_populator.py \
+            $DIRS \
+            --min-links ${{ inputs.min_links }} \
+            --max-links ${{ inputs.max_links }} \
+            $MODE_FLAG $DRY_FLAG
 
       - name: Commit changes
+        if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
