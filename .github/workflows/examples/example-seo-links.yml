@@ -1,0 +1,65 @@
+# Caller templates for the SEO-links reusable workflows.
+#
+# Copy ONE of the two jobs below into `.github/workflows/` of a blog repo.
+# They are in one example file only for readability — split them into
+# `seo-links-audit.yml` and `seo-links-populate.yml` in the target repo.
+#
+# ---------------------------------------------------------------------------
+# Per-site directory layouts (verified 2026-09-11)
+# ---------------------------------------------------------------------------
+#
+#   repo                       posts_dir     drafts_dir                       caller present?
+#   -------------------------  ------------  -------------------------------  ---------------
+#   corporate-website          en/_posts     en/_drafts/400_refined_content   yes (populate)
+#   eagles-techs.com           _posts        _drafts/400_refined_content      yes (populate)
+#   ieatmyhealth.com           _posts        _drafts/en  (no 400_refined_*)   NO
+#   modabyflora-corporate      _posts        _drafts/en  (no 400_refined_*)   NO
+#   joyousbyflora-posts        _posts        (no _drafts subdirs)             NO
+#   foolywise.com              _posts        _drafts/en  (no 400_refined_*)   NO
+#
+# The four sites marked NO do not have a `400_refined_content` drafts folder,
+# so they cannot simply copy the eagles-techs.com caller: pick the drafts_dir
+# that matches that site's actual pipeline (or leave drafts_dir empty and audit
+# `_posts` only) before enabling the populate job there.
+#
+# Recommended adoption order for a site that has never run this:
+#   1. add the AUDIT job first (read-only, uploads a CSV artifact)
+#   2. read the CSV, confirm the flagged links are genuinely wrong
+#   3. add the POPULATE job with `mode: populate` (only touches posts that
+#      have no seo.links at all)
+#   4. only then consider `mode: replace-irrelevant` to repair existing links
+
+name: Example — SEO links audit and populate
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  # -------------------------------------------------------------------------
+  # 1. AUDIT — read-only. Safe to enable anywhere, writes nothing to the repo.
+  # -------------------------------------------------------------------------
+  audit:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_seo-links-audit.yml@main
+    with:
+      posts_dir: "_posts"                       # "en/_posts" on corporate-website
+      drafts_dir: "_drafts/400_refined_content" # "" if the site has no such folder
+      audit_dictionary: true
+      fail_on_suspect: false                    # true once the corpus is clean
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+
+  # -------------------------------------------------------------------------
+  # 2. POPULATE — writes and commits. Enable only after reading an audit CSV.
+  # -------------------------------------------------------------------------
+  populate:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_seo-links-populate.yml@main
+    with:
+      posts_dir: "_posts"
+      drafts_dir: "_drafts/400_refined_content"
+      min_links: 2
+      max_links: 4
+      mode: "populate"        # populate | replace-irrelevant | force
+      dry_run: false
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_PAT }}

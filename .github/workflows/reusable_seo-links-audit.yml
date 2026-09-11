@@ -1,0 +1,135 @@
+name: Reusable SEO Links Audit
+
+# Read-only drift detector for `seo.links`.
+#
+# Resolves every Wikidata QID already present in every post's frontmatter and
+# flags the ones that have nothing to do with that post's own tags, categories,
+# silot_terms or title. Writes a CSV artifact; never modifies a post.
+#
+# Added 2026-09-11 after `2026-11-09-we-built-a-crm-feature-on-ourselves-first-...md`
+# in corporate-website shipped with four QIDs of which one was the English
+# pronoun "we" (Q7478101) and one a family name. Per-post enrichment at
+# creation time cannot catch that class of drift; a periodic full-corpus scan
+# can.
+
+on:
+  workflow_call:
+    inputs:
+      posts_dir:
+        description: "Directory containing published posts"
+        required: false
+        type: string
+        default: "_posts"
+      drafts_dir:
+        description: "Directory containing drafts (optional)"
+        required: false
+        type: string
+        default: ""
+      artifact_name:
+        description: "Name of the uploaded CSV artifact"
+        required: false
+        type: string
+        default: "seo-links-audit"
+      audit_dictionary:
+        description: "Also validate the hard-coded keyword→QID tables"
+        required: false
+        type: boolean
+        default: true
+      fail_on_suspect:
+        description: "Fail the job if any link is flagged non-topical or missing"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GH_TOKEN:
+        required: false
+
+jobs:
+  audit-seo-links:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 30
+    concurrency:
+      group: seo-links-audit-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/checkout@v7
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: _blogpost-tools
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
+        run: python3 --version
+
+      - name: Audit seo.links across posts and drafts
+        run: |
+          DIRS=""
+          if [ -d "${{ inputs.posts_dir }}" ]; then
+            DIRS="$DIRS --dir ${{ inputs.posts_dir }}"
+          else
+            echo "Posts directory '${{ inputs.posts_dir }}' not found."
+          fi
+          if [ -n "${{ inputs.drafts_dir }}" ] && [ -d "${{ inputs.drafts_dir }}" ]; then
+            DIRS="$DIRS --dir ${{ inputs.drafts_dir }}"
+          fi
+          if [ -z "$DIRS" ]; then
+            echo "No directory to audit — nothing to do."
+            exit 0
+          fi
+          python3 _blogpost-tools/scripts/seo_links_populator.py \
+            --audit-csv seo-links-audit.csv $DIRS | tee seo-links-audit.log
+
+      - name: Audit the hard-coded keyword to QID tables
+        if: ${{ inputs.audit_dictionary }}
+        run: |
+          python3 _blogpost-tools/scripts/seo_links_populator.py \
+            --audit-dictionary seo-links-dictionary-audit.csv \
+            | tee -a seo-links-audit.log
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### SEO links audit"
+            echo ""
+            echo '```'
+            tail -30 seo-links-audit.log 2>/dev/null || echo "(no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit CSVs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: |
+            seo-links-audit.csv
+            seo-links-dictionary-audit.csv
+            seo-links-audit.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail on flagged links
+        if: ${{ inputs.fail_on_suspect }}
+        run: |
+          python3 - <<'PY'
+          import csv, sys, pathlib
+          p = pathlib.Path("seo-links-audit.csv")
+          if not p.exists():
+              sys.exit(0)
+          bad = [r for r in csv.DictReader(p.open(encoding="utf-8"))
+                 if r["relevance"] in ("non-topical", "missing", "malformed")]
+          for r in bad:
+              print(f"::error file={r['post_path']}::{r['qid']} ({r['label']}) — {r['reason']}")
+          if bad:
+              sys.exit(1)
+          PY
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf _blogpost-tools
