@@ -315,4 +315,10 @@ def test_replace_irrelevant_keeps_good_links_and_drops_bad(tmp_path, monkeypatch
 
     assert pop.process_file(f, replace_irrelevant=True) is True
     _fm, raw, _ = pop.parse_frontmatter(f.read_text(encoding="utf-8"))
-    assert pop.extract_existing_seo_links(raw) == ["https://www.wikidata.org/wiki/Q485643"]
+    links = pop.extract_existing_seo_links(raw)
+    # the two irrelevant links are gone, the relevant one survived, and the
+    # freed slots were topped up from the verified keyword dictionary
+    assert "https://www.wikidata.org/wiki/Q134035659" not in links
+    assert "https://www.wikidata.org/wiki/Q7478101" not in links
+    assert links[0] == "https://www.wikidata.org/wiki/Q485643"
+    assert all(l.startswith("https://www.wikidata.org/wiki/Q") for l in links)

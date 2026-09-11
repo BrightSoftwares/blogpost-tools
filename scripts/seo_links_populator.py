@@ -236,8 +236,11 @@ COMPOUND_KEYWORDS = {
     "web application": "Q189210",
     "data analytics": "Q29661084",
     "image generation": "Q11060274",
-    # Verified 2026-09-11 against the live Wikidata page.
+    # Verified 2026-09-11 against the live Wikidata pages.
     "customer relationship management": "Q485643",
+    "code review": "Q1342704",
+    "software as a service": "Q1254596",
+    "eating your own dog food": "Q3033752",
     # NOTE: do not hand-add entries here without checking the QID against the
     # live item first, and run `--audit-dictionary` afterwards. While writing
     # this fix a plausible-looking "dogfooding": "Q1226025" was nearly added —
@@ -318,7 +321,10 @@ SINGLE_KEYWORDS = {
     "npm": "Q7067518",
     "webpack": "Q56283539",
     "vite": "Q110878961",
-    "crm": "Q485643",  # verified 2026-09-11
+    # Verified 2026-09-11 against the live Wikidata pages.
+    "crm": "Q485643",
+    "saas": "Q1254596",
+    "dogfooding": "Q3033752",
     "seo": "Q180711",
     "devops": "Q17076988",
     "devsecops": "Q61793085",
