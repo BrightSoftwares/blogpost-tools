@@ -36,7 +36,7 @@ on:
         type: boolean
         default: true
       fail_on_suspect:
-        description: "Fail the job if any link is flagged non-topical or missing"
+        description: "Fail the job if any link is flagged suspect, non-topical, missing, or malformed"
         required: false
         type: boolean
         default: false
@@ -123,7 +123,7 @@ jobs:
           if not p.exists():
               sys.exit(0)
           bad = [r for r in csv.DictReader(p.open(encoding="utf-8"))
-                 if r["relevance"] in ("non-topical", "missing", "malformed")]
+                 if r["relevance"] in ("suspect", "non-topical", "missing", "malformed")]
           for r in bad:
               print(f"::error file={r['post_path']}::{r['qid']} ({r['label']}) — {r['reason']}")
           if bad:

@@ -12,8 +12,18 @@ name: Reusable SEO Links Populate
 # "we" (Q7478101). The guard now works, which means:
 #
 #   mode: populate            → only posts with NO seo.links are touched (default)
-#   mode: replace-irrelevant  → existing links are resolved against Wikidata,
-#                               the relevant ones are kept, the rest replaced
+#   mode: replace-irrelevant  → existing links are resolved against Wikidata;
+#                               only links flagged "non-topical" (strong
+#                               negative evidence — pronoun/given-name/
+#                               village/etc.) are auto-replaced. Links with no
+#                               lexical overlap but no red flag either
+#                               ("suspect" — e.g. a real, correct "Zigbee"
+#                               link that just doesn't share a literal word
+#                               with the post's tags) are KEPT, not deleted —
+#                               review those via `reusable_seo-links-audit.yml`
+#                               instead. (Narrowed 2026-09-11, medium-3: pure
+#                               lexical non-overlap was previously enough to
+#                               delete a currently-correct link.)
 #   mode: force               → every post is recomputed from scratch
 #
 # Use `reusable_seo-links-audit.yml` first to see what would change.

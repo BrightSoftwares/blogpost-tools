@@ -322,3 +322,225 @@ def test_replace_irrelevant_keeps_good_links_and_drops_bad(tmp_path, monkeypatch
     assert "https://www.wikidata.org/wiki/Q7478101" not in links
     assert links[0] == "https://www.wikidata.org/wiki/Q485643"
     assert all(l.startswith("https://www.wikidata.org/wiki/Q") for l in links)
+
+
+# --- D8: COMPOUND_KEYWORDS must never match ACROSS topics ------------------
+# (2026-09-11, cold-start review round 2 — same defect class as D5, just not
+# applied to the compound dictionary too.)
+
+def test_compound_keyword_does_not_match_across_unrelated_topics():
+    """The exact reviewer repro: tags ["workload", "balancing act"] are
+    nothing to do with networking, but joining every topic into one string
+    and substring-checking it used to match "load balancing" because the
+    phrase spans the boundary between the two tags."""
+    out = pop.find_best_entities(
+        [("workload", pop.SOURCE_CURATED), ("balancing act", pop.SOURCE_CURATED)],
+        min_links=1, max_links=1, verbose=False,
+    )
+    assert out == []
+    assert pop.COMPOUND_KEYWORDS["load balancing"] not in " ".join(out)
+
+
+def test_compound_keyword_still_matches_within_a_single_topic():
+    """A legitimate compound match must still work when the phrase is
+    genuinely present in one topic (e.g. a hyphenated tag "load-balancing"
+    is kept whole as the topic "load balancing" by extract_topics())."""
+    out = pop.find_best_entities(
+        [("load balancing", pop.SOURCE_CURATED)],
+        min_links=1, max_links=1, verbose=False,
+    )
+    assert out == [f"https://www.wikidata.org/wiki/{pop.COMPOUND_KEYWORDS['load balancing']}"]
+
+
+def test_phrase_in_topic_never_spans_two_topics():
+    assert pop._phrase_in_topic("load balancing", "workload") is False
+    assert pop._phrase_in_topic("load balancing", "balancing act") is False
+    assert pop._phrase_in_topic("load balancing", "load balancing") is True
+    assert pop._phrase_in_topic("home assistant", "home assistant setup") is True
+
+
+# --- D9: a blank line / comment inside `seo:` must not corrupt on write ----
+# (2026-09-11, cold-start review round 2)
+
+BLANK_LINE_SEO_POST = """---
+title: T
+tags:
+- docker
+seo:
+  title: Custom
+
+  links:
+  - https://www.wikidata.org/wiki/Q485643
+lang: en
+---
+Body text.
+"""
+
+
+def test_extract_existing_seo_links_survives_a_blank_line_in_the_block():
+    """The exact reviewer repro: a blank line between two keys of a
+    hand-authored `seo:` block used to make the old first-blank-line
+    detector stop before ever seeing the real `links:` key."""
+    _fm, raw_fm, _body = pop.parse_frontmatter(BLANK_LINE_SEO_POST)
+    links = pop.extract_existing_seo_links(raw_fm)
+    assert links == ["https://www.wikidata.org/wiki/Q485643"]
+
+
+def test_extract_existing_seo_links_survives_a_comment_on_the_seo_line():
+    raw_fm = "title: T\nseo:  # hand-authored\n  links:\n  - https://www.wikidata.org/wiki/Q1\nlang: en"
+    assert pop.extract_existing_seo_links(raw_fm) == ["https://www.wikidata.org/wiki/Q1"]
+
+
+def test_process_file_does_not_corrupt_a_blank_line_seo_block(tmp_path):
+    """Full end-to-end repro: force=false must now correctly SKIP (because
+    it correctly sees the existing link) instead of writing a second
+    `links:` key that leaves the OLD stale link in effect under YAML's
+    duplicate-key-last-wins semantics."""
+    f = tmp_path / "post.md"
+    f.write_text(BLANK_LINE_SEO_POST, encoding="utf-8")
+
+    changed = pop.process_file(f, force=False, min_links=1, max_links=1)
+    assert changed is False
+
+    result = f.read_text(encoding="utf-8")
+    _fm, raw_fm, _body = pop.parse_frontmatter(result)
+    # exactly one `links:` key under seo — no duplicate was inserted
+    assert result.count("  links:") == 1
+    assert pop.extract_existing_seo_links(raw_fm) == ["https://www.wikidata.org/wiki/Q485643"]
+
+
+def test_update_seo_links_refuses_rather_than_corrupts_on_a_bad_splice(monkeypatch):
+    """Belt-and-suspenders safety net: if update_seo_links() ever produces a
+    result that doesn't read back the links it just wrote, it must return
+    None (refuse) instead of writing something silently wrong."""
+    content = "---\ntitle: T\nseo:\n  links:\n  - https://www.wikidata.org/wiki/Q1\n---\nbody\n"
+    # Force the post-write verification to disagree with what was written.
+    monkeypatch.setattr(pop, "extract_existing_seo_links", lambda raw: ["something-else"])
+    result = pop.update_seo_links(content, ["https://www.wikidata.org/wiki/Q2"])
+    assert result is None
+
+
+# --- D10: --replace-irrelevant must not delete a "suspect" (weak-evidence) -
+# link, only a "non-topical" (strong-evidence) one (2026-09-11)
+
+def test_classify_relevance_three_tiers():
+    assert pop.classify_relevance("we", "first-person plural personal pronoun",
+                                  {"iot"}, []) == "non-topical"
+    assert pop.classify_relevance("crm", "customer relationship management",
+                                  {"crm"}, ["crm"]) == "ok"
+    # the Zigbee/iot case: resolvable, not flagged non-topical, but no
+    # literal word shared with the post's own terms either.
+    assert pop.classify_relevance(
+        "Zigbee", "specification for a suite of high-level communication protocols",
+        {"iot", "smart", "home", "sensors", "lighting"}, ["iot", "smart home", "lighting"],
+    ) == "suspect"
+
+
+def test_replace_irrelevant_keeps_a_suspect_link_like_zigbee(tmp_path, monkeypatch):
+    """The exact reviewer repro: a real, correct Zigbee link on an
+    iot/smart-home post must survive --replace-irrelevant even though its
+    description shares no literal word with the post's tags."""
+    f = tmp_path / "post.md"
+    f.write_text(
+        "---\ntitle: Building an IoT Smart Home Hub\ntags:\n- iot\n- smart-home\n"
+        "- sensors\n- lighting\nseo:\n  links:\n"
+        "  - https://www.wikidata.org/wiki/Q272443\n---\nBody.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pop, "resolve_entities", lambda qids: {
+        "Q272443": {"label": "Zigbee",
+                    "description": "specification for a suite of high-level communication protocols",
+                    "missing": False},
+    })
+    monkeypatch.setattr(pop, "search_wikidata", lambda q, limit=3: [])
+    monkeypatch.setattr(pop.time, "sleep", lambda *_: None)
+
+    changed = pop.process_file(f, replace_irrelevant=True, min_links=1, max_links=4)
+    assert changed is False  # nothing was dropped, so nothing to write
+    _fm, raw_fm, _body = pop.parse_frontmatter(f.read_text(encoding="utf-8"))
+    assert pop.extract_existing_seo_links(raw_fm) == ["https://www.wikidata.org/wiki/Q272443"]
+
+
+# --- D11: a short acronym match needs corroboration from the post's own ----
+# other topics, not just initials lining up (2026-09-11)
+
+def test_acronym_match_without_corroboration_is_rejected(monkeypatch):
+    """The exact reviewer repro: tag "ai" alone matches "Amnesty
+    International" purely because the initials line up."""
+    monkeypatch.setattr(pop, "search_wikidata", lambda q, limit=3: [
+        {"qid": "Q131626", "label": "Amnesty International",
+         "description": "international human rights organisation focused on advocacy and campaigning",
+         "match_type": "label"},
+    ])
+    monkeypatch.setattr(pop.time, "sleep", lambda *_: None)
+    out = pop.find_best_entities([("ai", pop.SOURCE_CURATED)],
+                                 min_links=1, max_links=1, verbose=False)
+    assert out == []
+
+
+def test_acronym_match_with_corroboration_is_accepted(monkeypatch):
+    """A legitimate acronym match is still accepted when the entity's
+    label/description shares vocabulary with the post's OTHER topics."""
+    monkeypatch.setattr(pop, "search_wikidata", lambda q, limit=3: [
+        {"qid": "Q999", "label": "Product Lifecycle Management",
+         "description": "business strategy for managing a product across its "
+                         "lifecycle involving manufacturing processes",
+         "match_type": "label"},
+    ])
+    monkeypatch.setattr(pop.time, "sleep", lambda *_: None)
+    out = pop.find_best_entities(
+        [("plm", pop.SOURCE_CURATED), ("manufacturing", pop.SOURCE_CURATED)],
+        min_links=1, max_links=1, verbose=False,
+    )
+    assert out == ["https://www.wikidata.org/wiki/Q999"]
+
+
+# --- small-7: --replace-irrelevant must log a dropped malformed link -------
+# (2026-09-11 — --audit-csv already reported this case as "malformed",
+# --replace-irrelevant silently dropped it with no log line at all)
+
+def test_replace_irrelevant_logs_a_dropped_malformed_link(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "post.md"
+    f.write_text(
+        "---\ntitle: T\ntags:\n- docker\nseo:\n  links:\n"
+        "  - not-a-wikidata-url\n  - https://www.wikidata.org/wiki/Q485643\n---\nBody.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pop, "resolve_entities", lambda qids: {
+        "Q485643": {"label": "customer relationship management",
+                    "description": "approach to managing a company's interaction with customers",
+                    "missing": False},
+    })
+    monkeypatch.setattr(pop, "search_wikidata", lambda q, limit=3: [])
+    monkeypatch.setattr(pop.time, "sleep", lambda *_: None)
+
+    pop.process_file(f, replace_irrelevant=True, min_links=1, max_links=1)
+    out = capsys.readouterr().out
+    assert "not-a-wikidata-url" in out
+    assert "malformed" in out
+
+
+# --- small-6: the deprecated shim's --posts-dir must stay recursive --------
+
+def test_enrich_seo_links_shim_posts_dir_is_recursive(tmp_path):
+    """enrich_seo_links.py used to call posts_dir.rglob("*.md") directly;
+    delegating to populator.collect_files() with the default non-recursive
+    glob silently dropped that. The shim must still find files in
+    subdirectories of --posts-dir."""
+    import importlib.util as _ilu
+
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "top.md").write_text("---\ntitle: Top\n---\nbody\n", encoding="utf-8")
+    (tmp_path / "sub" / "nested.md").write_text("---\ntitle: Nested\n---\nbody\n", encoding="utf-8")
+
+    shim_path = (
+        Path(__file__).resolve().parent.parent.parent
+        / "seo-links-enricher" / "src" / "enrich_seo_links.py"
+    )
+    spec = _ilu.spec_from_file_location("enrich_seo_links", shim_path)
+    shim = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(shim)
+
+    files = shim.populator.collect_files([str(tmp_path)], [], "**/*.md")
+    names = {f.name for f in files}
+    assert names == {"top.md", "nested.md"}

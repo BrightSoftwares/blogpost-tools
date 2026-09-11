@@ -27,7 +27,54 @@ Usage:
     python seo_links_populator.py --dir en/_posts --replace-irrelevant
 
 -------------------------------------------------------------------------------
-2026-09-11 defect fixes (root cause of the garbage QIDs on
+2026-09-11, cold-start review round 2 — the reviewer found the SAME defect
+class as D5 (substring matching) still present in COMPOUND_KEYWORDS, plus a
+second write-path corruption bug and smaller issues:
+
+  D8  COMPOUND_KEYWORDS matching joined every topic into one string and did
+      a substring check on that blob (`"load balancing" in "workload
+      balancing act"`), so two UNRELATED adjacent topics ("workload",
+      "balancing act") matched purely because the phrase happened to span
+      the boundary between them. Fixed by matching each compound phrase as
+      a contiguous word-sequence inside a SINGLE topic only, never across
+      topics (`_phrase_in_topic()`).
+
+  D9  A blank line or `#` comment inside a hand-authored `seo:` block (e.g.
+      `seo:\n  title: Custom\n\n  links:\n  - ...`) made the old
+      first-blank-line block-boundary regex stop before the real `links:`
+      key, so `extract_existing_seo_links()` returned `[]` for a post that
+      DOES have links — reproducing the exact D1 bug this file was already
+      rewritten to fix. Worse, `update_seo_links()` then inserted a SECOND
+      `links:` key rather than replacing the real one, because its own
+      (same-shaped) boundary detection truncated too. The log said "UPDATED
+      ... N seo links" but YAML's duplicate-key-last-wins semantics (the
+      same behavior Jekyll's Ruby YAML loader uses) mean the OLD stale links
+      were what was actually in effect. Fixed by `_find_seo_block()`, which
+      treats blank lines and comments as still inside the block (real YAML
+      does) and only ends it on a genuine dedent — used by BOTH the read and
+      write paths so they cannot drift apart the way the two independent
+      parsers behind D1 did. `update_seo_links()` also verifies its own
+      output before returning it and refuses to write (`None`) rather than
+      risk a silent duplicate key.
+
+  D10 `--replace-irrelevant` could delete a currently-correct link purely
+      because its label/description shares no literal word with the post's
+      tags (e.g. a real, correct "Zigbee" link on an iot/smart-home post).
+      `classify_relevance()` splits the old boolean into three tiers — "ok"
+      / "suspect" / "non-topical" — and `--replace-irrelevant` now only
+      auto-removes "non-topical" (strong negative evidence). "suspect"
+      (weak evidence, could be a false negative) is kept and left for a
+      human via `--audit-csv`.
+
+  D11 The acronym-match tier in `label_match_kind()` accepted any entity
+      whose label's initials happened to line up (e.g. "ai" -> "Amnesty
+      International"), gated only by a generic "does the description
+      mention a business-y word" bonus that most organizations also
+      satisfy. `find_best_entities()` now additionally requires an acronym
+      match to share vocabulary with the post's OTHER topics before
+      accepting it — initials lining up alone is no longer enough.
+
+Original 2026-09-11 defect fixes (root cause of the garbage QIDs on
 `2026-11-09-we-built-a-crm-feature-on-ourselves-first-...md`, written by the
 scheduled `seo-links-populate.yml` run of 2026-09-07, commit 65b679a in
 BrightSoftwares/corporate-website):
@@ -387,6 +434,32 @@ def _singular(word: str) -> str:
     return word
 
 
+def _phrase_in_topic(phrase: str, topic: str) -> bool:
+    """True if `phrase` (a space-separated multi-word key from
+    COMPOUND_KEYWORDS) appears as a contiguous word-sequence inside a SINGLE
+    topic string.
+
+    Deliberately never joins multiple topics together to search across
+    them — that is exactly the D8 bug: tags ["workload", "balancing act"]
+    joined into "workload balancing act" contain "load balancing" spanning
+    the boundary between the two unrelated tags. A tag/category that IS the
+    compound phrase (e.g. "load-balancing" -> topic "load balancing") is
+    kept whole as one topic string by extract_topics()/post_phrases(), so
+    checking each topic on its own still catches every legitimate match.
+    """
+    phrase_words = phrase.split()
+    if not phrase_words:
+        return False
+    topic_words = _words(topic)
+    n = len(phrase_words)
+    if len(topic_words) < n:
+        return False
+    for i in range(len(topic_words) - n + 1):
+        if topic_words[i:i + n] == phrase_words:
+            return True
+    return False
+
+
 def label_match_kind(topic: str, label: str) -> str | None:
     """How well does a Wikidata entity's label match the topic we searched for?
 
@@ -433,42 +506,118 @@ def entity_is_topical(description: str) -> bool:
     return any(h in desc for h in TOPICAL_DESCRIPTION_HINTS)
 
 
+def classify_relevance(
+    label: str,
+    description: str,
+    post_terms: set[str],
+    post_phrases: list[str] | None = None,
+) -> str:
+    """Three-tier relevance verdict for an existing seo.links entity (D10).
+
+    `post_terms` is the set of normalized words from the post's own tags,
+    categories, silot_terms and title; `post_phrases` are the curated terms
+    kept whole (so the tag "crm" can still match the label "customer
+    relationship management" through the acronym rule).
+
+    Returns one of:
+      "non-topical" — the description marks it as a non-subject (pronoun,
+                       given name, village, film, taxon, ...). Strong
+                       negative evidence — safe for --replace-irrelevant to
+                       remove automatically.
+      "ok"           — shares vocabulary with the post's own terms, or
+                       matches a curated phrase (e.g. the acronym rule).
+      "suspect"      — resolvable, non-topical description doesn't apply,
+                       but nothing in its label/description shares a literal
+                       word with the post's own terms either. This is the
+                       Zigbee/iot false-positive class: pure lexical
+                       non-overlap is too narrow a test to prove irrelevance,
+                       so this tier is WEAK evidence only — never treated as
+                       grounds for automatic deletion, just flagged for a
+                       human to look at via --audit-csv.
+    """
+    if entity_is_non_topical(description):
+        return "non-topical"
+    for phrase in post_phrases or []:
+        if label_match_kind(phrase, label) is not None:
+            return "ok"
+    entity_words = set(_words(label)) | set(_words(description))
+    entity_words = {w for w in entity_words if len(w) > 2 and w not in KEYWORD_STOPWORDS}
+    return "ok" if entity_words & post_terms else "suspect"
+
+
 def is_relevant_to_post(
     label: str,
     description: str,
     post_terms: set[str],
     post_phrases: list[str] | None = None,
 ) -> bool:
-    """Audit-mode relevance test: does this entity relate to the post?
+    """Audit-mode boolean relevance test: does this entity relate to the post?
 
-    `post_terms` is the set of normalized words from the post's own tags,
-    categories, silot_terms and title; `post_phrases` are the curated terms
-    kept whole (so the tag "crm" can still match the label "customer
-    relationship management" through the acronym rule).
+    Back-compat wrapper around classify_relevance() — "ok" is relevant,
+    "suspect" and "non-topical" are not. Kept because audit_files() only
+    needs a yes/no here (it derives "suspect" vs "non-topical" itself via
+    entity_is_non_topical separately); --replace-irrelevant, which DOES need
+    to tell "suspect" apart from "non-topical" (D10), calls
+    classify_relevance() directly instead.
     """
-    if entity_is_non_topical(description):
-        return False
-    for phrase in post_phrases or []:
-        if label_match_kind(phrase, label) is not None:
-            return True
-    entity_words = set(_words(label)) | set(_words(description))
-    entity_words = {w for w in entity_words if len(w) > 2 and w not in KEYWORD_STOPWORDS}
-    return bool(entity_words & post_terms)
+    return classify_relevance(label, description, post_terms, post_phrases) == "ok"
 
 
 # ---------------------------------------------------------------------------
 # Frontmatter helpers
 # ---------------------------------------------------------------------------
 
-# Only indented, non-blank lines belong to the `seo:` block. A blank line ends
-# it — deliberately conservative, so a wrapped scalar further down the
-# frontmatter can never be swallowed and relocated by update_seo_links().
-_SEO_BLOCK_RE = re.compile(
-    r"^seo:[ \t]*\n((?:[ \t]+\S.*\n?)*)", re.MULTILINE
-)
+# The `links:` list under `seo:`, once the block's true extent is known.
 _LINKS_LIST_RE = re.compile(
     r"^([ \t]+)links:[ \t]*\n((?:[ \t]+-[ \t]+\S.*\n?)*)", re.MULTILINE
 )
+_SEO_KEY_RE = re.compile(r"^seo:[ \t]*(?:#.*)?$", re.MULTILINE)
+
+
+def _find_seo_block(fm_text: str) -> tuple[int, int] | None:
+    """Return (body_start, body_end) offsets of the `seo:` mapping's body in
+    raw frontmatter text, or None if there is no top-level `seo:` key (D9).
+
+    The block body is every line following `seo:` up to (but not including)
+    the first line that is a genuine dedent back to top level — a real YAML
+    mapping's scope. Unlike the previous "stop at the first blank line"
+    heuristic, blank lines and `#` comment lines do NOT end the block (real
+    YAML doesn't treat them as structural), which is exactly the shape of
+    ordinary hand-authored YAML:
+
+        seo:
+          title: Custom
+
+          links:
+          - ...
+
+    The old regex-based detector stopped at the blank line before `links:`,
+    so `extract_existing_seo_links()` returned `[]` for a post that DOES
+    have links (reproducing D1), and `update_seo_links()` — reasoning from
+    that wrong `[]` — inserted a second `links:` key instead of finding and
+    replacing the real one. Both read and write paths now share this one
+    boundary detector so they cannot drift apart the way the two
+    independent parsers behind D1 did.
+    """
+    m = _SEO_KEY_RE.search(fm_text)
+    if not m:
+        return None
+    pos = m.end()
+    if pos < len(fm_text) and fm_text[pos] == "\n":
+        pos += 1
+    body_start = pos
+    idx = pos
+    while idx < len(fm_text):
+        line_end = fm_text.find("\n", idx)
+        line_end = len(fm_text) if line_end == -1 else line_end
+        line = fm_text[idx:line_end]
+        next_idx = line_end if line_end == len(fm_text) else line_end + 1
+        stripped = line.strip()
+        if stripped == "" or stripped.startswith("#") or line[:1] in (" ", "\t"):
+            idx = next_idx
+            continue
+        break
+    return body_start, idx
 
 
 def extract_existing_seo_links(raw_fm: str) -> list[str]:
@@ -487,13 +636,15 @@ def extract_existing_seo_links(raw_fm: str) -> list[str]:
     """
     if not raw_fm:
         return []
-    block = _SEO_BLOCK_RE.search(raw_fm)
+    block = _find_seo_block(raw_fm)
     if not block:
         return []
-    links_match = _LINKS_LIST_RE.search(block.group(1))
+    body_start, body_end = block
+    inner = raw_fm[body_start:body_end]
+    links_match = _LINKS_LIST_RE.search(inner)
     if not links_match:
         # inline form: `  links: [a, b]`
-        inline = re.search(r"^[ \t]+links:[ \t]*\[(.*)\]", block.group(1), re.MULTILINE)
+        inline = re.search(r"^[ \t]+links:[ \t]*\[(.*)\]", inner, re.MULTILINE)
         if inline:
             return [v.strip().strip("'\"") for v in inline.group(1).split(",") if v.strip()]
         return []
@@ -676,12 +827,15 @@ def find_best_entities(
     entities: list[tuple[str, str, float, str]] = []  # (qid, label, score, why)
     seen_qids: set[str] = set()
 
-    curated_terms = [t for t, s in norm_topics if s == SOURCE_CURATED]
-    haystack = " ".join(curated_terms + [t for t, _ in norm_topics]).lower()
-
     # 1. Curated compound dictionary — highest confidence, no network.
+    # D8: match each compound phrase against ONE topic at a time — never a
+    # substring check on every topic joined into one blob (that's how
+    # unrelated adjacent tags like "workload" + "balancing act" matched
+    # "load balancing" by accident).
     for compound, qid in COMPOUND_KEYWORDS.items():
-        if compound in haystack and qid not in seen_qids:
+        if qid in seen_qids:
+            continue
+        if any(_phrase_in_topic(compound, t) for t, _source in norm_topics):
             entities.append((qid, compound, 10.0, "dict:compound"))
             seen_qids.add(qid)
 
@@ -714,6 +868,30 @@ def find_best_entities(
                 if verbose:
                     print(f"    reject {qid} ({result['label']!r}) — label does not match topic {topic!r}")
                 continue
+
+            # D11: initials lining up is not enough on its own for a short
+            # ambiguous acronym ("ai" -> "Amnesty International" both have
+            # initials "AI"). Require the entity's label/description to
+            # share vocabulary with the post's OTHER topics — genuine
+            # corroboration from the post itself, not a generic "sounds
+            # business-y" bonus every organization's description satisfies.
+            if kind == "acronym":
+                other_words: set[str] = set()
+                for t, _s in norm_topics:
+                    if normalize_token(t) == normalize_token(topic):
+                        continue
+                    other_words.update(_singular(w) for w in _words(t))
+                entity_words = {
+                    _singular(w) for w in _words(result["label"]) + _words(result["description"])
+                    if len(w) > 2 and w not in KEYWORD_STOPWORDS
+                }
+                if not (entity_words & other_words):
+                    if verbose:
+                        print(f"    reject {qid} ({result['label']!r}) — acronym match for "
+                              f"{topic!r} has no corroborating overlap with the post's other "
+                              f"topics {sorted(other_words)[:6]}")
+                    continue
+
             if entity_is_non_topical(result["description"]):
                 if verbose:
                     print(f"    reject {qid} ({result['label']!r}) — non-topical: {result['description']!r}")
@@ -753,8 +931,12 @@ def find_best_entities(
 # Writing
 # ---------------------------------------------------------------------------
 
-def update_seo_links(content: str, links: list[str]) -> str:
-    """Replace (or insert) ONLY the seo.links list, preserving sibling keys (D4)."""
+def update_seo_links(content: str, links: list[str]) -> str | None:
+    """Replace (or insert) ONLY the seo.links list, preserving sibling keys (D4).
+
+    Returns the updated content, or `None` if it refuses to write (D9 safety
+    net — see the verification at the bottom of this function).
+    """
     links_yaml = "\n".join(f"    - {link}" for link in links)
 
     if not content.startswith("---"):
@@ -768,21 +950,43 @@ def update_seo_links(content: str, links: list[str]) -> str:
     fm_text = content[3:second].lstrip("\n")
     body = content[second + 3:]
 
-    block = _SEO_BLOCK_RE.search(fm_text)
+    block = _find_seo_block(fm_text)
     if block:
-        inner = block.group(1)
+        body_start, body_end = block
+        inner = fm_text[body_start:body_end]
         links_match = _LINKS_LIST_RE.search(inner)
         if links_match:
             indent = links_match.group(1)
             new_list = f"{indent}links:\n" + "\n".join(f"{indent}- {link}" for link in links) + "\n"
             new_inner = inner[:links_match.start()] + new_list + inner[links_match.end():]
         else:
-            new_list = "  links:\n" + "\n".join(f"  - {link}" for link in links) + "\n"
-            new_inner = inner.rstrip("\n") + "\n" + new_list if inner.strip() else new_list
-        fm_text = fm_text[:block.start()] + "seo:\n" + new_inner + fm_text[block.end():]
+            inline_match = re.search(r"^([ \t]+)links:[ \t]*\[.*\][ \t]*\n?", inner, re.MULTILINE)
+            if inline_match:
+                indent = inline_match.group(1)
+                new_list = f"{indent}links:\n" + "\n".join(f"{indent}- {link}" for link in links) + "\n"
+                new_inner = inner[:inline_match.start()] + new_list + inner[inline_match.end():]
+            else:
+                new_list = "  links:\n" + "\n".join(f"  - {link}" for link in links) + "\n"
+                new_inner = inner.rstrip("\n") + "\n" + new_list if inner.strip() else new_list
+        fm_text = fm_text[:body_start] + new_inner + fm_text[body_end:]
     else:
         new_block = "seo:\n  links:\n" + "\n".join(f"  - {link}" for link in links) + "\n"
         fm_text = fm_text.rstrip("\n") + "\n" + new_block
+
+    # D9 safety net: never trust the splice blindly. Round-trip the result
+    # back through the same reader used everywhere else in this script — if
+    # it doesn't see exactly the links we just wrote (e.g. because some
+    # frontmatter shape this function hasn't been taught about left two
+    # `links:` keys behind), refuse to write rather than risk the silent
+    # duplicate-key corruption that made D9 possible in the first place.
+    if extract_existing_seo_links(fm_text) != links:
+        print(f"ERROR: refusing to write seo.links — post-write verification "
+              f"failed (wrote {links}, would read back "
+              f"{extract_existing_seo_links(fm_text)}); this usually means the "
+              f"seo: block has a shape update_seo_links() cannot safely splice "
+              f"(e.g. would leave a duplicate `links:` key). Leaving the file "
+              f"untouched.", file=sys.stderr)
+        return None
 
     return f"---\n{fm_text}---{body}"
 
@@ -819,15 +1023,34 @@ def process_file(
         for link in existing_links:
             m = re.search(r"Q\d+", link)
             if not m:
+                # D7 (small-7, 2026-09-11): a malformed existing link used to
+                # be dropped with zero log output — --audit-csv reports this
+                # exact case as "malformed", --replace-irrelevant should be
+                # just as transparent about removing it.
+                print(f"    dropping malformed existing link {link!r} — not a Wikidata entity URL")
                 continue
             info = resolved.get(m.group())
-            if info and not info.get("missing") and is_relevant_to_post(
-                info["label"], info["description"], vocab, phrases
-            ):
-                keep_links.append(link)
-            else:
+            if not info or info.get("missing"):
                 label = (info or {}).get("label", "?")
-                print(f"    dropping irrelevant existing link {m.group()} ({label!r})")
+                print(f"    dropping existing link {m.group()} ({label!r}) — "
+                      f"{'QID does not exist on Wikidata' if info else 'Wikidata unreachable'}")
+                continue
+            # D10 (medium-3, 2026-09-11): only "non-topical" (strong negative
+            # evidence — pronoun/given-name/village/etc.) is ever auto
+            # removed here. "suspect" (no lexical overlap, but nothing
+            # actually wrong either — the Zigbee/iot false-positive class)
+            # is kept; a human reviews it via --audit-csv instead.
+            verdict = classify_relevance(info["label"], info["description"], vocab, phrases)
+            if verdict == "non-topical":
+                print(f"    dropping irrelevant existing link {m.group()} "
+                      f"({info['label']!r}) — non-topical: {info['description']!r}")
+                continue
+            if verdict == "suspect":
+                print(f"    keeping suspect existing link {m.group()} ({info['label']!r}) — "
+                      f"no shared vocabulary with the post's own terms, but not flagged "
+                      f"non-topical; --replace-irrelevant only auto-removes non-topical "
+                      f"links, review this one via --audit-csv")
+            keep_links.append(link)
         if len(keep_links) == len(existing_links):
             print(f"SKIP {file_path}: all {len(existing_links)} existing links look relevant")
             return False
@@ -858,6 +1081,11 @@ def process_file(
         return True
 
     updated = update_seo_links(content, links)
+    if updated is None:
+        # D9 safety net tripped — update_seo_links() already logged why.
+        print(f"SKIP {file_path}: refusing to write (seo: block write-path "
+              f"verification failed — see error above)")
+        return False
     file_path.write_text(updated, encoding="utf-8")
     print(f"UPDATED {file_path}: {len(links)} seo links")
     for link in links:

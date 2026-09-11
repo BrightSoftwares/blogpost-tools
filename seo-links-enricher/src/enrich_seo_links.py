@@ -33,6 +33,15 @@ The CLI is kept backward compatible (`--posts-dir`, `--file`, `--apply`,
 flags are exposed here too.
 
 Prefer calling `scripts/seo_links_populator.py` directly in new workflows.
+
+2026-09-11 (small-6 fix): `--posts-dir` traversal is RECURSIVE, matching the
+original implementation's `posts_dir.rglob("*.md")` (see history at
+20e2a34). Delegating to `populator.collect_files()` — which the main
+script's own `--dir` flag intentionally keeps non-recursive, since the
+reusable workflow passes exact leaf directories — silently dropped that
+recursion for a few commits; restored here by passing a `**/*.md` glob
+instead of changing `collect_files()`'s default (which would flip the main
+script's own `--dir` behavior too, and nothing needs that here).
 """
 
 import argparse
@@ -88,7 +97,7 @@ def main():
     files = populator.collect_files(
         [args.posts_dir] if args.posts_dir else [],
         [args.file] if args.file else [],
-        "*.md",
+        "**/*.md",  # recursive — matches the original rglob("*.md") behavior
     )
     if not files:
         logger.error("No markdown files found")
