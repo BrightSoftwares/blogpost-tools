@@ -68,21 +68,21 @@ jobs:
 
       - name: Audit seo.links across posts and drafts
         run: |
-          DIRS=""
+          DIRS=()
           if [ -d "${{ inputs.posts_dir }}" ]; then
-            DIRS="$DIRS --dir ${{ inputs.posts_dir }}"
+            DIRS+=(--dir "${{ inputs.posts_dir }}")
           else
             echo "Posts directory '${{ inputs.posts_dir }}' not found."
           fi
           if [ -n "${{ inputs.drafts_dir }}" ] && [ -d "${{ inputs.drafts_dir }}" ]; then
-            DIRS="$DIRS --dir ${{ inputs.drafts_dir }}"
+            DIRS+=(--dir "${{ inputs.drafts_dir }}")
           fi
-          if [ -z "$DIRS" ]; then
+          if [ "${#DIRS[@]}" -eq 0 ]; then
             echo "No directory to audit — nothing to do."
             exit 0
           fi
           python3 _blogpost-tools/scripts/seo_links_populator.py \
-            --audit-csv seo-links-audit.csv $DIRS | tee seo-links-audit.log
+            --audit-csv seo-links-audit.csv "${DIRS[@]}" | tee seo-links-audit.log
 
       - name: Audit the hard-coded keyword to QID tables
         if: ${{ inputs.audit_dictionary }}
