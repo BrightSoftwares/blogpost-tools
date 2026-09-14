@@ -19,7 +19,29 @@ inputs:
   date_duration:
     description: The duration of the analysis period, in days
     default: -90
-  
+  fix_issues:
+    description: >-
+      Whether to actually run the SEO issue fixer after analysis. This is a
+      separate gate from `dry_run` (which controls whether the fixer WRITES
+      real changes vs. simulating them) — fixing never runs unless this is
+      "true", regardless of `dry_run`. Maps to INPUT_FIX_ISSUES, read by
+      src/main.py.
+    default: false
+  fix_severity:
+    description: Comma-separated list of issue severities the fixer should act on.
+    default: "critical,high"
+  content_dirs:
+    description: Comma-separated list of content directories the fixer scans for matching pages.
+    default: "content,_posts,_pages"
+  no_backup:
+    description: Set to "true" to skip creating a backup of content_dirs before fixing.
+    default: false
+  max_pages:
+    description: Optional cap on the number of sitemap pages to analyse (useful for test runs).
+  output_dir:
+    description: Directory where analysis results (JSON/CSV/report) are written.
+    default: "_seo/seo-analysis/output"
+
 
 outputs:
   keyword_suggestions:
