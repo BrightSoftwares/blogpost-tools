@@ -1,0 +1,31 @@
+name: "Schema Markup Generator"
+
+description: "Generate schema.org BlogPosting/Article JSON-LD for Jekyll blog posts from their frontmatter. Writes one sidecar JSON file per post plus a combined report; never edits post source files."
+
+inputs:
+  posts_glob:
+    description: Glob pattern (relative to the workspace root) matching the markdown posts to process.
+    default: "_posts/**/*.md"
+  site_url:
+    description: >-
+      Base site URL (e.g. https://bright-softwares.com), used to build
+      absolute image/post URLs and the publisher Organization. Optional —
+      when omitted, url/@id/publisher fields are omitted from the output
+      rather than guessed.
+  publisher_name:
+    description: Organization name used as schema.org `publisher` (e.g. the brand name). Optional.
+  output_dir:
+    description: Directory where the combined report (JSON) and per-post sidecar files are written.
+    default: "_seo/schema-markup-generator/output"
+
+outputs:
+  report_file:
+    description: Path to the latest combined report JSON (schema_markup_latest.json).
+  posts_processed:
+    description: Number of posts a JSON-LD block was generated for.
+  posts_skipped:
+    description: Number of posts skipped for missing an unavoidable required field (headline or datePublished).
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
