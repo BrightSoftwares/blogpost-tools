@@ -1,0 +1,44 @@
+name: "Readability Checker"
+
+description: "Score Jekyll blog posts for readability (Flesch Reading Ease + Flesch-Kincaid Grade Level) after stripping frontmatter and markdown syntax. Reports per-post scores; does not modify posts."
+
+inputs:
+  posts_glob:
+    description: Glob pattern (relative to the workspace root) matching the markdown posts to check.
+    default: "_posts/**/*.md"
+  min_score:
+    description: >-
+      Minimum acceptable Flesch Reading Ease score (0-100, higher = easier).
+      60 is the conventional "Plain English / general audience" threshold
+      used by most editorial style guides. Posts scoring below this are
+      flagged in the report (and fail the build only if fail_on_below_min=true).
+    default: 60
+  target_grade_level:
+    description: >-
+      Target Flesch-Kincaid Grade Level (US school grade). 8-10 is the
+      commonly recommended range for general web content. Posts above this
+      are flagged as denser than the target audience.
+    default: 10
+  fail_on_below_min:
+    description: >-
+      If "true", exit with a non-zero (critical) status when any post
+      scores below min_score. Default "false" — matches this repo's SEO
+      analysis convention of not failing the build for non-critical issues.
+    default: false
+  output_dir:
+    description: Directory where readability results (JSON/CSV/summary) are written.
+    default: "_seo/readability-checker/output"
+
+outputs:
+  report_file:
+    description: Path to the latest readability report JSON (readability_latest.json).
+  posts_analyzed:
+    description: Number of posts successfully analyzed.
+  posts_below_threshold:
+    description: Number of posts scoring below min_score.
+  average_score:
+    description: Average Flesch Reading Ease score across all analyzed posts.
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
