@@ -56,26 +56,33 @@ def configure_cloudinary():
     credentials are loaded, depending on when/how CLOUDINARY_URL is set
     in the Action's environment.
 
-    Supports either:
-      - a single CLOUDINARY_URL env var (cloudinary://key:secret@cloud_name)
-      - or three separate env vars: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY,
-        CLOUDINARY_API_SECRET
+    IMPORTANT: this is a GitHub Actions *docker* action. Inputs declared in
+    action.yml (e.g. `cloudinary_url:`) are injected by GitHub as env vars
+    named INPUT_<NAME_UPPERCASED> — i.e. INPUT_CLOUDINARY_URL, NOT
+    CLOUDINARY_URL. Reading the bare CLOUDINARY_URL name (as the original
+    script did) will always return None in this container, silently
+    configure Cloudinary with empty credentials, and produce a 401 on
+    upload. We read INPUT_CLOUDINARY_URL first and fall back to a bare
+    CLOUDINARY_URL only for local/non-Action runs.
     """
-    cloudinary_url = os.getenv("CLOUDINARY_URL")
+    cloudinary_url = os.getenv("INPUT_CLOUDINARY_URL") or os.getenv("CLOUDINARY_URL")
 
     if cloudinary_url:
         config = cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
-        log.info("Cloudinary configured via CLOUDINARY_URL.")
+        log.info("Cloudinary configured via INPUT_CLOUDINARY_URL/CLOUDINARY_URL.")
     else:
-        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
-        api_key = os.getenv("CLOUDINARY_API_KEY")
-        api_secret = os.getenv("CLOUDINARY_API_SECRET")
+        cloud_name = os.getenv("INPUT_CLOUDINARY_CLOUD_NAME") or os.getenv("CLOUDINARY_CLOUD_NAME")
+        api_key = os.getenv("INPUT_CLOUDINARY_API_KEY") or os.getenv("CLOUDINARY_API_KEY")
+        api_secret = os.getenv("INPUT_CLOUDINARY_API_SECRET") or os.getenv("CLOUDINARY_API_SECRET")
 
         if not all([cloud_name, api_key, api_secret]):
             log.error(
-                "Cloudinary credentials are missing. Set either CLOUDINARY_URL "
-                "or all of CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / "
-                "CLOUDINARY_API_SECRET as env vars/secrets for this job."
+                "Cloudinary credentials are missing. In action.yml this should "
+                "come through as the 'cloudinary_url' input (exposed to this "
+                "container as INPUT_CLOUDINARY_URL, in the form "
+                "cloudinary://<api_key>:<api_secret>@<cloud_name>). Make sure "
+                "the calling workflow passes `with: cloudinary_url: "
+                "${{ secrets.CLOUDINARY_URL }}` (or equivalent)."
             )
             raise RuntimeError("Missing Cloudinary credentials")
 
