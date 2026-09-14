@@ -119,7 +119,14 @@ def configure_cloudinary():
 # --------------------------------------------------------------------------
 
 def get_unsplash_results_dataframe(obj_array):
-    return pd.DataFrame(obj_array, columns=["query", "photo_id", "photo_link"])
+    # photo_link: a plain, unauthenticated CDN URL (urls.regular) — safe to
+    # hotlink from Cloudinary.
+    # download_location: the Unsplash *API* tracking endpoint
+    # (links.download_location) — must be called with our client_id to
+    # comply with Unsplash's API guidelines. NOT the same as links.download,
+    # which unsplash.com rejects with 401 when fetched server-to-server
+    # without a browser session / client_id.
+    return pd.DataFrame(obj_array, columns=["query", "photo_id", "photo_link", "download_location"])
 
 
 def load_or_create_results_file(results_file):
@@ -175,11 +182,16 @@ def search_unsplash_image(query, api_access_key, results_file, max_results):
     results = data.get("results", [])
     log.info("Unsplash returned %d result(s) for query %r.", len(results), query)
 
-    rows = [
-        [query, photo["id"], photo["links"]["download"]]
-        for photo in results
-        if "id" in photo and "links" in photo and "download" in photo["links"]
-    ]
+    rows = []
+    for photo in results:
+        try:
+            photo_id = photo["id"]
+            photo_link = photo["urls"]["regular"]
+            download_location = photo["links"]["download_location"]
+        except KeyError:
+            log.debug("Skipping malformed Unsplash result: %r", photo)
+            continue
+        rows.append([query, photo_id, photo_link, download_location])
 
     new_results_df = get_unsplash_results_dataframe(rows)
     save_unsplash_search(new_results_df, results_file)
@@ -214,6 +226,34 @@ def find_best_item(results_df, used_vids_df):
 # --------------------------------------------------------------------------
 # Cloudinary upload
 # --------------------------------------------------------------------------
+
+def trigger_unsplash_download_tracking(download_location, api_access_key):
+    """
+    Per Unsplash API guidelines, every time an image is actually used/
+    downloaded you must GET the photo's links.download_location endpoint
+    with your client_id. This is separate from actually fetching the image
+    bytes (which we do via urls.regular) — it's purely a required tracking
+    ping. Failures here are logged but non-fatal; we don't want a tracking
+    hiccup to block the actual image upload.
+    """
+    if not download_location:
+        log.warning("No download_location available; skipping Unsplash download tracking ping.")
+        return
+
+    separator = "&" if "?" in download_location else "?"
+    url = f"{download_location}{separator}client_id={api_access_key}"
+    try:
+        resp = requests.get(url, timeout=15)
+        if not resp.ok:
+            log.warning(
+                "Unsplash download tracking ping failed (status=%s): %s",
+                resp.status_code, resp.text[:300],
+            )
+        else:
+            log.debug("Unsplash download tracking ping OK for %s", download_location)
+    except requests.RequestException as e:
+        log.warning("Network error pinging Unsplash download tracking: %s", e)
+
 
 def upload_image_to_cloudinary(photo_id, photo_link, cloudinary_dest_folder, cloudinary_transformation):
     log.info("Uploading photo_id=%s to Cloudinary folder=%s", photo_id, cloudinary_dest_folder)
@@ -286,6 +326,7 @@ def process_entry(entry, folder, destination_folder, api_access_key,
 
     photo_id = best_item_df.iloc[0]["photo_id"]
     photo_link = best_item_df.iloc[0]["photo_link"]
+    download_location = best_item_df.iloc[0].get("download_location")
 
     try:
         cloudinary_image_url = upload_image_to_cloudinary(
@@ -295,6 +336,8 @@ def process_entry(entry, folder, destination_folder, api_access_key,
         log.error("Upload failed for %s (photo_id=%s). Not modifying frontmatter.",
                    entry, photo_id)
         return None
+
+    trigger_unsplash_download_tracking(download_location, api_access_key)
 
     post["image"] = cloudinary_image_url
     with open(entry_path, "w") as f:
