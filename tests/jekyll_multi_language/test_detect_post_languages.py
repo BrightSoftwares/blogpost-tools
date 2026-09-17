@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "jekyll-multi-language-tools"))
 
 import detect_post_languages  # noqa: E402
-from detect_post_languages import _md_files, scan_collection  # noqa: E402
+from detect_post_languages import _md_files, scan_collection, strip_liquid_and_markdown  # noqa: E402
 
 
 POST_BODY = """---
@@ -148,3 +148,53 @@ class TestOutOfScopeLanguageIsNeverAutoMigrated:
         assert len(entries) == 1
         assert entries[0].status == "NEEDS_FRONTMATTER"
         assert entries[0].target_lang == "fr"
+
+
+class TestWooCommerceImportDebrisStripped:
+    """Regression (found 2026-09-17 fixing modabyflora-corporate's
+    `mbf-products-en-mislabel-20260917`): unprocessed WooCommerce/Amazon
+    import shortcodes are themselves fluent English boilerplate ("show up to
+    2 reviews by default", "[gallery]", the `[amz_corss_sell ...]` affiliate
+    cross-sell shortcode). On products whose only real content is 1-3 short
+    French words (e.g. "Coton", "Manche courte"), this debris swamped
+    langdetect into reporting 'en' at MAXIMUM confidence (1.0) — verified
+    empirically against 9 real mislabeled files, 8 of 9 scanned at exactly
+    1.0 confidence, so a MIN_CONFIDENCE threshold bump alone could not have
+    caught them. The debris itself has to be stripped before detection, same
+    as Liquid/markdown noise already is.
+    """
+
+    def test_strips_woocommerce_gallery_shortcode(self):
+        assert "gallery" not in strip_liquid_and_markdown("[gallery]\nCoton").lower()
+
+    def test_strips_amazon_crosssell_shortcode(self):
+        result = strip_liquid_and_markdown('[amz_corss_sell asin="B07P5H39YH"]')
+        assert "amz_corss_sell" not in result
+        assert "B07P5H39YH" not in result
+
+    def test_strips_html_review_count_comment(self):
+        result = strip_liquid_and_markdown(
+            "<!-- show up to 2 reviews by default -->  <span>Coton</span>"
+        )
+        assert "show up to" not in result
+        assert "reviews by default" not in result
+
+    def test_real_world_debris_leaves_only_the_genuine_short_content(self):
+        # The exact body (minus frontmatter) of modabyflora-corporate's
+        # `_products/en/guess-jeans-polos-jeans-m92p18-duane-bleu.md` before
+        # the 2026-09-17 fix — French title/content buried in English
+        # WooCommerce/Amazon boilerplate.
+        body = (
+            "[gallery]\n"
+            '<!-- show up to 2 reviews by default -->  <span>guess jeans polos '
+            "guess jeans m92p18 duane bleu</span> \n"
+            "Coton\n"
+            '[amz_corss_sell asin="B07P5H39YH"]'
+        )
+
+        result = strip_liquid_and_markdown(body)
+
+        assert "gallery" not in result.lower()
+        assert "show up to" not in result
+        assert "amz_corss_sell" not in result
+        assert "Coton" in result
