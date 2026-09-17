@@ -117,11 +117,32 @@ def parse_args():
     return parser.parse_args()
 
 
+# Unprocessed WooCommerce/Amazon import debris that is itself fluent English
+# boilerplate ("show up to N reviews by default", "[gallery]", cross-sell
+# shortcodes). Found 2026-09-17: on French-content products whose only real
+# text is 1-3 short words (e.g. "Coton", "[amz_corss_sell asin=...]"), this
+# debris swamped langdetect into 100% confidence 'en' on genuinely French
+# content — 8 of 9 false positives in modabyflora-corporate's `_products/en/`
+# scanned at MAXIMUM confidence (1.0), so raising MIN_CONFIDENCE would not
+# have caught them; the boilerplate itself had to be stripped before
+# detection. Patterns are anchored to the two shortcode families observed
+# live (WooCommerce `[gallery]` + the review-count HTML comment, and the
+# Amazon affiliate `[amz_corss_sell]` cross-sell shortcode); genuine HTML
+# comments of any kind are stripped too since they are template/CMS noise,
+# never real page content.
+_WOOCOMMERCE_GALLERY_RE = re.compile(r"\[gallery\]", re.IGNORECASE)
+_AMAZON_CROSSSELL_RE = re.compile(r"\[amz_corss_sell[^\]]*\]", re.IGNORECASE)
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
 def strip_liquid_and_markdown(body: str) -> str:
     """Rough cleanup so langdetect sees prose, not markup noise."""
     text = re.sub(r"\{%.*?%\}", " ", body, flags=re.DOTALL)
     text = re.sub(r"\{\{.*?\}\}", " ", text, flags=re.DOTALL)
     text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    text = _HTML_COMMENT_RE.sub(" ", text)
+    text = _WOOCOMMERCE_GALLERY_RE.sub(" ", text)
+    text = _AMAZON_CROSSSELL_RE.sub(" ", text)
     text = re.sub(r"[#*_`>\[\]()!-]", " ", text)
     return text.strip()
 
