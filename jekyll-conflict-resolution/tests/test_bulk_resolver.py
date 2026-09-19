@@ -71,6 +71,59 @@ class TestApplyRenames(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.posts_dir, "old.md")))
         self.assertFalse(os.path.exists(os.path.join(self.posts_dir, "new.md")))
 
+    def test_existing_target_not_silently_overwritten(self):
+        # 2026-09-19 fix: renaming onto an existing file used to silently destroy it.
+        write_post(self.posts_dir, "old.md", "old-slug", "original body")
+        write_post(self.posts_dir, "existing-target.md", "existing-slug", "PRECIOUS EXISTING CONTENT")
+        renames = {"old.md": {"new_filename": "existing-target.md", "new_ref": "would-collide"}}
+
+        count = bulk_resolver.apply_renames(self.posts_dir, renames, dry_run=False)
+
+        self.assertEqual(count, 0)
+        with open(os.path.join(self.posts_dir, "existing-target.md"), encoding="utf-8") as f:
+            self.assertIn("PRECIOUS EXISTING CONTENT", f.read())
+        self.assertTrue(os.path.exists(os.path.join(self.posts_dir, "old.md")))
+
+    def test_same_old_and_new_filename_rewrites_in_place_without_deleting(self):
+        # 2026-09-19 fix: new_filename == old_filename used to delete the file entirely
+        # (write then immediately os.remove the same path).
+        write_post(self.posts_dir, "same.md", "same-slug", "body needing only a ref update")
+        renames = {"same.md": {"new_filename": "same.md", "new_ref": "updated-slug"}}
+
+        count = bulk_resolver.apply_renames(self.posts_dir, renames, dry_run=False)
+
+        self.assertEqual(count, 1)
+        path = os.path.join(self.posts_dir, "same.md")
+        self.assertTrue(os.path.exists(path))
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("ref: updated-slug", content)
+        self.assertIn("body needing only a ref update", content)
+
+    def test_path_traversal_target_rejected(self):
+        # 2026-09-19 fix: an untrusted resolutions-file entry could escape posts_dir.
+        write_post(self.posts_dir, "old.md", "old-slug", "body")
+        renames = {"old.md": {"new_filename": "../outside.md", "new_ref": "escape-attempt"}}
+
+        with self.assertRaises(ValueError):
+            bulk_resolver.apply_renames(self.posts_dir, renames, dry_run=False)
+        self.assertFalse(os.path.exists(os.path.join(os.path.dirname(self.posts_dir), "outside.md")))
+
+    def test_duplicate_target_in_same_resolutions_rejected_before_any_write(self):
+        # 2026-09-19 fix: two entries targeting the same new filename must be rejected up
+        # front, not partially applied.
+        write_post(self.posts_dir, "a.md", "slug-a", "body a")
+        write_post(self.posts_dir, "b.md", "slug-b", "body b")
+        renames = {
+            "a.md": {"new_filename": "merged.md", "new_ref": "merged-1"},
+            "b.md": {"new_filename": "merged.md", "new_ref": "merged-2"},
+        }
+
+        with self.assertRaises(ValueError):
+            bulk_resolver.apply_renames(self.posts_dir, renames, dry_run=False)
+        self.assertTrue(os.path.exists(os.path.join(self.posts_dir, "a.md")))
+        self.assertTrue(os.path.exists(os.path.join(self.posts_dir, "b.md")))
+
 
 class TestVerifyNoConflicts(unittest.TestCase):
     def setUp(self):

@@ -41,10 +41,15 @@ def setup_logging(verbose: bool) -> None:
 
 
 def extract_content(filepath: str) -> str:
-    """Return the post body (everything after the second '---' front-matter delimiter)."""
+    """Return the post body (everything after the second '---' front-matter delimiter).
+
+    maxsplit=2 (2026-09-19 fix): an unbounded split("---") splits on every '---' in the
+    file, not just the two front-matter delimiters — a body using '---' as a Markdown
+    horizontal rule was silently truncated before the similarity comparison, corrupting
+    the IDENTICAL/MINOR_UPDATE/DIFFERENT classification for any post using one."""
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    parts = content.split("---")
+    parts = content.split("---", 2)
     if len(parts) >= 3:
         return parts[2].strip()
     return content.strip()

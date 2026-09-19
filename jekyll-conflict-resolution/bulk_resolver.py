@@ -66,17 +66,45 @@ def apply_deletes(posts_dir: str, deletes: list, dry_run: bool) -> int:
     return count
 
 
+def _resolve_within(posts_dir: str, filename: str) -> str:
+    """Join posts_dir + filename and reject the result if it escapes posts_dir (2026-09-19
+    fix). A resolutions file is caller-supplied JSON; an unvalidated os.path.join lets a
+    '../'-style or absolute filename write/delete outside the intended directory entirely
+    (an absolute filename silently discards posts_dir in os.path.join outright)."""
+    base = os.path.abspath(posts_dir)
+    resolved = os.path.abspath(os.path.join(base, filename))
+    if os.path.commonpath([base, resolved]) != base:
+        raise ValueError(f"{filename!r} resolves outside posts_dir ({posts_dir!r}) — refusing")
+    return resolved
+
+
 def apply_renames(posts_dir: str, renames: dict, dry_run: bool) -> int:
-    count = 0
+    # Pre-validate every entry (path traversal, cross-entry target collisions) before any
+    # write happens (2026-09-19 fix) — a bad entry must never leave a partial rename applied.
+    resolved = {}
+    targets_seen = {}
     for old_filename, spec in renames.items():
-        old_path = os.path.join(posts_dir, old_filename)
+        new_filename = spec["new_filename"]
+        old_path = _resolve_within(posts_dir, old_filename)
+        new_path = _resolve_within(posts_dir, new_filename)
+        if new_path in targets_seen:
+            raise ValueError(
+                f"Resolutions file has two renames targeting the same file "
+                f"({new_filename!r}): {targets_seen[new_path]!r} and {old_filename!r}"
+            )
+        targets_seen[new_path] = old_filename
+        resolved[old_filename] = (old_path, new_path, new_filename, spec["new_ref"])
+
+    count = 0
+    for old_filename, (old_path, new_path, new_filename, new_ref) in resolved.items():
         if not os.path.exists(old_path):
             log.warning("Skip rename (source not found): %s", old_path)
             continue
 
-        new_filename = spec["new_filename"]
-        new_ref = spec["new_ref"]
-        new_path = os.path.join(posts_dir, new_filename)
+        same_path = os.path.normpath(old_path) == os.path.normpath(new_path)
+        if not same_path and os.path.exists(new_path):
+            log.warning("Skip rename (target already exists): %s -> %s", old_filename, new_filename)
+            continue
 
         with open(old_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -94,7 +122,10 @@ def apply_renames(posts_dir: str, renames: dict, dry_run: bool) -> int:
         else:
             with open(new_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            os.remove(old_path)
+            # 2026-09-19 fix: new_filename == old_filename used to write then immediately
+            # os.remove the same path it just wrote, deleting the file entirely.
+            if not same_path:
+                os.remove(old_path)
             log.info("Renamed: %s -> %s (ref: %s -> %s)", old_filename, new_filename, old_ref, new_ref)
         count += 1
     return count

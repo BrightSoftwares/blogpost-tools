@@ -73,6 +73,18 @@ class TestClassifyPair(unittest.TestCase):
         result = conflict_analyzer.classify_pair(a, b, identical_threshold=0.95, minor_threshold=0.70)
         self.assertEqual(result["decision"], "DIFFERENT")
 
+    def test_body_containing_horizontal_rule_not_truncated(self):
+        # 2026-09-19 fix: unbounded split("---") truncated everything after a body's own
+        # '---' horizontal rule. Both posts share the identical full body (rule included),
+        # so they must still classify as IDENTICAL, not DIFFERENT from a truncated compare.
+        body = "Intro paragraph text here.\n\n---\n\nMore content after the horizontal rule that must survive extraction."
+        a = self._post("2020-01-01-a.md", "hr-slug", body)
+        b = self._post("2020-01-02-b.md", "hr-slug", body)
+        content = conflict_analyzer.extract_content(a["filepath"])
+        self.assertIn("More content after the horizontal rule", content)
+        result = conflict_analyzer.classify_pair(a, b, identical_threshold=0.95, minor_threshold=0.70)
+        self.assertEqual(result["decision"], "IDENTICAL")
+
 
 class TestCLI(unittest.TestCase):
     def test_cli_runs_and_reports_conflicts(self):
