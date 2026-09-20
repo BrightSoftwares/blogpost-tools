@@ -232,6 +232,12 @@ jobs:
   # ──────────────────────────────────────────────────────────────
   detect-approved-posts:
     runs-on: ubuntu-latest
+    # Least privilege: this job only reads content_dir, it never writes
+    # or pushes anything -- the wrapped publish-approved-posts job (a
+    # separate, unmodified reusable workflow) governs its own
+    # permissions independently.
+    permissions:
+      contents: read
     outputs:
       has_posts: ${{ steps.detect.outputs.has_posts }}
       ready_count: ${{ steps.detect.outputs.ready_count }}
@@ -278,6 +284,17 @@ jobs:
                       fm = yaml.safe_load(fm_match.group(1)) or {}
                   except yaml.YAMLError:
                       print(f"SKIP (malformed frontmatter): {p}")
+                      continue
+                  if not isinstance(fm, dict):
+                      # Valid YAML that isn't a mapping (e.g. a bare list
+                      # or scalar) -- treat like malformed frontmatter
+                      # rather than crash the whole detect step on
+                      # fm.get(...) below (found via cold-start code
+                      # review 2026-09-20; corporate-website's git log
+                      # shows precedent for stray non-frontmatter content
+                      # landing in drafts, e.g. WooCommerce/Amazon import
+                      # debris).
+                      print(f"SKIP (frontmatter is not a mapping, got {type(fm).__name__}): {p}")
                       continue
 
                   publish_status = str(fm.get("publish_status", "")).strip()
