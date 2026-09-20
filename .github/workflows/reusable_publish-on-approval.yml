@@ -1,0 +1,381 @@
+name: Reusable Publish on Approval
+
+# Closes a real, verified gap (231.004.PRJ.solo.initiative.prj-automate-
+# blog-post-creation.md, task bp26xq7m-sp26-4, SP26 Pipeline Spec, Phase 1
+# only -- see that spec for phases 2-5, deliberately out of scope here):
+#
+#   bsgen-pipeline.yml (in each caller repo, push-triggered on
+#   */_drafts/400_refined_content/**) gets an approved post through image/
+#   social/callout/related-link generation and sets
+#   pipeline_state: visual_review_needed -> (human reviews) ->
+#   visual_review_ok. But nothing then automatically triggers the existing
+#   auto-moveandpublish-posts-news.yml pipeline (workflow_dispatch-only in
+#   every caller repo) that actually moves a post
+#   400 -> 500 -> 501 -> 600 -> _posts/. Verified live 2026-09-20 against
+#   BrightSoftwares/corporate-website: 37 posts with
+#   publish_status: approved sitting in en/_drafts/400_refined_content/,
+#   29 of them already pipeline_state: visual_review_ok (fully ready to
+#   move, zero human action pending) and simply never picked up.
+#
+# What this workflow does:
+#   1. detect-approved-posts: scans `content_dir` for posts that are
+#      publish_status: approved AND "ready" -- either they contain no
+#      bsgen:* blocks at all (nothing to visually review), or they do and
+#      pipeline_state is already visual_review_ok.
+#   2. publish-approved-posts: if at least one such post was found, calls
+#      the EXISTING, UNMODIFIED reusable-automoveandpublish-posts.yml with
+#      the caller's own inputs -- this workflow never reimplements or
+#      forks that pipeline, it only adds *when* it runs.
+#
+# SAFETY DESIGN (added after discovering the 29-post backlog above --
+# doctrine #6 in the vault's CLAUDE.md classifies "auto-publish to a
+# production blog" as R2: public / hard to reverse, requiring staging +
+# explicit human GO, not a silent auto-trigger):
+#
+#   `live_run` (input, default false) is the single switch. When false
+#   (the default -- and ALWAYS false for a push-triggered run, see the
+#   caller workflow), every one of the six `*_dryrun` inputs below is
+#   FORCED to true regardless of what the caller passed, so NOTHING is
+#   moved, committed, or scheduled for real -- this run only *reports*
+#   what it would have done (detect-approved-posts' summary/outputs).
+#   Only an explicit `live_run: true` (wired by the caller to a manual
+#   workflow_dispatch with its own dry_run checkbox unchecked -- never to
+#   a push event) lets the wrapped pipeline actually run for real.
+#
+#   This means: merging this workflow into a caller repo, or the very
+#   next automated push to 400_refined_content/** (e.g. bsgen-pipeline.yml
+#   committing its own results) will NOT sweep an existing backlog into
+#   one live run. A human must deliberately dispatch this workflow with
+#   dry_run unchecked to arm it -- at which point ALL currently-ready
+#   posts in `content_dir` move in that one run (the wrapped pipeline is
+#   folder-wide, not one-post-at-a-time -- see KNOWN LIMITATION below).
+#   Triage the backlog (or accept moving all of it) before doing that.
+#
+# KNOWN LIMITATION (documented, not fixed here -- filed as
+# bp26xq7m-sp26-4's own follow-up note, not a separate task): once armed
+# (live_run: true), the wrapped reusable-automoveandpublish-posts.yml
+# processes its ENTIRE src_path folder, not just the specific approved
+# file(s) detect-approved-posts found. A publish_status: review draft
+# sitting in the same content_dir at that moment will also get an image
+# auto-assigned and be scheduled/pretified (though it still cannot reach
+# _posts/, since manualpublication_requireapproval's is_approved() check
+# is independent and fails closed). This is IDENTICAL to today's existing
+# behavior when a human manually dispatches auto-moveandpublish-posts-
+# news.yml -- this workflow only changes *when* the existing pipeline
+# runs, never *what* it processes once it does.
+
+on:
+  workflow_call:
+    inputs:
+      content_dir:
+        description: "Path (relative to repo root, no leading/trailing slash) to scan for publish_status: approved posts, e.g. en/_drafts/400_refined_content"
+        required: true
+        type: string
+      live_run:
+        description: >
+          false (default): force every *_dryrun input below to true, so
+          the wrapped pipeline only reports what it would do -- nothing
+          is moved, committed, or scheduled. true: honor the *_dryrun
+          inputs exactly as passed (normal real-run behavior). See the
+          SAFETY DESIGN note above -- a caller must NEVER wire this to
+          true from a push event, only from an explicit manual dispatch.
+        required: false
+        type: boolean
+        default: false
+      transcriptdownloader_srcpath:
+        required: true
+        type: string
+      transcriptdownloader_dstpath:
+        required: true
+        type: string
+      transcriptdownloader_dryrun:
+        required: true
+        type: boolean
+      rssconverter_srcpath:
+        required: true
+        type: string
+      rssconverter_dstpath:
+        required: true
+        type: string
+      rssconverter_dryrun:
+        required: true
+        type: boolean
+      featuredimagefinder_srcpath:
+        required: true
+        type: string
+      featuredimagefinder_dstpath:
+        required: true
+        type: string
+      featuredimagefinder_dryrun:
+        required: true
+        type: boolean
+      featuredimagefinder_alreadyuseditems:
+        required: true
+        type: string
+      featuredimagefinder_searchresultsfile:
+        required: true
+        type: string
+      featuredimagefinder_max_results:
+        required: true
+        type: string
+      featuredimagefinder_cloudinarydestfolder:
+        required: true
+        type: string
+      featuredimagefinder_cloudinarytransformation:
+        required: true
+        type: string
+      pretifier_srcpath:
+        required: true
+        type: string
+      pretifier_dstpath:
+        required: true
+        type: string
+      pretifier_dryrun:
+        required: true
+        type: boolean
+      pretifier_wordpressfrontmatter:
+        required: true
+        type: boolean
+      pretifier_postauthor:
+        required: true
+        type: string
+      pretifier_silotermtolinksfile:
+        required: true
+        type: string
+      pretifier_silotermtocategoriesfile:
+        required: true
+        type: string
+      pretifier_defaultauthor:
+        required: true
+        type: string
+      pretifier_defaultlayout:
+        required: true
+        type: string
+      pretifier_generatesilotermtolinksfileifmissing:
+        required: true
+        type: boolean
+      pretifier_generatesilotermtocategoriesfileifmissing:
+        required: true
+        type: boolean
+      pretifier_categorytype:
+        required: true
+        type: string
+      pretifier_filegenerationsrcpath:
+        required: true
+        type: string
+      autoschedule_srcpath:
+        required: true
+        type: string
+      autoschedule_dstpath:
+        required: true
+        type: string
+      autoschedule_dryrun:
+        required: true
+        type: boolean
+      autoschedule_days_mask:
+        required: true
+        type: string
+      autoschedule_nbdaysahead:
+        required: true
+        type: number
+      manualpublication_srcpath:
+        required: true
+        type: string
+      manualpublication_dstpath:
+        required: true
+        type: string
+      manualpublication_dryrun:
+        required: true
+        type: boolean
+      manualpublication_requireapproval:
+        description: >
+          Passed straight through to reusable-automoveandpublish-posts.yml.
+          Opt-in, default false -- pass true (corporate-website does) to
+          require publish_status: approved before a post moves to
+          _posts/. This gate is independent of `live_run` above and is
+          NOT affected by it.
+        required: false
+        type: boolean
+        default: false
+      forced_to_run_on_github:
+        description: "Force GitHub-hosted runner instead of self-hosted for the wrapped pipeline (useful for testing without self-hosted infra online)."
+        required: false
+        type: string
+        default: "false"
+
+    secrets:
+      unsplash_access_key:
+        required: true
+      cloudinary_url:
+        required: true
+      CHECK_RUNNER_ACCESS_TOKEN:
+        required: true
+
+    outputs:
+      has_posts:
+        description: "true if at least one publish_status: approved + ready post was found in content_dir"
+        value: ${{ jobs.detect-approved-posts.outputs.has_posts }}
+      ready_count:
+        description: "Number of approved + ready posts found (would enter the pipeline)"
+        value: ${{ jobs.detect-approved-posts.outputs.ready_count }}
+      awaiting_review_count:
+        description: "Number of approved posts found that still have unreviewed bsgen blocks (pipeline_state != visual_review_ok) -- not passed to the pipeline"
+        value: ${{ jobs.detect-approved-posts.outputs.awaiting_review_count }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Step 1: detect which posts in content_dir are publish_status:
+  # approved AND ready (no bsgen blocks, or bsgen blocks already
+  # human-reviewed via pipeline_state: visual_review_ok).
+  # Mirrors the same approved-detection pattern bsgen-pipeline.yml
+  # already uses, applied to the next stage of the same lifecycle.
+  # ──────────────────────────────────────────────────────────────
+  detect-approved-posts:
+    runs-on: ubuntu-latest
+    outputs:
+      has_posts: ${{ steps.detect.outputs.has_posts }}
+      ready_count: ${{ steps.detect.outputs.ready_count }}
+      awaiting_review_count: ${{ steps.detect.outputs.awaiting_review_count }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: "Detect publish_status: approved + ready posts"
+        id: detect
+        env:
+          CONTENT_DIR: ${{ inputs.content_dir }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json, re
+          from pathlib import Path
+          import yaml
+
+          content_dir = os.environ["CONTENT_DIR"]
+          posts_dir = Path(content_dir)
+
+          ready = []
+          awaiting_review = []
+          not_approved = 0
+
+          if not posts_dir.exists():
+              print(f"NOTE: {content_dir} does not exist in this repo. Nothing to detect.")
+          else:
+              for p in sorted(posts_dir.glob("*.md")):
+                  content = p.read_text(encoding="utf-8", errors="replace")
+                  fm_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+                  if not fm_match:
+                      continue
+                  try:
+                      fm = yaml.safe_load(fm_match.group(1)) or {}
+                  except yaml.YAMLError:
+                      print(f"SKIP (malformed frontmatter): {p}")
+                      continue
+
+                  publish_status = str(fm.get("publish_status", "")).strip()
+                  pipeline_state = str(fm.get("pipeline_state", "")).strip()
+
+                  if publish_status != "approved":
+                      not_approved += 1
+                      continue
+
+                  has_bsgen = "```bsgen:" in content
+                  if has_bsgen and pipeline_state != "visual_review_ok":
+                      print(f"AWAITING REVIEW: {p} (pipeline_state={pipeline_state!r})")
+                      awaiting_review.append(str(p))
+                      continue
+
+                  print(f"READY: {p}")
+                  ready.append(str(p))
+
+          has_posts = len(ready) > 0
+          print()
+          print(f"Summary for {content_dir}:")
+          print(f"  ready to enter pipeline:        {len(ready)}")
+          print(f"  approved but awaiting review:   {len(awaiting_review)}")
+          print(f"  not approved (untouched):       {not_approved}")
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a") as f:
+                  f.write(f"### Publish-on-approval detection: `{content_dir}`\n\n")
+                  f.write(f"| State | Count |\n|---|---|\n")
+                  f.write(f"| Ready to enter pipeline | {len(ready)} |\n")
+                  f.write(f"| Approved, awaiting bsgen review | {len(awaiting_review)} |\n")
+                  f.write(f"| Not approved | {not_approved} |\n\n")
+                  if ready:
+                      f.write("**Ready:**\n")
+                      for r in ready:
+                          f.write(f"- `{r}`\n")
+                      f.write("\n")
+                  if awaiting_review:
+                      f.write("**Awaiting review (pipeline_state != visual_review_ok):**\n")
+                      for r in awaiting_review:
+                          f.write(f"- `{r}`\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_posts={'true' if has_posts else 'false'}\n")
+              f.write(f"ready_count={len(ready)}\n")
+              f.write(f"awaiting_review_count={len(awaiting_review)}\n")
+          PYEOF
+
+  # ──────────────────────────────────────────────────────────────
+  # Step 2: if there's anything ready, call the EXISTING, unmodified
+  # move-and-publish pipeline. live_run gates whether the *_dryrun
+  # inputs are honored (true) or forced (false) -- see SAFETY DESIGN
+  # above.
+  # ──────────────────────────────────────────────────────────────
+  publish-approved-posts:
+    needs: detect-approved-posts
+    if: needs.detect-approved-posts.outputs.has_posts == 'true'
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-automoveandpublish-posts.yml@main
+    with:
+      transcriptdownloader_srcpath: ${{ inputs.transcriptdownloader_srcpath }}
+      transcriptdownloader_dstpath: ${{ inputs.transcriptdownloader_dstpath }}
+      transcriptdownloader_dryrun: ${{ !inputs.live_run || inputs.transcriptdownloader_dryrun }}
+      rssconverter_srcpath: ${{ inputs.rssconverter_srcpath }}
+      rssconverter_dstpath: ${{ inputs.rssconverter_dstpath }}
+      rssconverter_dryrun: ${{ !inputs.live_run || inputs.rssconverter_dryrun }}
+      featuredimagefinder_srcpath: ${{ inputs.featuredimagefinder_srcpath }}
+      featuredimagefinder_dstpath: ${{ inputs.featuredimagefinder_dstpath }}
+      featuredimagefinder_dryrun: ${{ !inputs.live_run || inputs.featuredimagefinder_dryrun }}
+      featuredimagefinder_alreadyuseditems: ${{ inputs.featuredimagefinder_alreadyuseditems }}
+      featuredimagefinder_searchresultsfile: ${{ inputs.featuredimagefinder_searchresultsfile }}
+      featuredimagefinder_max_results: ${{ inputs.featuredimagefinder_max_results }}
+      featuredimagefinder_cloudinarydestfolder: ${{ inputs.featuredimagefinder_cloudinarydestfolder }}
+      featuredimagefinder_cloudinarytransformation: ${{ inputs.featuredimagefinder_cloudinarytransformation }}
+      pretifier_srcpath: ${{ inputs.pretifier_srcpath }}
+      pretifier_dstpath: ${{ inputs.pretifier_dstpath }}
+      pretifier_dryrun: ${{ !inputs.live_run || inputs.pretifier_dryrun }}
+      pretifier_wordpressfrontmatter: ${{ inputs.pretifier_wordpressfrontmatter }}
+      pretifier_postauthor: ${{ inputs.pretifier_postauthor }}
+      pretifier_silotermtolinksfile: ${{ inputs.pretifier_silotermtolinksfile }}
+      pretifier_silotermtocategoriesfile: ${{ inputs.pretifier_silotermtocategoriesfile }}
+      pretifier_defaultauthor: ${{ inputs.pretifier_defaultauthor }}
+      pretifier_defaultlayout: ${{ inputs.pretifier_defaultlayout }}
+      pretifier_generatesilotermtolinksfileifmissing: ${{ inputs.pretifier_generatesilotermtolinksfileifmissing }}
+      pretifier_generatesilotermtocategoriesfileifmissing: ${{ inputs.pretifier_generatesilotermtocategoriesfileifmissing }}
+      pretifier_categorytype: ${{ inputs.pretifier_categorytype }}
+      pretifier_filegenerationsrcpath: ${{ inputs.pretifier_filegenerationsrcpath }}
+      autoschedule_srcpath: ${{ inputs.autoschedule_srcpath }}
+      autoschedule_dstpath: ${{ inputs.autoschedule_dstpath }}
+      autoschedule_dryrun: ${{ !inputs.live_run || inputs.autoschedule_dryrun }}
+      autoschedule_days_mask: ${{ inputs.autoschedule_days_mask }}
+      autoschedule_nbdaysahead: ${{ inputs.autoschedule_nbdaysahead }}
+      manualpublication_srcpath: ${{ inputs.manualpublication_srcpath }}
+      manualpublication_dstpath: ${{ inputs.manualpublication_dstpath }}
+      manualpublication_dryrun: ${{ !inputs.live_run || inputs.manualpublication_dryrun }}
+      manualpublication_requireapproval: ${{ inputs.manualpublication_requireapproval }}
+      forced_to_run_on_github: ${{ inputs.forced_to_run_on_github }}
+    secrets:
+      unsplash_access_key: ${{ secrets.unsplash_access_key }}
+      cloudinary_url: ${{ secrets.cloudinary_url }}
+      CHECK_RUNNER_ACCESS_TOKEN: ${{ secrets.CHECK_RUNNER_ACCESS_TOKEN }}
