@@ -1,0 +1,808 @@
+name: Reusable SEO Pipeline
+
+# Unified SEO pipeline — replaces the three previously-separate workflows
+# (seo-html-analysis.yml, seo_diagnotics.yml, and the standalone SP34
+# seo_index_checker.py script) plus folds in the existing GSC index-coverage
+# checker (reusable_indexation-issues.yml) as a 4th mode.
+#
+# Full design rationale: my-obsidian `231.004.PRJ.solo.initiative.
+# prj-automate-blog-post-creation.md`, heading "Unified SEO Pipeline Spec —
+# Opus Design (2026-07-04)" and its "7. Open questions for Kekeli" (answered
+# 2026-09-26 — those answers, not the original recommendations, govern where
+# they differ: SEO_GCP_JSON_CREDENTIALS instead of GPG, a 4th
+# gsc-index-coverage mode, the bounded auto-fix feedback loop below, and
+# fail_on_critical defaulting true without blocking earlier steps).
+#
+# Architecture: ONE job, sequential `if:`-gated steps (not a matrix). Two of
+# the four modes mutate the working tree (html-analysis writes ./build +
+# _drafts/html_analysis.txt; diagnostics writes CSVs) and the whole point is
+# ONE unified report + ONE commit — a matrix would fan out into parallel
+# jobs racing on `git push` and would need an extra aggregation job. See the
+# spec's "Job structure" section for the full justification.
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: 'Which SEO check(s) to run: html-analysis | diagnostics | index-check | gsc-index-coverage | all (comma-separated combos also accepted, e.g. "diagnostics,index-check")'
+        required: false
+        type: string
+        default: 'all'
+      site_url:
+        required: false
+        type: string
+        default: ''
+      sitemap_url:
+        description: 'Defaults to <site_url>/sitemap.xml when empty'
+        required: false
+        type: string
+        default: ''
+      site_type:
+        required: false
+        type: string
+        default: 'jekyll'
+      # --- html-analysis ---
+      build_dir:
+        required: false
+        type: string
+        default: './build'
+      pre_build_commands:
+        required: false
+        type: string
+        default: 'apk --update add ruby-dev imagemagick imagemagick-dev'
+      html_analysis_output:
+        description: 'Matches the exact default reusable_seo-html-analysis.yml/the old per-repo workflows already use in production (an absolute in-container path) — kept identical for migration parity rather than switched to a relative path, since this value is also read directly by shell steps in this same job.'
+        required: false
+        type: string
+        default: '/github/workspace/_drafts/html_analysis.txt'
+      keep_legacy_html_analysis_file:
+        description: 'Keep committing the raw HTMLProofer log for migration-parity diffing. Recommended true for 2 migration cycles after this pipeline replaces the old per-repo workflows, then flip to false once the unified report is trusted (spec Open Question 5, answered 2026-09-26).'
+        required: false
+        type: boolean
+        default: true
+      # --- diagnostics (GSC search performance) ---
+      gsc_lookback_days:
+        required: false
+        type: number
+        default: 90
+      # --- index-check (SP34 crawlability crawler — distinct from gsc-index-coverage below) ---
+      index_check_limit:
+        description: 'Process at most N sitemap URLs (0 = no limit). Useful for a fast manual smoke run.'
+        required: false
+        type: number
+        default: 0
+      # --- gsc-index-coverage (folded-in reusable_indexation-issues.yml GSC index-coverage checker) ---
+      max_issues_per_type:
+        required: false
+        type: number
+        default: 20
+      # --- auto-fix feedback loop ---
+      auto_fix:
+        description: 'Run the bounded, safe auto-fix step (missing alt text + broken internal links) after html-analysis and open a PR with any changes. Everything else the report finds is reported only, never auto-fixed.'
+        required: false
+        type: boolean
+        default: true
+      # --- reporting ---
+      report_dir:
+        required: false
+        type: string
+        default: '_drafts/seo'
+      commit_report:
+        required: false
+        type: boolean
+        default: true
+      fail_on_critical:
+        description: 'If true, fail the job when the unified report finds any critical issue. This NEVER blocks earlier steps — every mode step runs regardless, results are collected first, and only the LAST step checks the accumulated count and fails the job.'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GH_TOKEN:
+        description: 'Falls back to github.token when unset.'
+        required: false
+      SEO_GCP_JSON_CREDENTIALS:
+        description: 'Google Search Console service-account credentials, consumed directly (written to a temp file for the run, always cleaned up). Required only for diagnostics / gsc-index-coverage modes.'
+        required: false
+      submodule_pat:
+        description: 'Fine-grained GitHub PAT (Contents: Read-only) for private submodules used by the Jekyll build (e.g. shared-site-data). Same convention as reusable_seo-html-analysis.yml.'
+        required: false
+      submodule_ssh_key:
+        description: 'SSH deploy key fallback for private submodule access.'
+        required: false
+  workflow_dispatch:
+    inputs:
+      mode:
+        required: false
+        type: string
+        default: 'all'
+      site_url:
+        required: false
+        type: string
+        default: ''
+      sitemap_url:
+        required: false
+        type: string
+        default: ''
+      index_check_limit:
+        required: false
+        type: number
+        default: 0
+      auto_fix:
+        required: false
+        type: boolean
+        default: true
+      fail_on_critical:
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  seo-pipeline:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    timeout-minutes: 45
+    concurrency:
+      group: seo-pipeline-${{ github.repository }}
+      cancel-in-progress: true
+
+    steps:
+      # -----------------------------------------------------------------
+      # 0. Checkout + resolve modes / paths (always runs)
+      #
+      # Design note on `continue-on-error: true` below: per requirement 4
+      # (fail_on_critical must never block earlier steps), almost every step
+      # from here on carries `continue-on-error: true` — a failure anywhere
+      # (a mode's own tool, a report-section writer, the commit) must not
+      # cascade into GitHub Actions' default success()-gated skip of later
+      # steps. Only the two truly foundational steps immediately below
+      # (checking out the calling repo, resolving mode list/paths) are left
+      # to hard-fail the job normally: if either of those fails there is no
+      # meaningful way to build any report at all, so failing fast here is
+      # the correct behavior, not a violation of requirement 4. The single
+      # intentional failure point is the last step, "Fail on critical
+      # issues", which fails the job ONLY on the accumulated critical count.
+      # -----------------------------------------------------------------
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Resolve modes, report path, original branch
+        id: modes
+        run: |
+          MODE="${{ inputs.mode }}"
+          if [ "$MODE" = "all" ]; then
+            LIST="html-analysis,diagnostics,index-check,gsc-index-coverage"
+          else
+            LIST="$MODE"
+          fi
+          echo "list=$LIST" >> "$GITHUB_OUTPUT"
+
+          REPORT_DATE="$(date -u '+%Y-%m-%d')"
+          REPORT_PATH="${{ inputs.report_dir }}/seo-report-${REPORT_DATE}.md"
+          echo "report_date=$REPORT_DATE" >> "$GITHUB_OUTPUT"
+          echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
+
+          SITE_URL="${{ inputs.site_url }}"
+          SITEMAP_URL="${{ inputs.sitemap_url }}"
+          if [ -z "$SITEMAP_URL" ] && [ -n "$SITE_URL" ]; then
+            SITEMAP_URL="${SITE_URL%/}/sitemap.xml"
+          fi
+          echo "sitemap_url=$SITEMAP_URL" >> "$GITHUB_OUTPUT"
+
+          ORIG_BRANCH="$(git branch --show-current)"
+          echo "orig_branch=$ORIG_BRANCH" >> "$GITHUB_OUTPUT"
+
+          mkdir -p "$RUNNER_TEMP/seo-pipeline"
+          echo "Modes to run: $LIST"
+
+      - name: Checkout declared submodules
+        if: contains(steps.modes.outputs.list, 'html-analysis')
+        continue-on-error: true
+        env:
+          SUBMODULE_PAT: ${{ secrets.submodule_pat }}
+          SUBMODULE_SSH_KEY: ${{ secrets.submodule_ssh_key }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${SUBMODULE_SSH_KEY:-}" ]; then
+            mkdir -p ~/.ssh
+            echo "${SUBMODULE_SSH_KEY}" > ~/.ssh/submodule_deploy_key
+            chmod 600 ~/.ssh/submodule_deploy_key
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/submodule_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+          fi
+
+          clone_one() {
+            local dest="$1"
+            local https_url="$2"
+            case "$https_url" in
+              *.git) : ;;
+              *) https_url="${https_url}.git" ;;
+            esac
+
+            echo "Checking out submodule -> ${dest} from ${https_url}"
+            rm -rf "${dest}"
+            mkdir -p "$(dirname "${dest}")"
+
+            if [ -n "${SUBMODULE_PAT:-}" ]; then
+              local basic_auth
+              basic_auth=$(printf 'x-access-token:%s' "${SUBMODULE_PAT}" | base64 -w0)
+              if git -c http.extraHeader="AUTHORIZATION: basic ${basic_auth}" \
+                  clone --depth 1 "${https_url}" "${dest}"; then
+                return 0
+              fi
+              echo "PAT clone failed for ${dest}, falling back..."
+              rm -rf "${dest}"
+            fi
+
+            if [ -n "${SUBMODULE_SSH_KEY:-}" ]; then
+              local ssh_url
+              ssh_url=$(echo "$https_url" | sed -E 's#^https://github\.com/#git@github.com:#')
+              echo "Falling back to SSH for ${dest} -> ${ssh_url}"
+              git clone --depth 1 "${ssh_url}" "${dest}"
+              return $?
+            fi
+
+            echo "No PAT or SSH key available, attempting anonymous clone for ${dest}"
+            git clone --depth 1 "${https_url}" "${dest}"
+          }
+
+          if [ -f .gitmodules ]; then
+            echo "Found .gitmodules — checking out every declared submodule."
+            while read -r key path; do
+              [ -z "${key}" ] && continue
+              name=$(echo "${key}" | sed -E 's/^submodule\.(.*)\.path$/\1/')
+              url=$(git config -f .gitmodules --get "submodule.${name}.url")
+              clone_one "${path}" "${url}"
+            done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$')
+          else
+            echo "No .gitmodules in caller repo — nothing to check out."
+          fi
+
+          rm -f ~/.ssh/submodule_deploy_key
+
+      # -----------------------------------------------------------------
+      # blogpost-tools scripts (report builder + auto-fix + vendored
+      # seo_index_checker.py). Checked out once, used by several modes.
+      # Not vendored as a *copy* into this repo's own scripts/ — the
+      # seo-index-checker/src/seo_index_checker.py already lives in
+      # blogpost-tools (ported from my-obsidian SP34 before this pipeline
+      # existed) with its own reusable_seo-index-check.yml; we call it in
+      # place here rather than duplicating it, per the DRY principle.
+      # -----------------------------------------------------------------
+      - name: Checkout blogpost-tools (scripts + seo-index-checker)
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .blogpost-tools
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Setup Python
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install index-checker dependencies
+        if: contains(steps.modes.outputs.list, 'index-check')
+        continue-on-error: true
+        run: pip install -r .blogpost-tools/seo-index-checker/requirements.txt --break-system-packages 2>/dev/null || pip install -r .blogpost-tools/seo-index-checker/requirements.txt
+
+      # -----------------------------------------------------------------
+      # 1. html-analysis mode
+      # -----------------------------------------------------------------
+      - uses: actions/cache@v5
+        if: contains(steps.modes.outputs.list, 'html-analysis')
+        continue-on-error: true
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-gems
+
+      - name: Build Jekyll site
+        if: contains(steps.modes.outputs.list, 'html-analysis')
+        continue-on-error: true
+        uses: BrightSoftwares/blogpost-tools/jekyll-action@main
+        with:
+          token: ${{ secrets.GH_TOKEN || github.token }}
+          pre_build_commands: ${{ inputs.pre_build_commands }}
+          build_dir: ${{ inputs.build_dir }}
+
+      - name: Check HTML (HTMLProofer)
+        if: contains(steps.modes.outputs.list, 'html-analysis')
+        uses: fullbright/htmlproofer@master
+        id: htmlproofer
+        with:
+          directory: "${{ inputs.build_dir }}"
+          arguments: --assume-extension .html
+          output_file: ${{ inputs.html_analysis_output }}
+        continue-on-error: true
+
+      - name: Run bounded SEO auto-fix scan (alt text + internal links)
+        if: contains(steps.modes.outputs.list, 'html-analysis') && inputs.auto_fix
+        id: autofix
+        continue-on-error: true
+        run: |
+          python3 .blogpost-tools/scripts/seo_autofix.py \
+            --build-dir "${{ inputs.build_dir }}" \
+            --content-dir _posts \
+            --content-dir _drafts \
+            --content-dir _pages \
+            --site-url "${{ inputs.site_url }}" \
+            --out-json "$RUNNER_TEMP/seo-pipeline/autofix.json"
+
+      - name: Write html-analysis report section
+        if: always() && contains(steps.modes.outputs.list, 'html-analysis')
+        continue-on-error: true
+        run: |
+          python3 - "$RUNNER_TEMP/seo-pipeline/html-analysis.json" <<'PYEOF'
+          import json, sys, os
+
+          out_path = sys.argv[1]
+          outcome = os.environ.get("HTMLPROOFER_OUTCOME", "unknown")
+          alt_fixed = alt_skipped = link_fixed = link_skipped = 0
+          autofix_json = os.path.join(os.environ["RUNNER_TEMP"], "seo-pipeline", "autofix.json")
+          if os.path.exists(autofix_json):
+              with open(autofix_json, encoding="utf-8") as fh:
+                  data = json.load(fh)
+              alt_fixed = len(data.get("alt_fixed", []))
+              alt_skipped = len(data.get("alt_skipped", []))
+              link_fixed = len(data.get("link_fixed", []))
+              link_skipped = len(data.get("link_skipped", []))
+
+          status = "ok" if outcome == "success" else "issues"
+          critical = 0 if outcome == "success" else 1
+          body = [
+              f"HTMLProofer outcome: **{outcome}** (broken links, HTML validity, accessibility — "
+              f"full raw log committed at `{os.environ.get('HTML_ANALYSIS_OUTPUT', '_drafts/html_analysis.txt')}`).",
+              "",
+              f"Auto-fix this run: {alt_fixed} missing-alt-text fix(es) applied, {alt_skipped} skipped "
+              f"(no confident/unambiguous fix); {link_fixed} broken-internal-link fix(es) applied, "
+              f"{link_skipped} skipped.",
+          ]
+          followups = []
+          if outcome != "success":
+              followups.append(
+                  "HTMLProofer reported failures (may include broken EXTERNAL links, which are never "
+                  f"auto-fixed) — see the raw log at `{os.environ.get('HTML_ANALYSIS_OUTPUT', '_drafts/html_analysis.txt')}`."
+              )
+          payload = {
+              "status": status,
+              "key_metric": f"HTMLProofer: {outcome}; autofix {alt_fixed + link_fixed} applied / {alt_skipped + link_skipped} skipped",
+              "critical_count": critical,
+              "body_markdown": "\n".join(body),
+              "followups": followups,
+          }
+          with open(out_path, "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2)
+          PYEOF
+        env:
+          HTMLPROOFER_OUTCOME: ${{ steps.htmlproofer.outcome }}
+          HTML_ANALYSIS_OUTPUT: ${{ inputs.html_analysis_output }}
+
+      - name: Open/update PR for auto-fixed changes
+        id: autofix_pr
+        if: always() && contains(steps.modes.outputs.list, 'html-analysis') && inputs.auto_fix
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          AUTOFIX_JSON="$RUNNER_TEMP/seo-pipeline/autofix.json"
+          if [ ! -f "$AUTOFIX_JSON" ]; then
+            echo "No autofix output file — skipping PR."
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED_FILES="$(python3 -c "import json; d=json.load(open('$AUTOFIX_JSON')); print('\n'.join(d.get('changed_files', [])))")"
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "Auto-fix made no changes this run — skipping PR."
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="automation/seo-pipeline-autofix"
+          git fetch origin "$BRANCH" 2>/dev/null || true
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git merge --no-edit "origin/${{ steps.modes.outputs.orig_branch }}" || {
+              echo "Merge conflict bringing $BRANCH up to date with ${{ steps.modes.outputs.orig_branch }} — leaving branch as-is, not force-pushing over it."
+              git merge --abort || true
+              echo "pr_url=" >> "$GITHUB_OUTPUT"
+              git checkout "${{ steps.modes.outputs.orig_branch }}"
+              exit 0
+            }
+          else
+            git checkout -B "$BRANCH"
+          fi
+
+          echo "$CHANGED_FILES" | while IFS= read -r f; do [ -n "$f" ] && git add "$f"; done
+
+          if git diff --cached --quiet; then
+            echo "No net changes to commit after rebase — skipping PR."
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            git checkout "${{ steps.modes.outputs.orig_branch }}"
+            exit 0
+          fi
+
+          git commit \
+            -m "fix(seo): auto-fix missing alt text / broken internal links" \
+            -m "Applied by reusable_seo-pipeline.yml's bounded auto-fix step (site: ${{ inputs.site_url }}). Scope: only missing alt text derived from the image filename, and broken internal links with a confident fuzzy-match to an existing page -- both only when exactly one unambiguous source-file match exists. Everything else stays in the SEO report's 'Needs Human/AI Follow-Up' section, never auto-fixed."
+          git push origin "$BRANCH"
+
+          EXISTING_PR="$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url' 2>/dev/null || echo "")"
+          if [ -n "$EXISTING_PR" ]; then
+            echo "pr_url=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+          else
+            DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)"
+            PR_URL="$(gh pr create \
+              --title "SEO auto-fix: alt text + internal links" \
+              --body "Automated, bounded SEO fixes from the unified SEO pipeline. Scope: missing alt text (derived from filename) and broken internal links (fuzzy-matched to an existing page), only where an unambiguous single match exists. See the latest report in \`${{ inputs.report_dir }}/\` for full detail and anything that needed a human/AI judgment call instead." \
+              --base "$DEFAULT_BRANCH" \
+              --head "$BRANCH")"
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          fi
+
+          git checkout "${{ steps.modes.outputs.orig_branch }}"
+
+      # -----------------------------------------------------------------
+      # 2. GSC credentials (shared by diagnostics + gsc-index-coverage)
+      # -----------------------------------------------------------------
+      - name: Setup GSC credentials
+        id: gsc-creds
+        if: always() && (contains(steps.modes.outputs.list, 'diagnostics') || contains(steps.modes.outputs.list, 'gsc-index-coverage'))
+        continue-on-error: true
+        env:
+          GSC_JSON_RAW: ${{ secrets.SEO_GCP_JSON_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          # Written under GITHUB_WORKSPACE (not RUNNER_TEMP): the two Docker
+          # container actions that consume this file (seo-analysis,
+          # indexation-issues) are only GUARANTEED to have GITHUB_WORKSPACE
+          # bind-mounted — RUNNER_TEMP mounting into Docker actions depends on
+          # the runner version and isn't something this sandbox can verify
+          # live (see the task report). It is never `git add`-ed (the commit
+          # step only adds the report + optional legacy file by explicit
+          # path) and is always removed by the final cleanup step.
+          mkdir -p "$GITHUB_WORKSPACE/.seo-pipeline-tmp"
+          CREDS_PATH="$GITHUB_WORKSPACE/.seo-pipeline-tmp/gsc-service-account.json"
+          if [ -z "${GSC_JSON_RAW:-}" ]; then
+            echo "::warning::SEO_GCP_JSON_CREDENTIALS not set — diagnostics/gsc-index-coverage will be skipped this run."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # The secret is used directly (no GPG decrypt) per the 2026-09-26 spec
+          # answer. It has been observed to be stored BOTH ways across repos
+          # historically (raw JSON per this spec's own instruction, vs.
+          # base64-encoded per eagles-techs.com's own pre-existing
+          # seo_diagnotics.yml) — so this step verifies structurally rather
+          # than assuming, and fails loudly instead of silently writing a
+          # bad file: try raw first, then base64-decode, and only proceed once
+          # the result parses as JSON with the fields a GCP service-account key
+          # actually has.
+          printf '%s' "$GSC_JSON_RAW" > "$CREDS_PATH.raw-attempt"
+          if python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('type')=='service_account' else 1)" "$CREDS_PATH.raw-attempt" 2>/dev/null; then
+            mv "$CREDS_PATH.raw-attempt" "$CREDS_PATH"
+            echo "Credentials accepted as raw JSON."
+          elif base64 --decode "$CREDS_PATH.raw-attempt" > "$CREDS_PATH.b64-attempt" 2>/dev/null && \
+               python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('type')=='service_account' else 1)" "$CREDS_PATH.b64-attempt" 2>/dev/null; then
+            mv "$CREDS_PATH.b64-attempt" "$CREDS_PATH"
+            echo "Credentials accepted after base64 decode."
+          else
+            echo "::error::SEO_GCP_JSON_CREDENTIALS did not parse as a GCP service-account JSON, either raw or base64-decoded. Skipping diagnostics/gsc-index-coverage this run rather than guessing."
+            rm -f "$CREDS_PATH.raw-attempt" "$CREDS_PATH.b64-attempt"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          rm -f "$CREDS_PATH.raw-attempt" "$CREDS_PATH.b64-attempt"
+          chmod 600 "$CREDS_PATH"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "path=$CREDS_PATH" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------
+      # 3. diagnostics mode (GSC search performance — clicks/impressions/position)
+      # -----------------------------------------------------------------
+      - name: Run SEO diagnostics analysis
+        id: seo-analysis
+        if: contains(steps.modes.outputs.list, 'diagnostics') && steps.gsc-creds.outputs.available == 'true'
+        continue-on-error: true
+        uses: BrightSoftwares/blogpost-tools/seo-analysis@main
+        with:
+          site_url: ${{ inputs.site_url }}
+          sitemap_url: ${{ steps.modes.outputs.sitemap_url }}
+          service_account_json_file_path: ${{ steps.gsc-creds.outputs.path }}
+          dry_run: true
+          fix_issues: false
+          date_offset: -1
+          date_duration: -${{ inputs.gsc_lookback_days }}
+          output_dir: '_seo/seo-analysis/output'
+
+      - name: Upload diagnostics CSV artifacts
+        if: always() && contains(steps.modes.outputs.list, 'diagnostics')
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: seo-diagnostics-${{ github.run_number }}
+          path: |
+            _seo/seo-analysis/output/**
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Write diagnostics report section
+        if: always() && contains(steps.modes.outputs.list, 'diagnostics')
+        continue-on-error: true
+        run: |
+          python3 - "$RUNNER_TEMP/seo-pipeline/diagnostics.json" <<'PYEOF'
+          import json, os, sys
+
+          out_path = sys.argv[1]
+          available = os.environ.get("GSC_AVAILABLE") == "true"
+          outcome = os.environ.get("SEO_ANALYSIS_OUTCOME", "skipped")
+          total_issues = os.environ.get("TOTAL_ISSUES", "")
+          critical_issues = os.environ.get("CRITICAL_ISSUES", "")
+
+          if not available:
+              payload = {
+                  "status": "skipped",
+                  "key_metric": "SEO_GCP_JSON_CREDENTIALS not available",
+                  "critical_count": 0,
+                  "body_markdown": "Skipped this run — GSC credentials were not available or did not validate. See the workflow log warning for detail.",
+                  "followups": ["GSC credentials missing/invalid — diagnostics could not run. Rotate/verify SEO_GCP_JSON_CREDENTIALS."],
+              }
+          else:
+              try:
+                  critical = int(critical_issues) if critical_issues else 0
+              except ValueError:
+                  critical = 0
+              status = "ok" if outcome == "success" else "issues"
+              metric = f"{total_issues or '?'} issues ({critical_issues or '0'} critical)" if outcome == "success" else f"action outcome: {outcome}"
+              body = [
+                  f"GSC search-performance analysis outcome: **{outcome}**.",
+                  f"Total issues flagged: {total_issues or 'unknown'} (critical: {critical_issues or '0'}).",
+                  "Full CSVs (search performance, keyword suggestions) uploaded as a build artifact "
+                  f"(`seo-diagnostics-{os.environ.get('GITHUB_RUN_NUMBER', '')}`, 30-day retention) — not committed, per the report schema.",
+              ]
+              followups = [
+                  "GSC ranking/click issues and keyword suggestions are reported only, never auto-fixed — "
+                  "review the uploaded CSV artifact and act via the normal content/SEO workflow.",
+              ]
+              payload = {
+                  "status": status,
+                  "key_metric": metric,
+                  "critical_count": critical,
+                  "body_markdown": "\n".join(body),
+                  "followups": followups,
+              }
+          with open(out_path, "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2)
+          PYEOF
+        env:
+          GSC_AVAILABLE: ${{ steps.gsc-creds.outputs.available }}
+          SEO_ANALYSIS_OUTCOME: ${{ steps.seo-analysis.outcome }}
+          TOTAL_ISSUES: ${{ steps.seo-analysis.outputs.total_issues }}
+          CRITICAL_ISSUES: ${{ steps.seo-analysis.outputs.critical_issues }}
+
+      # -----------------------------------------------------------------
+      # 4. index-check mode (SP34 crawlability crawler — vendored script)
+      # -----------------------------------------------------------------
+      - name: Run SEO index/crawlability checker
+        id: index-check
+        if: contains(steps.modes.outputs.list, 'index-check')
+        continue-on-error: true
+        run: |
+          LIMIT_ARGS=()
+          if [ "${{ inputs.index_check_limit }}" != "0" ]; then
+            LIMIT_ARGS=(--limit "${{ inputs.index_check_limit }}")
+          fi
+          python3 .blogpost-tools/seo-index-checker/src/seo_index_checker.py \
+            --site-url "${{ inputs.site_url }}" \
+            --sitemap-path "${{ steps.modes.outputs.sitemap_url }}" \
+            --output-dir "$RUNNER_TEMP/seo-index-check" \
+            "${LIMIT_ARGS[@]}"
+
+      - name: Write index-check report section
+        if: always() && contains(steps.modes.outputs.list, 'index-check')
+        continue-on-error: true
+        run: |
+          python3 - "$RUNNER_TEMP/seo-pipeline/index-check.json" "$RUNNER_TEMP/seo-index-check" "${{ steps.modes.outputs.report_date }}" "${{ steps.index-check.outcome }}" <<'PYEOF'
+          import json, os, re, sys
+
+          out_path, output_dir, report_date, outcome = sys.argv[1:5]
+          manifest_path = os.path.join(output_dir, "seo_index_manifest.json")
+          report_md_path = os.path.join(output_dir, f"seo_index_{report_date}.md")
+
+          if outcome != "success" or not os.path.exists(manifest_path):
+              payload = {
+                  "status": "error",
+                  "key_metric": f"crawler outcome: {outcome}",
+                  "critical_count": 1 if outcome != "success" else 0,
+                  "body_markdown": "The index/crawlability checker did not complete successfully this run.",
+                  "followups": ["Index/crawlability check failed — re-run manually to diagnose (see workflow log)." ] if outcome != "success" else [],
+              }
+          else:
+              manifest = json.load(open(manifest_path, encoding="utf-8"))
+              latest = manifest["runs"][-1] if manifest.get("runs") else {}
+              total = latest.get("total", 0)
+              issues = latest.get("issues", 0)
+              likely_indexed = latest.get("likely_indexed", 0)
+
+              body_extra = ""
+              if os.path.exists(report_md_path):
+                  text = open(report_md_path, encoding="utf-8").read()
+                  m = re.search(r"## URLs with Indexing Issues\n\n(.*?)\n## Likely Indexed", text, re.DOTALL)
+                  if m:
+                      body_extra = "\n\n" + m.group(1).strip()
+
+              payload = {
+                  "status": "ok" if issues == 0 else "issues",
+                  "key_metric": f"{likely_indexed}/{total} likely indexed, {issues} with issues",
+                  "critical_count": 0,  # crawlability issues need review, not auto-classified as critical
+                  "body_markdown": f"Checked {total} sitemap URLs — {likely_indexed} likely indexed, {issues} with an indexing issue (HTTP status, noindex, canonical mismatch, robots.txt block, or redirect chain)." + body_extra,
+                  "followups": [f"{issues} URL(s) with a crawlability/indexability issue — see the Details section above for the full per-URL breakdown."] if issues else [],
+              }
+          with open(out_path, "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2)
+          PYEOF
+
+      # -----------------------------------------------------------------
+      # 5. gsc-index-coverage mode (folded-in reusable_indexation-issues.yml)
+      #    NOTE: distinct from index-check above — this is GSC's own index
+      #    coverage report, not the crawlability crawler. Report-only here
+      #    (apply_fixes always false): GSC index-coverage issues are never
+      #    auto-fixed by this pipeline, only surfaced for human/AI follow-up.
+      # -----------------------------------------------------------------
+      - name: Run GSC index coverage check
+        id: gsc-index-coverage
+        if: contains(steps.modes.outputs.list, 'gsc-index-coverage') && steps.gsc-creds.outputs.available == 'true'
+        continue-on-error: true
+        uses: BrightSoftwares/blogpost-tools/indexation-issues@main
+        with:
+          site_url: ${{ inputs.site_url }}
+          site_type: ${{ inputs.site_type }}
+          service_account_json_file_path: ${{ steps.gsc-creds.outputs.path }}
+          apply_fixes: false
+          dry_run: true
+          max_issues_per_type: ${{ inputs.max_issues_per_type }}
+
+      - name: Upload GSC index-coverage artifacts
+        if: always() && contains(steps.modes.outputs.list, 'gsc-index-coverage')
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: gsc-index-coverage-${{ github.run_number }}
+          path: |
+            indexation_changes_*.json
+            indexation_analysis_*.json
+            indexation_fixes_log_*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Write gsc-index-coverage report section
+        if: always() && contains(steps.modes.outputs.list, 'gsc-index-coverage')
+        continue-on-error: true
+        run: |
+          python3 - "$RUNNER_TEMP/seo-pipeline/gsc-index-coverage.json" <<'PYEOF'
+          import json, os, sys
+
+          out_path = sys.argv[1]
+          available = os.environ.get("GSC_AVAILABLE") == "true"
+          outcome = os.environ.get("OUTCOME", "skipped")
+          total = os.environ.get("TOTAL_ISSUES", "")
+          critical = os.environ.get("CRITICAL_ISSUES", "")
+
+          if not available:
+              payload = {
+                  "status": "skipped",
+                  "key_metric": "SEO_GCP_JSON_CREDENTIALS not available",
+                  "critical_count": 0,
+                  "body_markdown": "Skipped this run — GSC credentials were not available or did not validate.",
+                  "followups": ["GSC credentials missing/invalid — gsc-index-coverage could not run."],
+              }
+          else:
+              try:
+                  critical_n = int(critical) if critical else 0
+              except ValueError:
+                  critical_n = 0
+              status = "ok" if outcome == "success" else "issues"
+              payload = {
+                  "status": status,
+                  "key_metric": f"{total or '?'} index-coverage issue(s) ({critical or '0'} critical)" if outcome == "success" else f"action outcome: {outcome}",
+                  "critical_count": critical_n,
+                  "body_markdown": (
+                      f"GSC index-coverage analysis outcome: **{outcome}**. "
+                      f"Total issues: {total or 'unknown'} (critical: {critical or '0'}). "
+                      "Run in report-only mode (`apply_fixes: false`) — this pipeline never lets the "
+                      "indexation-issues action apply its own fixes; see the uploaded analysis artifact for detail."
+                  ),
+                  "followups": [
+                      "GSC index-coverage problems (noindex/robots/canonical/crawled-not-indexed as seen by "
+                      "Google) are reported only, never auto-fixed — review the uploaded analysis artifact.",
+                  ] if (outcome == "success" and (int(total) if str(total).isdigit() else 0) > 0) else [],
+              }
+          with open(out_path, "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2)
+          PYEOF
+        env:
+          GSC_AVAILABLE: ${{ steps.gsc-creds.outputs.available }}
+          OUTCOME: ${{ steps.gsc-index-coverage.outcome }}
+          TOTAL_ISSUES: ${{ steps.gsc-index-coverage.outputs.total_issues_found }}
+          CRITICAL_ISSUES: ${{ steps.gsc-index-coverage.outputs.critical_issues }}
+
+      # -----------------------------------------------------------------
+      # 6. Build the unified report (always runs, even if every mode was
+      #    skipped or failed — a report showing that is still useful).
+      # -----------------------------------------------------------------
+      - name: Build unified SEO report
+        id: build_report
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 .blogpost-tools/scripts/seo_report_builder.py \
+            --site-url "${{ inputs.site_url }}" \
+            --run-date "${{ steps.modes.outputs.report_date }}" \
+            --state-dir "$RUNNER_TEMP/seo-pipeline" \
+            --out "${{ steps.modes.outputs.report_path }}" \
+            --autofix-pr-url "${{ steps.autofix_pr.outputs.pr_url }}" \
+            --keep-legacy-html-analysis "${{ inputs.keep_legacy_html_analysis_file }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Write Step Summary
+        if: always()
+        continue-on-error: true
+        run: cat "${{ steps.modes.outputs.report_path }}" >> "$GITHUB_STEP_SUMMARY" || true
+
+      # -----------------------------------------------------------------
+      # 7. Commit the report (single commit, explicit paths only — never
+      #    a blanket `git add .`, so nothing from build_dir/_seo/temp creds
+      #    can accidentally get committed).
+      # -----------------------------------------------------------------
+      - name: Commit report
+        if: always() && inputs.commit_report
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git checkout "${{ steps.modes.outputs.orig_branch }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "${{ steps.modes.outputs.report_path }}"
+          if [ "${{ inputs.keep_legacy_html_analysis_file }}" = "true" ] && [ -f "${{ inputs.html_analysis_output }}" ]; then
+            git add "${{ inputs.html_analysis_output }}"
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(seo): unified SEO report for ${{ inputs.site_url }} (${{ steps.modes.outputs.report_date }})"
+            DUPHDR=$(git config --local --get-all http.https://github.com/.extraheader 2>/dev/null | wc -l)
+            [ "$DUPHDR" -gt 1 ] && git config --unset-all http.https://github.com/.extraheader
+            git pull --rebase
+            git push
+          fi
+
+      # -----------------------------------------------------------------
+      # 8. Cleanup (always — mirrors the safety pattern of the old GPG
+      #    cleanup step, now for the credentials temp file + any stray
+      #    output the Docker actions dropped in the workspace root).
+      # -----------------------------------------------------------------
+      - name: Cleanup sensitive/temporary files
+        if: always()
+        continue-on-error: true
+        run: |
+          rm -rf "$GITHUB_WORKSPACE/.seo-pipeline-tmp" "$RUNNER_TEMP/seo-pipeline" "$RUNNER_TEMP/seo-index-check"
+          rm -rf .blogpost-tools
+          rm -rf _seo/seo-analysis/output
+          rm -f -- indexation_changes_*.json indexation_analysis_*.json indexation_fixes_log_*.json ./*.backup
+          rm -f -- *.secret.* *.key *.pem service-account.json
+
+      - name: Fail on critical issues
+        if: always() && inputs.fail_on_critical && fromJSON(steps.build_report.outputs.total_critical || '0') > 0
+        run: |
+          echo "::error::Unified SEO report found ${{ steps.build_report.outputs.total_critical }} critical issue(s) this run (site: ${{ inputs.site_url }})."
+          exit 1
