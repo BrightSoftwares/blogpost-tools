@@ -14,6 +14,14 @@ logger = logging.getLogger(__name__)
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _LINKEDIN_MAX = 3000
 _MARKDOWN_STRIP = re.compile(r"[*_`#\[\]>]")
+# Markdown images/links must be removed/unwrapped BEFORE _MARKDOWN_STRIP,
+# otherwise "![alt](url)" degrades to "!alt(url)" and leaks into the social
+# copy (seen in the 2026-09-02 amazons-t3 draft: "!Amazons T3 instance
+# type(https://www.cloudsqueeze.ai/...)" as the post excerpt).
+_MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+# Paragraphs that are layout, not prose (Liquid tags, raw HTML, tables, kramdown IALs, hr).
+_NON_PROSE_PREFIXES = ("{%", "{{", "{:", "<", "|", "---")
 
 # UTM convention: 958.010.STANDARD.all.reference.revenue-engine-demand-side.md §7.4
 # utm_source=<site/platform> · utm_medium=<organic|email|listing|community> ·
@@ -34,8 +42,9 @@ def _derive_excerpt(post: dict) -> str:
     paragraphs = post["body"].split("\n\n")
     for p in paragraphs:
         p = p.strip()
-        if p.startswith("#"):
+        if p.startswith("#") or p.startswith(_NON_PROSE_PREFIXES):
             continue
+        p = _MD_LINK.sub(r"\1", _MD_IMAGE.sub("", p))
         stripped = _strip_markdown(p)
         if stripped:
             return stripped
@@ -131,6 +140,7 @@ def compose_post(
     cta = (
         fm.get("cta")
         or config.get("defaults", {}).get("cta", "")
+        or config.get("brand", {}).get("default_cta", "")
         or bv.get("tagline", "")
     )
     excerpt = _derive_excerpt(post)

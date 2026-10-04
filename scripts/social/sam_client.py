@@ -33,6 +33,7 @@ match the real contract:
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import textwrap
@@ -64,6 +65,31 @@ _LANDSCAPE_SIZE_NAME = "1200x627"
 _SQUARE_SIZE_NAME = "1200x1200"
 
 _LINE_WRAP_CHARS = 50
+
+# Storage backend requested from SAM. Root cause (2026-10-04, every scheduled
+# Social Generate run since 2026-09-10, e.g. corporate-website run
+# 36887345595 / job 110453919392): the hosted SAM instance on Render has no
+# Cloudinary credentials, so every "cloudinary" request came back HTTP 200
+# with 0/2 assets and per-size errors "Failed to store in Cloudinary: Must
+# supply api_key". "direct" makes SAM return the PNGs inline (base64 data
+# URL in ``assets[].image``) so the caller can commit them next to the
+# draft — no third-party storage, and the images become reviewable in the
+# generated PR's "Files changed" tab. Set SAM_STORAGE=cloudinary to go back
+# to CDN URLs once the SAM service has CLOUDINARY_* configured.
+_DEFAULT_STORAGE = os.environ.get("SAM_STORAGE", "direct")
+_SUPPORTED_STORAGE = {"direct", "cloudinary"}
+
+
+def _decode_data_url(value: str | None) -> bytes | None:
+    """Decode a ``data:<mime>;base64,<payload>`` string (or bare base64)."""
+    if not value:
+        return None
+    payload = value.split(",", 1)[1] if value.startswith("data:") else value
+    try:
+        return base64.b64decode(payload, validate=True)
+    except (ValueError, base64.binascii.Error):
+        logger.error("SAM returned an undecodable base64 image (%d chars)", len(value))
+        return None
 
 
 def _wrap_lines(text: str, max_lines: int, max_chars: int = _LINE_WRAP_CHARS) -> list[str]:
@@ -139,6 +165,7 @@ def generate_social_card(
     cta: str | None = None,
     brand_name: str = "",
     api_base: str = _DEFAULT_SAM_API_BASE,
+    storage: str | None = None,
 ) -> dict:
     """Call Smart Assets Manager deterministic generation endpoint.
 
@@ -152,14 +179,21 @@ def generate_social_card(
         cta: Optional call-to-action text (question-hook only).
         brand_name: Brand name shown on the card.
         api_base: Base URL for the SAM instance.
+        storage: ``"direct"`` (default, inline PNG bytes) or ``"cloudinary"``
+            (CDN URLs). Defaults to the SAM_STORAGE env var.
 
     Returns:
-        Dict with landscape_url (1200x627), square_url (1200x1200), credits_used.
+        Dict with landscape_url / square_url (CDN URLs, ``""`` for direct
+        storage), landscape_bytes / square_bytes (PNG bytes for direct
+        storage, ``None`` for cloudinary) and credits_used.
     """
+    storage = (storage or _DEFAULT_STORAGE).strip().lower()
+    if storage not in _SUPPORTED_STORAGE:
+        raise ValueError(f"Unsupported SAM storage {storage!r}; use one of {sorted(_SUPPORTED_STORAGE)}")
     url = f"{api_base.rstrip('/')}/api/v1/deterministic/generate"
     payload = {
         "type": "svg",
-        "storage": "cloudinary",
+        "storage": storage,
         "visibility": "public",
         "generate_sizes": True,
         "custom_sizes": _CARD_SIZES,
@@ -190,6 +224,10 @@ def generate_social_card(
             data = resp.json()
             sizes = {
                 asset["name"]: asset.get("secure_url") or asset.get("url")
+                for asset in data.get("assets", [])
+            }
+            images = {
+                asset["name"]: _decode_data_url(asset.get("image"))
                 for asset in data.get("assets", [])
             }
             logger.debug("SAM API response = %s", data)
@@ -229,6 +267,28 @@ def generate_social_card(
                     f"{data.get('generation_id')!r}). Per-size errors: {errors}"
                 )
 
+            if storage == "direct":
+                landscape_bytes = images.get(_LANDSCAPE_SIZE_NAME)
+                square_bytes = images.get(_SQUARE_SIZE_NAME)
+                if not landscape_bytes or not square_bytes:
+                    logger.error(
+                        "SAM direct response is missing inline image bytes. "
+                        "expected=%s got_keys=%s",
+                        (_LANDSCAPE_SIZE_NAME, _SQUARE_SIZE_NAME),
+                        [k for k, v in images.items() if v],
+                    )
+                    raise RuntimeError(
+                        "SAM response missing expected inline images "
+                        f"(got {[k for k, v in images.items() if v]})"
+                    )
+                return {
+                    "landscape_url": "",
+                    "square_url": "",
+                    "landscape_bytes": landscape_bytes,
+                    "square_bytes": square_bytes,
+                    "credits_used": data.get("credits_charged", 0.0),
+                }
+
             landscape_url = sizes.get(_LANDSCAPE_SIZE_NAME, "")
             square_url = sizes.get(_SQUARE_SIZE_NAME, "")
             if not landscape_url or not square_url:
@@ -254,6 +314,8 @@ def generate_social_card(
             return {
                 "landscape_url": landscape_url,
                 "square_url": square_url,
+                "landscape_bytes": None,
+                "square_bytes": None,
                 "credits_used": data.get("credits_charged", 0.0),
             }
         except RuntimeError:
