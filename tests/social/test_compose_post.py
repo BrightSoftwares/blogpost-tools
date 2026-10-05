@@ -164,3 +164,21 @@ def test_t11_add_utm_params_overrides_existing_and_preserves_other_query() -> No
 
     relative = "/en/post/"
     assert _add_utm_params(relative, utm_source="linkedin", utm_medium="organic", utm_campaign="evergreen") == relative
+
+
+# T12 — regression (2026-10-04): an image-only first paragraph must not leak
+# "!alt(url)" debris into the social copy; links are unwrapped to their text.
+def test_t12_excerpt_skips_image_paragraph_and_unwraps_links() -> None:
+    from compose_post import _derive_excerpt
+
+    post = _make_post(
+        {"title": "T3"},
+        body=(
+            "![Amazons T3 instance type](https://example.com/t3.jpg)\n\n"
+            "{% include toc.html %}\n\n"
+            "T3 instances are [burstable](https://aws.amazon.com/ec2/) by design.\n"
+        ),
+    )
+    excerpt = _derive_excerpt(post)
+    assert excerpt == "T3 instances are burstable by design."
+    assert "http" not in excerpt

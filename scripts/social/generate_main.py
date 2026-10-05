@@ -36,6 +36,11 @@ def main() -> None:
     parser.add_argument("--drafts-dir", default="_social_drafts/")
     parser.add_argument("--schedule-path", default="_data/social_schedule.yml")
     parser.add_argument("--config-path", default="_data/social_config.yml")
+    parser.add_argument(
+        "--images-dir",
+        default="assets/images/social/",
+        help="Repo-relative dir where inline (SAM_STORAGE=direct) social cards are committed",
+    )
     parser.add_argument("--target-slug", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--log", default="INFO")
@@ -103,6 +108,28 @@ def main() -> None:
 
     today = date.today().isoformat()
     slug = post["slug"]
+
+    image_paths: list[str] = []
+    if card.get("landscape_bytes") and card.get("square_bytes"):
+        # SAM_STORAGE=direct: commit the PNGs into the caller repo so they
+        # show up in the generated PR for visual validation, and point the
+        # draft at the URL they will have once the site is deployed.
+        site_url = (
+            config.get("site_url") or config.get("brand", {}).get("site_url", "")
+        ).rstrip("/")
+        images_rel = args.images_dir.strip("/")
+        images_dir = repo_root / images_rel
+        images_dir.mkdir(parents=True, exist_ok=True)
+        for key, size in (("landscape", "1200x627"), ("square", "1200x1200")):
+            filename = f"{slug}-{size}.png"
+            (images_dir / filename).write_bytes(card[f"{key}_bytes"])
+            image_paths.append(f"{images_rel}/{filename}")
+            if site_url:
+                card[f"{key}_url"] = f"{site_url}/{images_rel}/{filename}"
+            else:
+                logger.warning("No site_url in social config — draft gets a site-relative image path")
+                card[f"{key}_url"] = f"/{images_rel}/{filename}"
+        logger.info("Social card images written: %s", ", ".join(image_paths))
     draft_filename = f"{today}-{slug}.yml"
     draft_path = drafts_dir / draft_filename
 
@@ -145,6 +172,7 @@ def main() -> None:
     _set_output("linkedin_preview", composed["linkedin"]["text"][:200].replace("\n", " "))
     _set_output("facebook_preview", composed["facebook"]["text"][:200].replace("\n", " "))
     _set_output("image_url", card["landscape_url"])
+    _set_output("image_paths", " ".join(image_paths))
 
     logger.info("Draft written: %s", draft_path)
 

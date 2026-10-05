@@ -22,6 +22,31 @@ on:
       dry_run:
         type: boolean
         default: false
+      # Possible values: "direct" (default — SAM returns the PNGs inline and
+      # they are committed under images_dir, so they are reviewable in the
+      # generated PR) | "cloudinary" (CDN URLs; requires CLOUDINARY_* env on
+      # the SAM service — missing on Render since 2026-09, root cause of every
+      # failed run e.g. corporate-website run 36887345595).
+      sam_storage:
+        type: string
+        default: "direct"
+      # Repo-relative folder for committed social card PNGs (direct storage).
+      images_dir:
+        type: string
+        default: "assets/images/social/"
+      # Ref of brightsoftwares/blogpost-tools whose scripts are run. Keep
+      # "main" in production callers; set to a branch only to test a change.
+      tools_ref:
+        type: string
+        default: "main"
+      # Ref of the caller repo the posts/schedule are read from. Empty =
+      # the caller's default branch, so a run dispatched from a feature
+      # branch still generates against published content and opens its
+      # PR against the default branch (PR #98 in corporate-website was
+      # opened against claude/automated-work because of this).
+      content_ref:
+        type: string
+        default: ""
     secrets:
       SMART_ASSETS_API_KEY:
         required: true
@@ -39,6 +64,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+          ref: ${{ inputs.content_ref || github.event.repository.default_branch }}
           token: ${{ secrets.GH_TOKEN || github.token }}
           persist-credentials: false
           
@@ -47,6 +73,7 @@ jobs:
         with:
           repository: brightsoftwares/blogpost-tools
           path: _blogpost_tools
+          ref: ${{ inputs.tools_ref }}
           token: ${{ secrets.GH_TOKEN || github.token }}
           
       - name: Verify Python (system interpreter — self-hosted runner; actions/setup-python's build manifest doesn't cover this runner's OS yet)
@@ -81,6 +108,7 @@ jobs:
         id: gen
         env:
           SMART_ASSETS_API_KEY: ${{ secrets.SMART_ASSETS_API_KEY }}
+          SAM_STORAGE: ${{ inputs.sam_storage }}
         run: |
           source .venv-social-generate/bin/activate
           python _blogpost_tools/scripts/social/generate_main.py \
@@ -88,6 +116,7 @@ jobs:
             --drafts-dir "${{ inputs.drafts_dir }}" \
             --schedule-path "${{ inputs.schedule_path }}" \
             --config-path "${{ inputs.config_path }}" \
+            --images-dir "${{ inputs.images_dir }}" \
             ${{ inputs.target_slug != '' && format('--target-slug "{0}"', inputs.target_slug) || '' }} \
             ${{ inputs.dry_run && '--dry-run' || '' }}
             
@@ -115,10 +144,16 @@ jobs:
             ${{ steps.gen.outputs.facebook_preview }}
             ```
 
-            **Image:** ${{ steps.gen.outputs.image_url }}
+            **Image URL used for publishing:** ${{ steps.gen.outputs.image_url }}
+
+            **Visual validation:** open the **Files changed** tab of this PR — the
+            generated cards are committed under `${{ inputs.images_dir }}`
+            (`${{ steps.gen.outputs.image_paths }}`) and render inline there.
 
             To approve: edit the draft YAML in `${{ inputs.drafts_dir }}`, set `status: approved`, then merge this PR.
+            Merging a draft with `status: draft` publishes nothing (Social Publish only posts `approved` drafts).
           add-paths: |
             ${{ inputs.drafts_dir }}**
+            ${{ inputs.images_dir }}**
             ${{ inputs.schedule_path }}
             social-calendar.md

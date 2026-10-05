@@ -1,0 +1,43 @@
+name: social-tests
+
+# Hermetic unit tests for scripts/social/ (SAM client, composer, selector,
+# publishers — all HTTP mocked). Added 2026-10-04: tests/social/ existed
+# (56 tests) but no CI ran them, so the SAM storage regression that broke
+# every scheduled Social Generate run since 2026-09-10 had no gate.
+on:
+  pull_request:
+    branches: [main]
+    paths: ['scripts/social/**', 'tests/social/**', '.github/workflows/social-tests.yml']
+  push:
+    branches: ['**']
+    paths: ['scripts/social/**', 'tests/social/**', '.github/workflows/social-tests.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: social-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/social/requirements.txt
+
+      - name: Run social unit tests
+        run: pytest tests/social -v --tb=short

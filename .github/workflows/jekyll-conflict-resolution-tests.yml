@@ -1,0 +1,39 @@
+name: jekyll-conflict-resolution-tests
+
+# Fast, hermetic unit tests for jekyll-conflict-resolution/ (Python stdlib
+# only — no external services, no self-hosted runner needed).
+#
+# Added 2026-09-19: the tool shipped with tests but no CI wiring to actually
+# run them, so a future regression here would go unnoticed until the next
+# manual invocation. Fixes that gap.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: jekyll-conflict-resolution-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run jekyll-conflict-resolution unit tests
+        run: python3 -m unittest discover -s jekyll-conflict-resolution/tests -v

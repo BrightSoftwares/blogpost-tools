@@ -102,10 +102,12 @@ def test_generate_social_card_sends_correct_payload_envelope() -> None:
             social_stat=None,
             brand_colors=_BRAND_COLORS,
             brand_name="Bright Softwares",
+            storage="cloudinary",
         )
 
         sent = mock_post.call_args.kwargs["json"]
         assert sent["type"] == "svg"
+        assert sent["storage"] == "cloudinary"
         assert sent["data"]["template_id"] == "social-quote-card"
         assert isinstance(sent["data"]["variables"], dict)
         assert sent["generate_sizes"] is True
@@ -135,3 +137,76 @@ def test_generate_social_card_raises_on_422() -> None:
             assert False, "expected RuntimeError"
         except RuntimeError as exc:
             assert "422" in str(exc)
+
+
+# Regression (2026-10-04): hosted SAM has no Cloudinary credentials, so the
+# default is now storage="direct" — PNGs come back inline as data URLs and
+# are returned as bytes for the caller to commit.
+def test_generate_social_card_direct_storage_returns_bytes() -> None:
+    import base64
+
+    png = b"\x89PNG\r\n\x1a\nfake"
+    data_url = "data:image/png;base64," + base64.b64encode(png).decode()
+    with patch("sam_client.requests.post") as mock_post:
+        mock_post.return_value = _mock_resp(200, {
+            "success": True,
+            "total_requested": 2,
+            "total_generated": 2,
+            "assets": [
+                {"width": 1200, "height": 627, "name": "1200x627", "image": data_url},
+                {"width": 1200, "height": 1200, "name": "1200x1200", "image": data_url},
+            ],
+            "errors": [],
+            "credits_charged": 0.45,
+        })
+        result = generate_social_card(
+            api_key="k",
+            template_id="quote-card",
+            title="T",
+            excerpt="E",
+            social_stat=None,
+            brand_colors=_BRAND_COLORS,
+            storage="direct",
+        )
+        assert mock_post.call_args.kwargs["json"]["storage"] == "direct"
+        assert result["landscape_bytes"] == png
+        assert result["square_bytes"] == png
+        assert result["landscape_url"] == ""
+
+
+def test_generate_social_card_direct_storage_missing_image_raises() -> None:
+    with patch("sam_client.requests.post") as mock_post:
+        mock_post.return_value = _mock_resp(200, {
+            "success": True,
+            "total_requested": 2,
+            "total_generated": 2,
+            "assets": [
+                {"width": 1200, "height": 627, "name": "1200x627", "image": None},
+                {"width": 1200, "height": 1200, "name": "1200x1200", "image": None},
+            ],
+            "errors": [],
+        })
+        try:
+            generate_social_card(
+                api_key="k", template_id="quote-card", title="T", excerpt="E",
+                social_stat=None, brand_colors=_BRAND_COLORS, storage="direct",
+            )
+            assert False, "expected RuntimeError"
+        except RuntimeError as exc:
+            assert "inline images" in str(exc)
+
+
+def test_generate_social_card_cloudinary_storage_error_still_raises() -> None:
+    with patch("sam_client.requests.post") as mock_post:
+        mock_post.return_value = _mock_resp(200, {
+            "success": True, "total_requested": 2, "total_generated": 0, "assets": [],
+            "errors": [{"size": "1200x627", "error": "Failed to store in Cloudinary: Must supply api_key"}],
+        })
+        try:
+            generate_social_card(
+                api_key="k", template_id="quote-card", title="T", excerpt="E",
+                social_stat=None, brand_colors=_BRAND_COLORS, storage="cloudinary",
+            )
+            assert False, "expected RuntimeError"
+        except RuntimeError as exc:
+            assert "Cloudinary" in str(exc)

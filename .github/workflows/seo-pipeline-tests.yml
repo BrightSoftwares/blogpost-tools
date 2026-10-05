@@ -1,0 +1,44 @@
+name: seo-pipeline-tests
+
+# Fast, hermetic unit tests for scripts/seo_autofix.py and
+# scripts/seo_report_builder.py (stdlib-only Python — no network, no live
+# Jekyll build, no GSC/Docker action). Scoped narrowly to these two new files
+# rather than the whole tests/scripts/ directory: test_seo_analysis_action.py
+# in that same directory needs pandas/numpy/requests/beautifulsoup4 (it
+# imports seo-analysis/src/main.py directly) and isn't wired into any CI
+# today — pulling those heavy deps in here to cover an unrelated pre-existing
+# test is out of scope for this pipeline; see the 231.004 PRJ file for a
+# follow-up capture on giving tests/scripts/ its own full CI pass.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: seo-pipeline-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run seo_autofix + seo_report_builder unit tests
+        run: pytest tests/scripts/test_seo_autofix.py tests/scripts/test_seo_report_builder.py -v --tb=short
