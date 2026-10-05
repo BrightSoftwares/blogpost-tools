@@ -74,29 +74,56 @@ def find_site_config(posts_dir: Path) -> dict:
     return {}
 
 
-def site_posts_permalink(config: dict) -> str | None:
-    """Extract the posts collection's permalink template from _config.yml, if any.
+# Jekyll's named permalink styles (https://jekyllrb.com/docs/permalinks/#built-in-formats).
+# `permalink: pretty` is a *style name*, not a path -- it must be expanded, never
+# used literally (that produced https://site/pretty/ for every related link).
+JEKYLL_PERMALINK_STYLES = {
+    "date": "/:categories/:year/:month/:day/:title:output_ext",
+    "pretty": "/:categories/:year/:month/:day/:title/",
+    "ordinal": "/:categories/:year/:y_day/:title:output_ext",
+    "none": "/:categories/:title:output_ext",
+}
 
-    Supports both the standard Jekyll top-level `permalink:` and a `posts:`
-    block with its own `permalink:` (the pattern corporate-website uses).
+
+def expand_permalink_style(value: str) -> str:
+    """Expand a Jekyll named style (pretty/date/ordinal/none) to its template."""
+    return JEKYLL_PERMALINK_STYLES.get(value.strip().lower(), value)
+
+
+def site_posts_permalink(config: dict) -> str | None:
+    """Extract the posts permalink template from _config.yml, if any.
+
+    Precedence (most specific first), matching Jekyll:
+      1. `collections.posts.permalink`  (collection-level, e.g. corporate-website)
+      2. `posts.permalink`              (legacy block some sites use)
+      3. top-level `permalink:`
+    Named styles (`pretty`, `date`, ...) are expanded to their templates.
     """
+    collections = config.get("collections")
+    if isinstance(collections, dict):
+        posts_coll = collections.get("posts")
+        if isinstance(posts_coll, dict) and isinstance(posts_coll.get("permalink"), str):
+            return expand_permalink_style(posts_coll["permalink"])
     posts_block = config.get("posts")
-    if isinstance(posts_block, dict) and posts_block.get("permalink"):
-        return posts_block["permalink"]
+    if isinstance(posts_block, dict) and isinstance(posts_block.get("permalink"), str):
+        return expand_permalink_style(posts_block["permalink"])
     if isinstance(config.get("permalink"), str):
-        return config["permalink"]
+        return expand_permalink_style(config["permalink"])
     return None
 
 
 def url_from_filepath(post_path: Path, site_url: str, language: str, config: dict | None = None) -> str:
     """Build a canonical URL for a post file, matching the site's real permalink."""
     slug = slug_from_filepath(post_path)
+    fm = {}
     # Try to read permalink from the post's own frontmatter first (explicit override)
     try:
         content = post_path.read_text(encoding="utf-8")
-        fm = extract_frontmatter(content)
-        if "permalink" in fm:
-            return site_url.rstrip("/") + "/" + fm["permalink"].lstrip("/")
+        fm = extract_frontmatter(content) or {}
+        own = fm.get("permalink")
+        # A bare style name ("pretty") is not a path; fall through to the template.
+        if isinstance(own, str) and own.strip() and own.strip().lower() not in JEKYLL_PERMALINK_STYLES:
+            return site_url.rstrip("/") + "/" + own.lstrip("/")
     except Exception:
         fm = {}
 
@@ -104,18 +131,28 @@ def url_from_filepath(post_path: Path, site_url: str, language: str, config: dic
     if template:
         m = re.match(r"^(\d{4})-(\d{2})-(\d{2})-", post_path.stem)
         y, mo, d = (m.group(1), m.group(2), m.group(3)) if m else ("", "", "")
+        y_day = ""
+        if m:
+            import datetime
+            y_day = f"{datetime.date(int(y), int(mo), int(d)).timetuple().tm_yday:03d}"
         categories = fm.get("categories") or []
-        category = categories[0] if categories else "uncategorized"
+        if isinstance(categories, str):
+            categories = categories.split()
+        category = "/".join(str(c) for c in categories) if categories else ""
+        trailing_slash = template.endswith("/")
         path = (
             template
             .replace(":categories", category)
             .replace(":year", y)
             .replace(":month", mo)
             .replace(":day", d)
+            .replace(":y_day", y_day)
             .replace(":slug", slug)
             .replace(":title", slug)
+            .replace(":output_ext", ".html")
         )
-        return site_url.rstrip("/") + "/" + path.strip("/") + "/"
+        path = re.sub(r"/{2,}", "/", path).strip("/")
+        return site_url.rstrip("/") + "/" + path + ("/" if trailing_slash else "")
 
     # No site config found -- fall back to the old date-based guess
     # (kept for repos without a discoverable _config.yml, to avoid a hard regression).
