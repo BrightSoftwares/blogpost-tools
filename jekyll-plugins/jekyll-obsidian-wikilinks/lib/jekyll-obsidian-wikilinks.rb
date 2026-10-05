@@ -63,7 +63,12 @@ module Jekyll
         segments
       end
 
+      # Code spans cannot cross a blank line (CommonMark), so each paragraph is scanned alone.
       def split_inline(text)
+        text.split(/(\n[ \t]*\n)/).flat_map { |part| split_inline_paragraph(part) }
+      end
+
+      def split_inline_paragraph(text)
         segments = []
         pos = 0
         while (open = text.index(/`+/, pos))

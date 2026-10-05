@@ -69,4 +69,9 @@ class WikiLinksTest < Minitest::Test
   def test_no_wikilinks_returns_unchanged
     assert_equal 'plain `code`', render('plain `code`')
   end
+
+  def test_stray_backtick_does_not_span_paragraphs
+    out = render("a ` b\n\n[[About Me]]\n\nc ` d")
+    assert_includes out, '[About Me](/about/)'
+  end
 end

@@ -95,7 +95,9 @@ def render(rows) -> str:
                      f"{'yes' if r['dependabot_yml'] else 'NO'} | {age} | {r['wikilinks']} |")
     lines.append(f"| **Fleet total** | | {totals['critical']} | {totals['high']} | {totals['medium']} | "
                  f"{totals['low']} | {sum(totals.values())} | | | |")
-    return head + "\n".join(lines) + "\n"
+    unknown = sum(1 for r in rows if "error" in r or r["counts"] is None)
+    foot = f"\n_Totals exclude {unknown} repo(s) whose alerts could not be read (n/a)._\n" if unknown else ""
+    return head + "\n".join(lines) + "\n" + foot
 
 
 def main(argv=None) -> int:

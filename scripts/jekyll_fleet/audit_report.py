@@ -61,6 +61,8 @@ def pipfile_lock_to_requirements(text: str, include_dev: bool = True) -> str:
             version = meta.get("version", "")
             if version.startswith("=="):
                 lines.append(f"{name}{version}")
+            else:
+                print(f"warning: {name} not audited (no pinned == version)", file=sys.stderr)
     return "\n".join(lines) + ("\n" if lines else "")
 
 

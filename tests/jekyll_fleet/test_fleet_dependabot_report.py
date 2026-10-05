@@ -73,3 +73,9 @@ def test_paging_failure_is_reported_not_zero():
     gh, _ = make_gh(routes)
     row = rep.collect(gh, [("a/b", None)])[0]
     assert row["counts"] is None and "HTTP 403" in row["note"]
+
+
+def test_footnote_when_alerts_unreadable():
+    row = {"repo": "a/x", "branch": "main", "counts": None, "note": "alerts disabled",
+           "dependabot_yml": False, "lock_age": 1, "wikilinks": "none"}
+    assert "exclude 1 repo(s)" in rep.render([row])

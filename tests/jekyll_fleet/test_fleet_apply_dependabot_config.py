@@ -97,7 +97,7 @@ def test_apply_creates_branch_writes_file_and_opens_pr_against_default_branch():
                             ("POST", f"/repos/{REPO}/pulls")]
     put_body = api.writes()[1][2]
     assert put_body["branch"] == "claude/automated-work"
-    assert "Co-Authored-By: Claude Sonnet 5.5" in put_body["message"]
+    assert put_body["message"] == "chore(deps): add canonical Dependabot config"
     assert api.writes()[2][2]["base"] == "master"
     # never writes to the default branch
     assert all(b is None or b.get("branch") != "master" for _, _, b in api.writes())

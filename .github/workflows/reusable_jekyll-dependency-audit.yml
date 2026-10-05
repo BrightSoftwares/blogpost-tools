@@ -61,7 +61,10 @@ jobs:
         id: detect
         working-directory: ${{ inputs.working-directory }}
         run: |
-          [ -f Gemfile.lock ] && echo "gemfile_lock=true" >> "$GITHUB_OUTPUT" || echo "gemfile_lock=false" >> "$GITHUB_OUTPUT"
+          if [ -f Gemfile.lock ]; then echo "gemfile_lock=true" >> "$GITHUB_OUTPUT"; else
+            echo "gemfile_lock=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No Gemfile.lock in ${{ inputs.working-directory }}: nothing to bundler-audit"
+          fi
           # Every Pipfile.lock (they often live in a sub-folder such as _data/cleanup_scripts),
           # ignoring vendored/virtualenv trees and the helper checkout.
           find . -name Pipfile.lock \

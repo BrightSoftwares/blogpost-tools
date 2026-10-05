@@ -52,3 +52,9 @@ def test_cli_exit_codes_and_step_summary(tmp_path, monkeypatch, capsys):
 def test_dedupe_collapses_repeated_advisories():
     f = ar.parse_bundle_audit(ba(("a", "CVE-1", "high"), ("a", "CVE-1", "high"), ("a", "CVE-2", "high")))
     assert len(ar.dedupe(f)) == 2
+
+
+def test_unpinned_entries_warn(capsys):
+    lock = json.dumps({"default": {"vcs": {"git": "x"}}})
+    assert ar.pipfile_lock_to_requirements(lock) == ""
+    assert "vcs not audited" in capsys.readouterr().err

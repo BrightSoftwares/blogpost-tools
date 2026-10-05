@@ -134,9 +134,8 @@ def process_repo(gh: GitHub, repo: str, branch, template: str, apply: bool, enab
         return plan + ("; " + "; ".join(notes) if notes else "")
     notes.append(ensure_branch(gh, repo, branch, apply=True))
     _, _, file_sha = gh.file_text(repo, CONFIG_PATH, WORK_BRANCH)
-    body = {"message": f"chore(deps): {verb} canonical Dependabot config\n\n"
-                       "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n"
-                       "Claude-Session: https://claude.ai/code/session_011jEKe7ZnVeN2ZXWexAJoAL",
+    trailer = os.environ.get("FLEET_COMMIT_TRAILER", "")  # e.g. "Co-Authored-By: ..." lines
+    body = {"message": f"chore(deps): {verb} canonical Dependabot config" + (f"\n\n{trailer}" if trailer else ""),
             "content": base64.b64encode(wanted.encode()).decode(), "branch": WORK_BRANCH,
             "committer": {"name": "Claude", "email": "774136+fullbright@users.noreply.github.com"}}
     if file_sha:
@@ -152,8 +151,7 @@ def process_repo(gh: GitHub, repo: str, branch, template: str, apply: bool, enab
             "title": "chore(deps): canonical Dependabot config (Jekyll fleet)",
             "head": WORK_BRANCH, "base": branch,
             "body": "Adds `.github/dependabot.yml` from blogpost-tools `scripts/jekyll_fleet/templates/dependabot.yml`: "
-                    "weekly, security updates grouped into one PR per ecosystem.\n\n"
-                    "https://claude.ai/code/session_011jEKe7ZnVeN2ZXWexAJoAL"})
+                    "weekly, security updates grouped into one PR per ecosystem."})
         notes.append(f"opened PR {pr.get('html_url')}" if s in (200, 201) and pr else f"PR creation failed (HTTP {s})")
     return f"{repo}: DONE " + "; ".join(notes)
 

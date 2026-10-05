@@ -34,6 +34,9 @@ ALL_REPOS=(
 
 BRANCH_NAME="claude/add-wikilinks-plugin-${SESSION_ID}"
 PLUGIN_FILE="jekyll-plugins/jekyll-obsidian-wikilinks/lib/jekyll-obsidian-wikilinks.rb"
+# The gem entry file needs version.rb, so it can no longer be copied alone into _plugins/.
+echo "DEPRECATED: use the jekyll-obsidian-wikilinks gem (docs/jekyll-fleet.md). Refusing to copy a partial plugin." >&2
+exit 1
 
 # Check if plugin file exists
 if [[ ! -f "$PLUGIN_FILE" ]]; then
