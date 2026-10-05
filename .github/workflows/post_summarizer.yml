@@ -30,7 +30,8 @@ env:
 jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    # Public repo: GitHub-hosted minutes are free; self-hosted jobs queued for 24h (2026-10-04 diagnosis).
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3

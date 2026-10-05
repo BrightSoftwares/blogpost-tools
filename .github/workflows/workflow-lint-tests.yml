@@ -1,0 +1,46 @@
+name: workflow-lint-tests
+
+# Guards the 2026-10-05 fixes: reusable_deploy-application.yml must stay a valid
+# workflow (reusable workflows called as steps made GitHub log every push as a failed
+# standalone run), and public-repo image builds must stay on GitHub-hosted runners.
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+      - 'action-netlify-deploy/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'action-netlify-deploy/**'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: actionlint (files known clean; extend this list as other workflows are fixed)
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color \
+            .github/workflows/reusable_deploy-application.yml \
+            .github/workflows/action-netlify-deploy.yml \
+            .github/workflows/workflow-lint-tests.yml
+
+      - name: Image-build workflows run on GitHub-hosted runners
+        run: |
+          fail=0
+          for f in build_and_publish_docker action-netlify-deploy bright-backstage latextcv openai-generate-blogpost post_paraphraser post_summarizer unsplash-to-cloudinary; do
+            if ! grep -qE '^\s*runs-on: ubuntu-latest\s*$' ".github/workflows/$f.yml"; then
+              echo "::error file=.github/workflows/$f.yml::image-build job must use runs-on: ubuntu-latest"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Netlify image only publishes from main
+        run: |
+          grep -q "push: \${{ github.ref == 'refs/heads/main' }}" .github/workflows/action-netlify-deploy.yml
+          ! grep -qE 'FROM node:current-stretch' action-netlify-deploy/Dockerfile.netlify
+          grep -qE '^ARG NETLIFY_CLI_VERSION=[0-9]+\.[0-9]+\.[0-9]+$' action-netlify-deploy/Dockerfile.netlify
