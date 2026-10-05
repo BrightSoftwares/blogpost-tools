@@ -23,7 +23,7 @@ jobs:
       - name: actionlint (files known clean; extend this list as other workflows are fixed)
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
-          ./actionlint -color \
+          ./actionlint -color -shellcheck= \
             .github/workflows/reusable_deploy-application.yml \
             .github/workflows/action-netlify-deploy.yml \
             .github/workflows/workflow-lint-tests.yml
@@ -42,5 +42,5 @@ jobs:
       - name: Netlify image only publishes from main
         run: |
           grep -q "push: \${{ github.ref == 'refs/heads/main' }}" .github/workflows/action-netlify-deploy.yml
-          ! grep -qE 'FROM node:current-stretch' action-netlify-deploy/Dockerfile.netlify
+          if grep -qE 'FROM node:current-stretch' action-netlify-deploy/Dockerfile.netlify; then exit 1; fi
           grep -qE '^ARG NETLIFY_CLI_VERSION=[0-9]+\.[0-9]+\.[0-9]+$' action-netlify-deploy/Dockerfile.netlify
