@@ -1,0 +1,31 @@
+name: jekyll-plugin-tests
+
+# CI for the shared Jekyll plugins/gems under jekyll-plugins/.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'jekyll-plugins/jekyll-obsidian-wikilinks/**'
+      - '.github/workflows/jekyll-plugin-tests.yml'
+      - '.github/workflows/reusable_jekyll-plugin-tests.yml'
+  push:
+    branches: ['**']
+    paths:
+      - 'jekyll-plugins/jekyll-obsidian-wikilinks/**'
+      - '.github/workflows/jekyll-plugin-tests.yml'
+      - '.github/workflows/reusable_jekyll-plugin-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wikilinks:
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.2', '3.3', '3.4']
+    uses: ./.github/workflows/reusable_jekyll-plugin-tests.yml
+    with:
+      plugin-dir: jekyll-plugins/jekyll-obsidian-wikilinks
+      ruby-version: ${{ matrix.ruby }}

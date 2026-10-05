@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Jekyll WikiLinks Plugin v2.0
+# jekyll-obsidian-wikilinks (shared gem, formerly jekyll-wikilinks-v2)
 # Compatible with Jekyll 4.3.4+
 #
 # Converts WikiLinks syntax [[Page Name]] to proper Jekyll links
@@ -11,16 +11,86 @@
 #   [[/path/to/page]] -> links to specific path
 #
 
+require 'jekyll'
+require_relative 'jekyll-obsidian-wikilinks/version'
+
 module Jekyll
   module WikiLinks
     class << self
       def process_wikilinks(content, site)
         return content unless content.include?('[[')
 
-        content.gsub(/\[\[([^\]]+)\]\]/) do |match|
-          link_text = ::Regexp.last_match(1)
-          process_wikilink(link_text, site)
+        # Only rewrite prose: fenced code blocks and inline code spans are
+        # passed through untouched (e.g. bash `[[ -n "$x" ]]` must survive).
+        split_code(content).map do |text, is_code|
+          next text if is_code || !text.include?('[[')
+
+          text.gsub(/\[\[([^\]]+)\]\]/) do
+            link_text = ::Regexp.last_match(1)
+            process_wikilink(link_text, site)
+          end
+        end.join
+      end
+
+      # Splits markdown into [text, code?] segments. Code = fenced blocks
+      # (``` or ~~~, closed by a fence of the same char and >= length; an
+      # unclosed fence runs to end of document, as in CommonMark) and inline
+      # code spans (backtick run closed by a run of equal length).
+      # Indented code blocks are intentionally not detected.
+      def split_code(content)
+        segments = []
+        prose = +''
+        fence = nil # [char, length] while inside a fenced block
+
+        content.each_line do |line|
+          if fence
+            segments << [line, true]
+            if (m = line.match(/\A {0,3}(`{3,}|~{3,})[ \t]*\r?\n?\z/)) &&
+               m[1][0] == fence[0] && m[1].length >= fence[1]
+              fence = nil
+            end
+          elsif (m = line.match(/\A {0,3}(`{3,}|~{3,})/)) &&
+                !(m[1][0] == '`' && line.sub(/\A {0,3}`+/, '').include?('`'))
+            segments.concat(split_inline(prose)) unless prose.empty?
+            prose = +''
+            fence = [m[1][0], m[1].length]
+            segments << [line, true]
+          else
+            prose << line
+          end
         end
+        segments.concat(split_inline(prose)) unless prose.empty?
+        segments
+      end
+
+      def split_inline(text)
+        segments = []
+        pos = 0
+        while (open = text.index(/`+/, pos))
+          run = text[open..][/\A`+/]
+          close = find_closing_run(text, open + run.length, run.length)
+          if close
+            segments << [text[pos...open], false] if open > pos
+            segments << [text[open...(close + run.length)], true]
+            pos = close + run.length
+          else
+            segments << [text[pos...(open + run.length)], false]
+            pos = open + run.length
+          end
+        end
+        segments << [text[pos..], false] if pos < text.length
+        segments
+      end
+
+      def find_closing_run(text, from, length)
+        idx = from
+        while (found = text.index(/`+/, idx))
+          run = text[found..][/\A`+/]
+          return found if run.length == length
+
+          idx = found + run.length
+        end
+        nil
       end
 
       private

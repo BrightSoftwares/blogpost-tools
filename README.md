@@ -2,6 +2,10 @@
 Automation tools for blog posts
 
 
+## Jekyll fleet tooling
+
+Shared plugin gem, dependency audit workflow, Dependabot template and fleet scripts for all Jekyll sites: see [docs/jekyll-fleet.md](docs/jekyll-fleet.md).
+
 ## How to generate a token to check runners availability
 
 Here are the permissions to add

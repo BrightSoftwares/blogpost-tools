@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED (2026-10): copying the plugin into every repo caused drift. Use the shared gem instead:
+# see docs/jekyll-fleet.md (jekyll-obsidian-wikilinks via git: in the Gemfile).
 #
 # Deploy jekyll-wikilinks-v2 plugin to all repositories
 #
@@ -31,7 +33,7 @@ ALL_REPOS=(
 )
 
 BRANCH_NAME="claude/add-wikilinks-plugin-${SESSION_ID}"
-PLUGIN_FILE="jekyll-plugins/jekyll-wikilinks-v2/_plugins/wikilinks.rb"
+PLUGIN_FILE="jekyll-plugins/jekyll-obsidian-wikilinks/lib/jekyll-obsidian-wikilinks.rb"
 
 # Check if plugin file exists
 if [[ ! -f "$PLUGIN_FILE" ]]; then

@@ -1,0 +1,52 @@
+name: Reusable - Jekyll plugin tests
+
+# Runs the minitest suite of a Jekyll plugin/gem directory (e.g.
+# jekyll-plugins/jekyll-obsidian-wikilinks). Hermetic: no secrets, no services.
+#
+# Caller example:
+#   jobs:
+#     tests:
+#       uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_jekyll-plugin-tests.yml@main
+#       with:
+#         plugin-dir: jekyll-plugins/jekyll-obsidian-wikilinks
+on:
+  workflow_call:
+    inputs:
+      plugin-dir:
+        description: Directory (relative to repo root) containing the plugin's Gemfile and test/
+        type: string
+        required: true
+      ruby-version:
+        description: Ruby version for ruby/setup-ruby
+        type: string
+        default: '3.3'
+      test-command:
+        description: Command run inside plugin-dir (after bundle install)
+        type: string
+        default: bundle exec ruby -Ilib -Itest -e 'Dir["test/test_*.rb"].sort.each { |f| require "./#{f}" }'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: plugin tests (ruby ${{ inputs.ruby-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.plugin-dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: true
+          working-directory: ${{ inputs.plugin-dir }}
+
+      - name: Run tests
+        env:
+          TEST_COMMAND: ${{ inputs.test-command }}
+        run: bash -c "$TEST_COMMAND"
