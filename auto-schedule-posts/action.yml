@@ -16,6 +16,9 @@ inputs:
   days_mask:
     description: The days in the week (Mon Tue Wed Thu Fri) you want the program to select for your post schedules
     default: Mon Wed
+  max_horizon_days:
+    description: Optional cap (days from today) on how far ahead posts are scheduled; later posts are clamped to that day. 0 or unset disables the cap.
+    default: 0
   most_recent_date_folder:
     description: Folder from which to get the most recent post so the rest can be computed from there.
 
