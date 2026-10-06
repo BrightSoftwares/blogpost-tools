@@ -37,23 +37,28 @@ module Jekyll
       # unclosed fence runs to end of document, as in CommonMark) and inline
       # code spans (backtick run closed by a run of equal length).
       # Indented code blocks are intentionally not detected.
+      FENCE_CLOSE = /\A {0,3}(`{3,}|~{3,})[ \t]*\r?\n?\z/
+
       def split_code(content)
         segments = []
         prose = +''
         fence = nil # [char, length] while inside a fenced block
+        lines = content.lines
 
-        content.each_line do |line|
+        lines.each_with_index do |line, i|
           if fence
             segments << [line, true]
-            if (m = line.match(/\A {0,3}(`{3,}|~{3,})[ \t]*\r?\n?\z/)) &&
-               m[1][0] == fence[0] && m[1].length >= fence[1]
+            if (m = line.match(FENCE_CLOSE)) && m[1][0] == fence[0] && m[1].length >= fence[1]
+              fence = nil
+            elsif fence[2] && i == fence[2]
+              # Fallback closer for a fence that never closes strictly (see below).
               fence = nil
             end
           elsif (m = line.match(/\A {0,3}(`{3,}|~{3,})/)) &&
                 !(m[1][0] == '`' && line.sub(/\A {0,3}`+/, '').include?('`'))
             segments.concat(split_inline(prose)) unless prose.empty?
             prose = +''
-            fence = [m[1][0], m[1].length]
+            fence = [m[1][0], m[1].length, lenient_fence_close(lines, i, m[1])]
             segments << [line, true]
           else
             prose << line
@@ -61,6 +66,24 @@ module Jekyll
         end
         segments.concat(split_inline(prose)) unless prose.empty?
         segments
+      end
+
+      # Real-world markdown often "closes" a fence with a shorter run (e.g. a
+      # 4-backtick opener ended by 3 backticks). Strictly (CommonMark) such a
+      # fence runs to end of document, which would disable rewriting for the
+      # whole rest of the page. When no strict closer exists, return the index
+      # of the first later bare fence line of the same char (any length >= 3)
+      # to use as the closer; nil means "genuinely unclosed, run to the end".
+      def lenient_fence_close(lines, open_idx, opener)
+        shorter = nil
+        ((open_idx + 1)...lines.length).each do |j|
+          m = lines[j].match(FENCE_CLOSE)
+          next unless m && m[1][0] == opener[0]
+          return nil if m[1].length >= opener.length # strict closer exists
+
+          shorter ||= j
+        end
+        shorter
       end
 
       # Code spans cannot cross a blank line (CommonMark), so each paragraph is scanned alone.

@@ -74,4 +74,18 @@ class WikiLinksTest < Minitest::Test
     out = render("a ` b\n\n[[About Me]]\n\nc ` d")
     assert_includes out, '[About Me](/about/)'
   end
+
+  # Regression (corporate-website slackbot post): a 4-backtick opener that is
+  # only ever "closed" by a shorter 3-backtick line must not swallow the rest.
+  def test_fence_closed_by_shorter_run_does_not_swallow_rest
+    src = "````\n*   `import os`\n```\n\nAfter [[About Me]]\n"
+    out = render(src)
+    assert_includes out, 'After [About Me](/about/)'
+    assert_includes out, '`import os`'
+  end
+
+  def test_unclosed_fence_with_inner_wikilink_stays_raw
+    out = render("````\n[[About Me]]\n```\n\n[[About Me]]\n")
+    assert_equal 1, out.scan('[[About Me]]').length
+  end
 end

@@ -24,7 +24,7 @@ group :jekyll_plugins do
   gem 'jekyll-obsidian-wikilinks',
       git: 'https://github.com/BrightSoftwares/blogpost-tools.git',
       glob: 'jekyll-plugins/jekyll-obsidian-wikilinks/*.gemspec',
-      tag: 'jekyll-obsidian-wikilinks-v2.1.0'
+      tag: 'jekyll-obsidian-wikilinks-v2.1.1'
 end
 ```
 
