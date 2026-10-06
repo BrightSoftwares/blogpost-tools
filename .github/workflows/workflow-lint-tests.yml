@@ -39,6 +39,15 @@ jobs:
           done
           exit $fail
 
+      - name: Jekyll bundle cache is lockfile-exact and git safe.directory is set
+        run: |
+          f=.github/workflows/reusable_jekyll_build_and_deploy.yml
+          # the vendor/bundle cache step must key on Gemfile.lock and have no restore-keys
+          blk=$(awk '/Cache bundle dependencies/{p=1;next} p&&/- name:/{exit} p' "$f")
+          echo "$blk" | grep -q "hashFiles('Gemfile.lock'" || { echo "::error::bundle cache key must include hashFiles('Gemfile.lock'"; exit 1; }
+          if echo "$blk" | grep -qE '^\s*restore-keys:'; then echo "::error::bundle cache must not use restore-keys (stale lockfile bundle)"; exit 1; fi
+          grep -q "safe.directory '\*'" "$f" || { echo "::error::pre_build_commands must set git safe.directory"; exit 1; }
+
       - name: Netlify image only publishes from main
         run: |
           grep -q "push: .*github.ref == 'refs/heads/main'" .github/workflows/action-netlify-deploy.yml
