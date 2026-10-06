@@ -88,4 +88,9 @@ class WikiLinksTest < Minitest::Test
     out = render("````\n[[About Me]]\n```\n\n[[About Me]]\n")
     assert_equal 1, out.scan('[[About Me]]').length
   end
+
+  def test_wikilink_spanning_blank_line_still_rewritten
+    out = render("a [[About Me|x\n\ny]] b")
+    assert_includes out, '(/about/)'
+  end
 end

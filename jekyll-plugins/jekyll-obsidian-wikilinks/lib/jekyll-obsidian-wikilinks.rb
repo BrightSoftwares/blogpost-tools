@@ -22,7 +22,7 @@ module Jekyll
 
         # Only rewrite prose: fenced code blocks and inline code spans are
         # passed through untouched (e.g. bash `[[ -n "$x" ]]` must survive).
-        split_code(content).map do |text, is_code|
+        coalesce_prose(split_code(content)).map do |text, is_code|
           next text if is_code || !text.include?('[[')
 
           text.gsub(/\[\[([^\]]+)\]\]/) do
@@ -37,6 +37,19 @@ module Jekyll
       # unclosed fence runs to end of document, as in CommonMark) and inline
       # code spans (backtick run closed by a run of equal length).
       # Indented code blocks are intentionally not detected.
+      # split_inline cuts prose at paragraph boundaries; merge adjacent prose
+      # segments back together so a wikilink whose text spans a blank line is
+      # still matched as before (code segments stay untouched).
+      def coalesce_prose(segments)
+        segments.each_with_object([]) do |(text, is_code), out|
+          if !is_code && out.last && !out.last[1]
+            out.last[0] += text
+          else
+            out << [+text, is_code]
+          end
+        end
+      end
+
       FENCE_CLOSE = /\A {0,3}(`{3,}|~{3,})[ \t]*\r?\n?\z/
 
       def split_code(content)
