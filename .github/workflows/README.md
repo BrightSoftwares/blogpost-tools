@@ -84,7 +84,7 @@ jobs:
 | `pre-build-commands` | string | No | `''` | Commands to run before Jekyll build |
 | `build-destination` | string | No | `./build` | Jekyll build output directory |
 | `enable-algolia` | boolean | No | `false` | Enable Algolia search indexing |
-| `runner` | string | No | `ubuntu-latest` | GitHub Actions runner type |
+| `runner` | string | No | `''` (resolves to repo variable `RUNNER_LABEL`, else `ubuntu-latest`) | GitHub Actions runner label |
 
 ### Secrets
 
