@@ -38,6 +38,12 @@ Trade-off: sites pin a tag, so a fix still needs one lockfile bump per site - bu
 2. `git rm _plugins/wikilinks.rb && bundle install`, then verify with `bundle exec jekyll build` and commit `Gemfile` + `Gemfile.lock`.
 3. Add `.github/dependabot.yml` (see apply script) so tag bumps arrive automatically.
 
+### Teaser leak: `strip_wikilinks` filter (gem v2.2.0, not yet tagged)
+
+Templates that print another post's raw `.content` (sidebar "recent post", list teasers) show unconverted `[[...]]` when that post has not rendered yet. The gem now ships a `strip_wikilinks` Liquid filter (label, else target): `{{ post.content | strip_wikilinks | strip_html | truncatewords: 30 }}`. Needs a tag `jekyll-obsidian-wikilinks-v2.2.0` and a Gemfile tag bump per site.
+
+Teaser sites still using raw content without the filter (scan of 2026-10-07, default branches): olympics-paris2024.com (`_includes/magz-master/sidebar.html:38`, `items-list.html:19`; fix in its PR #24 uses a local plugin), modabyflora-corporate (`_includes/home/recent-posts.html:55`), eagles-techs.com (`_layouts/home.html:35`). Not teasers: corporate-website and ieatmyhealth.com pass `post.content` to a minutes-to-read include; corporate-website `modals.html:28` prints full content.
+
 ## Inventory (2026-10-05)
 
 Source: GitHub REST API with the owner's token over all 183 non-archived repos visible to it in `BrightSoftwares/*` and `sergioafanou/*` (+ `sergioafanou/smart-cv`, which the listing endpoint does not return but is accessible). 11 have a `Gemfile` that requires `jekyll`; `sergioafanou/latexcv` has a `_config.yml` but no Gemfile (not a Jekyll bundle).

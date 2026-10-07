@@ -226,6 +226,19 @@ module Jekyll
 
     # Liquid filter for WikiLinks in templates
     module Filters
+      STRIP_WIKILINK = /\[\[([^\]|]*)(?:\|([^\]]*))?\]\]/
+
+      # Replace [[target|label]] / [[target]] with plain text (label, else target).
+      # Why: the :pre_render hook rewrites one document at a time, so a template that
+      # prints ANOTHER post's raw `.content` (sidebar / items-list teaser) can see
+      # unconverted [[...]] when that post has not rendered yet. Use before
+      # `strip_html | truncatewords`:  {{ post.content | strip_wikilinks | strip_html | truncatewords: 30 }}
+      def strip_wikilinks(input)
+        return input unless input.is_a?(String) && input.include?('[[')
+
+        input.gsub(STRIP_WIKILINK) { Regexp.last_match(2) || Regexp.last_match(1) }
+      end
+
       def wikilink(input, display_text = nil)
         return '' unless input
 

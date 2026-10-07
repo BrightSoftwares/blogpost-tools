@@ -93,4 +93,24 @@ class WikiLinksTest < Minitest::Test
     out = render("a [[About Me|x\n\ny]] b")
     assert_includes out, '(/about/)'
   end
+
+  def liquid(tpl, vars = {})
+    Liquid::Template.parse(tpl).render(vars)
+  end
+
+  def test_strip_wikilinks_filter_label_and_target
+    assert_equal 'a me b About Me c',
+                 liquid('{{ t | strip_wikilinks }}', 't' => 'a [[About Me|me]] b [[About Me]] c')
+  end
+
+  def test_strip_wikilinks_filter_non_string_and_plain_passthrough
+    assert_equal '', liquid('{{ t | strip_wikilinks }}', 't' => nil)
+    assert_equal 'no links', liquid('{{ t | strip_wikilinks }}', 't' => 'no links')
+    assert_equal '[x]', liquid('{{ t | strip_wikilinks }}', 't' => '[x]')
+  end
+
+  def test_strip_wikilinks_chains_before_strip_html
+    out = liquid('{{ t | strip_wikilinks | strip_html }}', 't' => '<p>See [[Page|the page]] now</p>')
+    assert_equal 'See the page now', out
+  end
 end

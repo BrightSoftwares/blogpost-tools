@@ -79,6 +79,11 @@ See the [[installation-guide|installation instructions]].
 
 <!-- With custom display text -->
 {{ "Contact" | wikilink: "Get in touch" }}
+
+<!-- Teasers that print ANOTHER post's raw .content: strip [[links]] to plain text.
+     (the pre_render hook only converts a post once it is rendered, so raw content
+     can still contain [[...]]; label wins over target) -->
+{{ post.content | strip_wikilinks | strip_html | truncatewords: 30 }}
 ```
 
 ## How It Works
