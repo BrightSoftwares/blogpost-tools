@@ -62,15 +62,29 @@ def test_detect_ecosystems():
     assert apply_mod.detect_ecosystems(gh, REPO, "main")[0] == {"bundler": ["/"]}
 
 
-def test_nested_pip_manifests_get_their_own_block_and_vendor_is_ignored():
+def test_only_in_scope_pip_dirs_get_a_block_and_tooling_and_vendor_are_ignored():
     gh, _ = make_gh(base_routes(root=("Gemfile", "_data/cleanup_scripts/Pipfile.lock", "scripts/requirements.txt",
+                                      "build/scripts/requirements.txt", "migration/requirements.txt",
                                       "vendor/bundle/x/requirements.txt", "node_modules/y/requirements.txt",
                                       ".venv/Lib/site-packages/numpy/requirements.txt", "venv/z/Pipfile")))
     eco, note = apply_mod.detect_ecosystems(gh, REPO, "main")
-    assert eco["pip"] == ["/_data/cleanup_scripts", "/scripts"] and note == ""
+    assert eco["pip"] == ["/_data/cleanup_scripts"] and note == ""
     doc = yaml.safe_load(apply_mod.render_config(TEMPLATE, eco))
     pip_dirs = [u["directory"] for u in doc["updates"] if u["package-ecosystem"] == "pip"]
-    assert pip_dirs == ["/_data/cleanup_scripts", "/scripts"]
+    assert pip_dirs == ["/_data/cleanup_scripts"]
+
+
+def test_root_pip_manifest_is_in_scope_and_tooling_only_repo_gets_no_pip_block():
+    gh, _ = make_gh(base_routes(root=("Gemfile", "requirements.txt", "scripts/requirements.txt")))
+    assert apply_mod.detect_ecosystems(gh, REPO, "main")[0]["pip"] == ["/"]
+    gh, _ = make_gh(base_routes(root=("Gemfile", "migration/requirements.txt")))
+    assert "pip" not in apply_mod.detect_ecosystems(gh, REPO, "main")[0]
+
+
+def test_apply_and_closer_share_one_pip_scope_constant():
+    import fleet_close_superseded_dependabot as closer
+    import fleet_common
+    assert apply_mod.PIP_SCOPE_DIRS is closer.PIP_SCOPE_DIRS is fleet_common.PIP_SCOPE_DIRS
 
 
 def test_truncated_tree_is_flagged_and_extra_dirs_are_honoured():

@@ -129,6 +129,28 @@ def test_mergeable_null_is_retried_then_left_alone():
     assert len([c for c in api.calls if c[1] == f"/repos/{REPO}/pulls/8"]) == mod.MERGEABLE_RETRIES
 
 
+def test_extra_rule_b_needs_both_180_days_and_unmergeable():
+    """Lock the stale+conflicting condition: age >= CONFLICT_STALE_DAYS AND mergeable is False."""
+    assert mod.CONFLICT_STALE_DAYS == 180
+    name = "Bump jekyll-seo-tag from 2.7.1 to 2.8.0"
+    branch = "dependabot/bundler/jekyll-seo-tag-2.8.0"
+    route = lambda m: {("GET", f"/repos/{REPO}/pulls/20"): (200, {"mergeable": m})}  # noqa: E731
+    edge = (TODAY - dt.timedelta(days=180)).isoformat() + "T00:00:00Z"
+    just_under = (TODAY - dt.timedelta(days=179)).isoformat() + "T00:00:00Z"
+    v = classify(pr(20, branch, name, created=edge), routes=route(False))
+    assert v and v.rule.startswith("B") and "180 days" in v.reason
+    assert classify(pr(20, branch, name, created=just_under), routes=route(False)) is None  # too young
+    assert classify(pr(20, branch, name, created=edge), routes=route(True)) is None  # old but mergeable
+
+
+def test_young_mergeable_pr_with_target_above_lock_is_not_closed():
+    p = pr(21, "dependabot/bundler/i18n-1.15.2", "Bump i18n from 1.14.7 to 1.15.2", created="2026-10-06T00:00:00Z")
+    gh, api = make_gh({("GET", f"/repos/{REPO}/pulls/21"): (200, {"mergeable": True})})
+    assert mod.classify(gh, REPO, p, ctx(), TODAY, sleep=lambda s: None) is None
+    # young PRs must not even trigger the mergeable lookup
+    assert not [c for c in api.calls if c[1] == f"/repos/{REPO}/pulls/21"]
+
+
 # ---- rule C
 
 def test_rule_c_npm_is_out_of_scope():

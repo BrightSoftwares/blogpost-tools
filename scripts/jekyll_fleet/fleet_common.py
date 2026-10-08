@@ -14,6 +14,11 @@ from typing import Callable, Iterator
 
 API = "https://api.github.com"
 SEVERITIES = ("critical", "high", "medium", "low")
+# pip directories that belong to the site build. Everything else (build/, migration/, scripts/...)
+# is tooling whose upgrades are an owner decision, not Jekyll alignment. Shared by
+# fleet_apply_dependabot_config.py (which writes only these) and
+# fleet_close_superseded_dependabot.py (which closes PRs for any other pip directory).
+PIP_SCOPE_DIRS = ("/", "/_data/cleanup_scripts")
 
 # transport(method, url, headers, data) -> (status, response_headers, body_bytes)
 Transport = Callable[[str, str, dict, "bytes | None"], "tuple[int, dict, bytes]"]

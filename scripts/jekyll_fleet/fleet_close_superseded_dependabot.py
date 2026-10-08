@@ -32,7 +32,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from fleet_common import GitHub, GitHubError, default_branch, parse_repo_list  # noqa: E402
+from fleet_common import PIP_SCOPE_DIRS, GitHub, GitHubError, default_branch, parse_repo_list  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "templates", "dependabot.yml")
@@ -40,9 +40,6 @@ DEFAULT_REPOS = os.path.join(HERE, "fleet_repos.txt")
 ECO_MARKER = re.compile(r"^# --- ecosystem: ([\w-]+) ---$", re.M)
 
 DEPENDABOT = "dependabot[bot]"
-# pip directories that belong to the site build; everything else (build/, migration/, scripts/...)
-# is tooling whose upgrades are an owner decision, not Jekyll alignment.
-PIP_SCOPE_DIRS = ("/", "/_data/cleanup_scripts")
 STALE_DAYS = 30
 CONFLICT_STALE_DAYS = 180
 MERGEABLE_RETRIES = 3
