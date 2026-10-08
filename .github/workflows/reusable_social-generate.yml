@@ -125,7 +125,9 @@ jobs:
         run: rm -rf .venv-social-generate
 
       - name: Open PR
-        if: steps.gen.outputs.has_changes == 'true'
+        # dry_run means "generate the draft but do not open a PR" (2026-10-08: without
+        # this guard create-pull-request failed on 'assets/images/social/**' pathspec).
+        if: steps.gen.outputs.has_changes == 'true' && !inputs.dry_run
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GH_TOKEN || github.token }}

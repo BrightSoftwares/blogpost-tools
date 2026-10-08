@@ -37,3 +37,10 @@ def test_no_hardcoded_false_dry_run_on_moves():
         w = s.get("with") or {}
         if "function_to_run" in w:
             assert str(w.get("dry_run")).strip().lower() != "false", s.get("name")
+
+
+def test_social_generate_does_not_open_pr_on_dry_run():
+    wf = yaml.safe_load((WF.parent / "reusable_social-generate.yml").read_text())
+    steps = [s for job in wf["jobs"].values() for s in job.get("steps", [])]
+    open_pr = [s for s in steps if s.get("name") == "Open PR"][0]
+    assert "inputs.dry_run" in open_pr["if"]
