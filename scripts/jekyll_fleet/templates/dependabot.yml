@@ -1,0 +1,52 @@
+# Canonical Dependabot config for Jekyll sites (BrightSoftwares / sergioafanou).
+# Source of truth: blogpost-tools/scripts/jekyll_fleet/templates/dependabot.yml
+# Applied per repo by fleet_apply_dependabot_config.py, which keeps only the
+# ecosystem blocks whose manifests exist in the target repo (an ecosystem with no
+# manifest makes Dependabot report a config error).
+# Security updates are grouped into ONE PR per ecosystem; routine version updates
+# are limited to minor/patch and batched weekly.
+version: 2
+updates:
+# --- ecosystem: bundler ---
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      bundler-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      bundler-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+# --- ecosystem: github-actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
+# --- ecosystem: pip ---
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      pip-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]

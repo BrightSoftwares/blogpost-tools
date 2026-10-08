@@ -9,7 +9,8 @@ on:
       
 jobs:
   build-and-publish-docker:
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    # Public repo: GitHub-hosted minutes are free; self-hosted jobs queued for 24h (2026-10-04 diagnosis).
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 

@@ -1,0 +1,17 @@
+# Copy to <site>/.github/workflows/dependency-audit.yml
+name: dependency-audit
+on:
+  schedule:
+    - cron: '17 5 * * 1'   # weekly, Monday
+  pull_request:
+    paths: ['Gemfile', 'Gemfile.lock', 'Pipfile', 'Pipfile.lock']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable_jekyll-dependency-audit.yml@main
+    with:
+      fail-on: high

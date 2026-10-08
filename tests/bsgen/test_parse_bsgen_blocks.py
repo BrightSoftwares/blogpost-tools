@@ -326,3 +326,25 @@ class TestValidateSocialCarouselCrash:
         data = self._base(slides=[])
         errors = validate_social(data, 1)
         assert isinstance(errors, list)
+
+
+class TestCliUnquotedDates:
+    """Regression: CLI crashed with json TypeError on unquoted YAML dates."""
+
+    def test_cli_serializes_unquoted_yaml_dates(self, tmp_path):
+        import json
+        import subprocess
+
+        post = tmp_path / "post.md"
+        post.write_text(
+            "---\ntitle: T\ndate: 2026-07-06\nupdated: 2026-07-06 10:30:00\n---\nBody\n",
+            encoding="utf-8",
+        )
+        script = Path(__file__).parent.parent.parent / "scripts" / "bsgen" / "parse_bsgen_blocks.py"
+        proc = subprocess.run(
+            [sys.executable, str(script), str(post)], capture_output=True, text=True
+        )
+        assert proc.returncode == 0, proc.stderr
+        data = json.loads(proc.stdout)
+        assert data["frontmatter"]["date"] == "2026-07-06"
+        assert data["frontmatter"]["updated"].startswith("2026-07-06")

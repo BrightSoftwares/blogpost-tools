@@ -1,0 +1,14 @@
+# Active Jekyll sites (Gemfile with jekyll, pushed within the last year). One `owner/repo [branch]` per line.
+# Inventory of 2026-10-05: see docs/jekyll-fleet.md. Branch is optional (default branch is looked up).
+BrightSoftwares/corporate-website
+BrightSoftwares/modabyflora-corporate
+BrightSoftwares/ieatmyhealth.com
+BrightSoftwares/eagles-techs.com
+BrightSoftwares/joyousbyflora-posts
+BrightSoftwares/keke.li
+BrightSoftwares/olympics-paris2024.com
+BrightSoftwares/foolywise.com
+sergioafanou/smart-cv
+# Stale (last push 2023, forks/old themes) - excluded on purpose:
+# BrightSoftwares/hosting_frontend gh-pages
+# BrightSoftwares/automatic-app-landing-page

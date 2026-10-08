@@ -1,9 +1,10 @@
-# Jekyll WikiLinks v2
+# jekyll-obsidian-wikilinks (formerly jekyll-wikilinks-v2)
 
 A modern, Jekyll 4.3.4+ compatible WikiLinks plugin that converts Wikipedia-style `[[links]]` to proper Jekyll links.
 
 ## Features
 
+✅ **Code-safe** - fenced blocks (``` / ~~~) and inline code spans are never rewritten (bash `[[ -n "$x" ]]` survives)
 ✅ **Jekyll 4.3.4+ compatible** - Works with modern Jekyll and Ruby 3.4+
 ✅ **Simple syntax** - Use familiar `[[Page Name]]` syntax
 ✅ **Alias support** - Create custom link text with `[[Page Name|Display Text]]`
@@ -12,33 +13,41 @@ A modern, Jekyll 4.3.4+ compatible WikiLinks plugin that converts Wikipedia-styl
 ✅ **Multi-collection** - Searches across pages, posts, and custom collections
 ✅ **Liquid filter** - Use in templates with `{{ "Page Name" | wikilink }}`
 
-## Installation
+## Installation (shared gem, one line per site)
 
-### Method 1: Plugin Directory (Recommended)
-
-1. Copy `_plugins/wikilinks.rb` to your Jekyll site's `_plugins/` directory:
-
-```bash
-mkdir -p _plugins
-cp wikilinks.rb _plugins/
-```
-
-2. That's it! Jekyll will automatically load the plugin.
-
-### Method 2: Gem Installation (Future)
-
-Add to your `Gemfile`:
+This directory is a gem. Sites consume it straight from this (public) repo, so
+there is **no per-site copy to maintain** and no token needed in CI.
 
 ```ruby
-gem 'jekyll-wikilinks-v2'
+# Gemfile
+group :jekyll_plugins do
+  gem 'jekyll-obsidian-wikilinks',
+      git: 'https://github.com/BrightSoftwares/blogpost-tools.git',
+      glob: 'jekyll-plugins/jekyll-obsidian-wikilinks/*.gemspec',
+      tag: 'jekyll-obsidian-wikilinks-v2.1.1'
+end
 ```
 
-Add to `_config.yml`:
+1. Add the block above, run `bundle install`, commit `Gemfile` + `Gemfile.lock`.
+2. `git rm _plugins/wikilinks.rb` (a leftover local copy is harmless but redundant).
+3. Upgrade later with `bundle update jekyll-obsidian-wikilinks` (Dependabot's
+   bundler ecosystem also bumps the tag).
 
-```yaml
-plugins:
-  - jekyll-wikilinks-v2
+Works with any build that runs `bundle exec jekyll build` (GitHub Actions +
+o2switch FTP/SSH deploys). Not usable on the GitHub-Pages-managed builder
+(no custom gems) - those sites use the legacy copy method.
+
+**Releasing:** bump `lib/jekyll-obsidian-wikilinks/version.rb`, merge, then tag
+`jekyll-obsidian-wikilinks-vX.Y.Z` on the merge commit.
+
+## Development
+
+```bash
+cd jekyll-plugins/jekyll-obsidian-wikilinks
+bundle install && bundle exec ruby -Ilib -Itest test/test_wikilinks.rb
 ```
+
+CI: `.github/workflows/jekyll-plugin-tests.yml` (via `reusable_jekyll-plugin-tests.yml`).
 
 ## Usage
 
@@ -70,6 +79,11 @@ See the [[installation-guide|installation instructions]].
 
 <!-- With custom display text -->
 {{ "Contact" | wikilink: "Get in touch" }}
+
+<!-- Teasers that print ANOTHER post's raw .content: strip [[links]] to plain text.
+     (the pre_render hook only converts a post once it is rendered, so raw content
+     can still contain [[...]]; label wins over target) -->
+{{ post.content | strip_wikilinks | strip_html | truncatewords: 30 }}
 ```
 
 ## How It Works
@@ -194,7 +208,7 @@ Check out [[This Page Doesn't Exist]].
 
 ## Comparison with Original jekyll-wikilinks
 
-| Feature | Original | WikiLinks v2 |
+| Feature | Original | This gem |
 |---------|----------|--------------|
 | Jekyll 4.3.4+ | ❌ | ✅ |
 | Ruby 3.4+ | ❌ | ✅ |

@@ -5,6 +5,36 @@ import datetime
 import glob
 from datetime import timedelta
 
+def pick_post_date(post):
+  """Return (date, source) from a frontmatter post.
+
+  post_date (wordpress version) wins over date when both exist; a post with
+  only `date` keeps it. Previously an `else: post_date = None` attached to the
+  post_date check wiped the `date` value of every post lacking post_date.
+  """
+  post_date = None
+  date_source = 'date'
+  if 'date' in post:
+    post_date = post['date']
+  if 'post_date' in post:
+    post_date = post['post_date']
+    date_source = 'post_date'
+  return post_date, date_source
+
+
+def cap_horizon(dates, max_horizon_days, today=None):
+  """Clamp scheduled dates to at most max_horizon_days from today.
+
+  0/None disables the cap. Dates beyond the horizon are clamped to the last
+  allowed day so a long backlog cannot spread posts a year into the future.
+  """
+  if not max_horizon_days:
+    return dates
+  today = today or datetime.date.today()
+  limit = pd.Timestamp(today + timedelta(days=int(max_horizon_days)))
+  return pd.DatetimeIndex([min(d, limit) for d in dates])
+
+
 def reschedule_files(posts_df, src_folder_path, dest_folder_path, dry_run):
 
   #src_folder_path = src_folder_path[-1] if src_folder_path.endswith("/") else src_folder_path
@@ -63,7 +93,7 @@ def get_startdate(extract_most_recent_date_from, nb_days_ahead=0):
   start_date_str = start_date.strftime("%m/%d/%Y")
   return start_date_str
 
-def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run):
+def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run, max_horizon_days=0):
 
   print("Auto scheduling posts from src folder ({}), to dest folder ({}) and days mask ({}) and dry run ({})".format(src_folder_path, dest_folder_path, days_mask, dry_run))
   
@@ -81,15 +111,8 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date
         post = frontmatter.load(src_folder_path + "/" + entry)
         post_date = None
         date_source = 'date'
-        if 'date' in post:
-          post_date = post['date']
-          date_source = 'date'
-        if 'post_date' in post: # wordpress version
-          post_date = post['post_date']
-          date_source = 'post_date'
-        else:
-          post_date = None
-          
+        post_date, date_source = pick_post_date(post)
+
         post_length = len(post.content)
 
         # Compute the order of the posts based on the content and frontmatter
@@ -116,6 +139,7 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date
   # start_date = tomorrow.strftime("%m/%d/%Y")
   print("Start date: ", start_date)
   dates_df = pd.bdate_range(start=start_date, periods=posts_df.shape[0], freq='C', weekmask=days_mask)
+  dates_df = cap_horizon(dates_df, max_horizon_days)
   assigned_posts_df = posts_df.assign(new_date=dates_df)
   print(assigned_posts_df)
   #print(posts_df)
@@ -126,26 +150,32 @@ def auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date
   # End
 
 
-src_folder_path = os.getenv('INPUT_SRC_FOLDER')
-src_folder_path = src_folder_path[:-1] if src_folder_path.endswith("/") else src_folder_path
-print("Source folder = ", src_folder_path)
+def main():
+  src_folder_path = os.getenv('INPUT_SRC_FOLDER')
+  src_folder_path = src_folder_path[:-1] if src_folder_path.endswith("/") else src_folder_path
+  print("Source folder = ", src_folder_path)
 
-dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
-dest_folder_path = dest_folder_path[:-1] if dest_folder_path.endswith("/") else dest_folder_path
-print("Destination folder = ", dest_folder_path)
+  dest_folder_path = os.getenv('INPUT_DEST_FOLDER')
+  dest_folder_path = dest_folder_path[:-1] if dest_folder_path.endswith("/") else dest_folder_path
+  print("Destination folder = ", dest_folder_path)
 
-days_mask = os.getenv('INPUT_DAYS_MASK')
-dry_run = os.getenv('INPUT_DRY_RUN')
-nb_days_ahead = int(os.getenv('INPUT_NB_DAYS_AHEAD', 1))
+  days_mask = os.getenv('INPUT_DAYS_MASK')
+  dry_run = os.getenv('INPUT_DRY_RUN')
+  nb_days_ahead = int(os.getenv('INPUT_NB_DAYS_AHEAD', 1))
 
-#use this folder to extract the most recent date so I can build on top of it
-extract_most_recent_date_from = os.getenv('INPUT_MOST_RECENT_DATE_FOLDER', None)
-if extract_most_recent_date_from is not None:
-  if extract_most_recent_date_from.endswith("/"):
-    extract_most_recent_date_from = extract_most_recent_date_from[:-1]
-print("Folder to extract the most recent date from: ", extract_most_recent_date_from)
+  #use this folder to extract the most recent date so I can build on top of it
+  extract_most_recent_date_from = os.getenv('INPUT_MOST_RECENT_DATE_FOLDER', None)
+  if extract_most_recent_date_from is not None:
+    if extract_most_recent_date_from.endswith("/"):
+      extract_most_recent_date_from = extract_most_recent_date_from[:-1]
+  print("Folder to extract the most recent date from: ", extract_most_recent_date_from)
 
 
-start_date = get_startdate(extract_most_recent_date_from, nb_days_ahead)
+  start_date = get_startdate(extract_most_recent_date_from, nb_days_ahead)
 
-auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run)
+  max_horizon_days = int(os.getenv('INPUT_MAX_HORIZON_DAYS') or 0)
+  auto_schedule_posts(src_folder_path, dest_folder_path, days_mask, start_date, dry_run, max_horizon_days)
+
+
+if __name__ == '__main__':
+  main()

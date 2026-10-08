@@ -1,0 +1,38 @@
+name: auto-schedule-posts-tests
+
+# Hermetic unit tests for auto-schedule-posts/ (pandas + python-frontmatter).
+# Pins the date-selection fix (a post with only `date` used to lose it) and
+# the optional max_horizon_days cap.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: auto-schedule-posts-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pytest -r auto-schedule-posts/requirements.txt
+
+      - name: Run auto-schedule-posts unit tests
+        run: pytest auto-schedule-posts/tests -v --tb=short

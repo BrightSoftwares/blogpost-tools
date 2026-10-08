@@ -15,6 +15,7 @@ Exit codes:
 
 import sys
 import re
+import datetime
 import json
 import argparse
 from pathlib import Path
@@ -381,6 +382,13 @@ def parse_file(post_path: Path, filter_type: str | None = None) -> dict:
     return result
 
 
+def _json_default(value):
+    """YAML turns unquoted `2026-07-06` into datetime.date; emit ISO strings."""
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return value.isoformat()
+    return str(value)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Parse bsgen blocks from a Markdown post")
     parser.add_argument("post_file", help="Path to the Markdown post file")
@@ -397,7 +405,7 @@ def main():
 
     result = parse_file(post_path, filter_type=args.block_type)
 
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    print(json.dumps(result, indent=2, ensure_ascii=False, default=_json_default))
 
     if args.strict and result["validation_errors"]:
         for err in result["validation_errors"]:

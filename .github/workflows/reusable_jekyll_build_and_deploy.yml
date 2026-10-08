@@ -198,9 +198,10 @@ jobs:
             vendor/bundle
             .jekyll-cache
             _site
+          # No restore-keys on purpose: falling back to a bundle cached for a different
+          # Gemfile.lock restores stale vendor/bundle git checkouts that git then rejects
+          # ("dubious ownership") inside the jekyll-action container.
           key: ${{ runner.os }}-jekyll-${{ hashFiles('Gemfile.lock', 'Gemfile') }}
-          restore-keys: |
-            ${{ runner.os }}-jekyll-
 
       - name: Cache responsive images
         if: ${{ inputs.enable_cache }}
@@ -253,7 +254,8 @@ jobs:
           jekyll_build_options: ${{ inputs.jekyll_build_options }}
           build_dir: ${{ inputs.build_dir }}
           target_branch: ${{ inputs.target_branch }}
-          pre_build_commands: ${{ inputs.pre_build_commands }}
+          # safe.directory '*': the container user differs from the checkout/cache owner
+          pre_build_commands: "git config --global --add safe.directory '*'; ${{ inputs.pre_build_commands }}"
           algolia_api_key: ${{ secrets.algolia_api_key }}
           build_only: ${{ inputs.target_branch == '' }}
 

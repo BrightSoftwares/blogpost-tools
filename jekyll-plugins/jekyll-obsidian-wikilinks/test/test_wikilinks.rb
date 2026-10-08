@@ -1,0 +1,116 @@
+# frozen_string_literal: true
+
+# Run: bundle exec ruby -Ilib -Itest test/test_wikilinks.rb
+require 'minitest/autorun'
+require 'jekyll'
+require_relative '../lib/jekyll-obsidian-wikilinks'
+
+class WikiLinksTest < Minitest::Test
+  Doc = Struct.new(:data, :url, :basename_without_ext, :relative_path)
+
+  class FakeSite
+    def pages = [Doc.new({ 'title' => 'About Me' }, '/about/', 'about', 'about.md')]
+    def posts = Struct.new(:docs).new([])
+    def collections = {}
+  end
+
+  def render(text)
+    Jekyll::WikiLinks.process_wikilinks(text, FakeSite.new)
+  end
+
+  def test_converts_prose_wikilink
+    assert_equal 'See [About Me](/about/) now', render('See [[About Me]] now')
+  end
+
+  def test_alias_and_anchor
+    assert_equal '[me](/about/#team)', render('[[About Me#team|me]]')
+  end
+
+  def test_broken_link_gets_span
+    assert_includes render('[[Nope]]'), 'wikilink-broken'
+  end
+
+  def test_skips_backtick_fenced_block
+    src = "before\n```bash\nif [[ \" $* \" == *x* ]]; then :; fi\n```\nafter [[About Me]]\n"
+    out = render(src)
+    assert_includes out, 'if [[ " $* " == *x* ]]; then :; fi'
+    refute_includes out, 'wikilink-broken'
+    assert_includes out, 'after [About Me](/about/)'
+  end
+
+  def test_skips_tilde_fence_and_longer_fence
+    src = "~~~\n[[About Me]]\n~~~\n````\n```\n[[About Me]]\n```\n````\n[[About Me]]\n"
+    out = render(src)
+    assert_equal 2, out.scan('[[About Me]]').length
+    assert_equal 1, out.scan('[About Me](/about/)').length
+  end
+
+  def test_unclosed_fence_runs_to_end
+    out = render("```\n[[About Me]]\n")
+    assert_includes out, '[[About Me]]'
+  end
+
+  def test_skips_inline_code
+    out = render('Use `[[ -n "$x" ]]` and [[About Me]]')
+    assert_includes out, '`[[ -n "$x" ]]`'
+    assert_includes out, '[About Me](/about/)'
+  end
+
+  def test_double_backtick_inline_code
+    out = render('``a ` [[About Me]]`` then [[About Me]]')
+    assert_includes out, '``a ` [[About Me]]``'
+    assert_includes out, 'then [About Me](/about/)'
+  end
+
+  def test_unmatched_backtick_does_not_swallow_prose
+    assert_includes render('a ` b [[About Me]]'), '[About Me](/about/)'
+  end
+
+  def test_no_wikilinks_returns_unchanged
+    assert_equal 'plain `code`', render('plain `code`')
+  end
+
+  def test_stray_backtick_does_not_span_paragraphs
+    out = render("a ` b\n\n[[About Me]]\n\nc ` d")
+    assert_includes out, '[About Me](/about/)'
+  end
+
+  # Regression (corporate-website slackbot post): a 4-backtick opener that is
+  # only ever "closed" by a shorter 3-backtick line must not swallow the rest.
+  def test_fence_closed_by_shorter_run_does_not_swallow_rest
+    src = "````\n*   `import os`\n```\n\nAfter [[About Me]]\n"
+    out = render(src)
+    assert_includes out, 'After [About Me](/about/)'
+    assert_includes out, '`import os`'
+  end
+
+  def test_unclosed_fence_with_inner_wikilink_stays_raw
+    out = render("````\n[[About Me]]\n```\n\n[[About Me]]\n")
+    assert_equal 1, out.scan('[[About Me]]').length
+  end
+
+  def test_wikilink_spanning_blank_line_still_rewritten
+    out = render("a [[About Me|x\n\ny]] b")
+    assert_includes out, '(/about/)'
+  end
+
+  def liquid(tpl, vars = {})
+    Liquid::Template.parse(tpl).render(vars)
+  end
+
+  def test_strip_wikilinks_filter_label_and_target
+    assert_equal 'a me b About Me c',
+                 liquid('{{ t | strip_wikilinks }}', 't' => 'a [[About Me|me]] b [[About Me]] c')
+  end
+
+  def test_strip_wikilinks_filter_non_string_and_plain_passthrough
+    assert_equal '', liquid('{{ t | strip_wikilinks }}', 't' => nil)
+    assert_equal 'no links', liquid('{{ t | strip_wikilinks }}', 't' => 'no links')
+    assert_equal '[x]', liquid('{{ t | strip_wikilinks }}', 't' => '[x]')
+  end
+
+  def test_strip_wikilinks_chains_before_strip_html
+    out = liquid('{{ t | strip_wikilinks | strip_html }}', 't' => '<p>See [[Page|the page]] now</p>')
+    assert_equal 'See the page now', out
+  end
+end

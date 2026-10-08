@@ -144,11 +144,11 @@ on:
     outputs:
       deployment_status:
         description: 'Deployment status'
-        value: ${{ jobs.route-deployment.outputs.status }}
+        value: ${{ jobs.summary.outputs.status }}
 
       deployment_url:
         description: 'Application URL'
-        value: ${{ jobs.route-deployment.outputs.url }}
+        value: ${{ jobs.summary.outputs.url }}
 
       hosting_provider:
         description: 'Hosting provider used'
@@ -157,10 +157,6 @@ on:
 jobs:
   route-deployment:
     runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
-    outputs:
-      status: ${{ steps.set-output.outputs.status }}
-      url: ${{ steps.set-output.outputs.url }}
-
     steps:
       - name: Validate Provider Configuration
         run: |
@@ -202,71 +198,84 @@ jobs:
               ;;
           esac
 
-      - name: Deploy to o2switch
-        if: inputs.hosting_provider == 'o2switch'
-        uses: ./.github/workflows/reusable_deploy-to-o2switch.yml
-        with:
-          app_name: ${{ inputs.app_name }}
-          app_type: ${{ inputs.app_type }}
-          domain_name: ${{ inputs.domain_name }}
-          source_directory: ${{ inputs.source_directory }}
-          cpanel_username: ${{ inputs.cpanel_username }}
-          force_redeploy: ${{ inputs.force_redeploy }}
-          run_migrations: ${{ inputs.run_migrations }}
-        secrets:
-          CPANEL_SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
-          CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
-          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+  deploy-o2switch:
+    needs: route-deployment
+    if: inputs.hosting_provider == 'o2switch'
+    uses: ./.github/workflows/reusable_deploy-to-o2switch.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+      app_type: ${{ inputs.app_type }}
+      domain_name: ${{ inputs.domain_name }}
+      source_directory: ${{ inputs.source_directory }}
+      cpanel_username: ${{ inputs.cpanel_username }}
+      force_redeploy: ${{ inputs.force_redeploy }}
+      run_migrations: ${{ inputs.run_migrations }}
+    secrets:
+      CPANEL_SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+      CPANEL_PASSWORD: ${{ secrets.CPANEL_PASSWORD }}
+      DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 
-      - name: Deploy to AWS
-        if: inputs.hosting_provider == 'aws'
-        uses: ./.github/workflows/reusable_deploy-to-aws.yml
-        with:
-          app_name: ${{ inputs.app_name }}
-          deployment_target: ${{ inputs.aws_deployment_target }}
-          aws_region: ${{ inputs.aws_region }}
-          app_type: ${{ inputs.app_type }}
-          source_directory: ${{ inputs.source_directory }}
-          use_free_tier: ${{ inputs.use_free_tier }}
-          force_redeploy: ${{ inputs.force_redeploy }}
-        secrets:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+  deploy-aws:
+    needs: route-deployment
+    if: inputs.hosting_provider == 'aws'
+    uses: ./.github/workflows/reusable_deploy-to-aws.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+      deployment_target: ${{ inputs.aws_deployment_target }}
+      aws_region: ${{ inputs.aws_region }}
+      app_type: ${{ inputs.app_type }}
+      source_directory: ${{ inputs.source_directory }}
+      use_free_tier: ${{ inputs.use_free_tier }}
+      force_redeploy: ${{ inputs.force_redeploy }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 
-      - name: Deploy to GCP
-        if: inputs.hosting_provider == 'gcp'
-        uses: ./.github/workflows/reusable_deploy-to-gcp.yml
-        with:
-          app_name: ${{ inputs.app_name }}
-          deployment_target: ${{ inputs.gcp_deployment_target }}
-          gcp_project_id: ${{ inputs.gcp_project_id }}
-          gcp_region: ${{ inputs.gcp_region }}
-          app_type: ${{ inputs.app_type }}
-          source_directory: ${{ inputs.source_directory }}
-          use_free_tier: ${{ inputs.use_free_tier }}
-          force_redeploy: ${{ inputs.force_redeploy }}
-        secrets:
-          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+  deploy-gcp:
+    needs: route-deployment
+    if: inputs.hosting_provider == 'gcp'
+    uses: ./.github/workflows/reusable_deploy-to-gcp.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+      deployment_target: ${{ inputs.gcp_deployment_target }}
+      gcp_project_id: ${{ inputs.gcp_project_id }}
+      gcp_region: ${{ inputs.gcp_region }}
+      app_type: ${{ inputs.app_type }}
+      source_directory: ${{ inputs.source_directory }}
+      use_free_tier: ${{ inputs.use_free_tier }}
+      force_redeploy: ${{ inputs.force_redeploy }}
+    secrets:
+      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 
-      - name: Deploy to Azure
-        if: inputs.hosting_provider == 'azure'
-        uses: ./.github/workflows/reusable_deploy-to-azure.yml
-        with:
-          app_name: ${{ inputs.app_name }}
-          deployment_target: ${{ inputs.azure_deployment_target }}
-          azure_subscription_id: ${{ inputs.azure_subscription_id }}
-          resource_group: ${{ inputs.azure_resource_group }}
-          app_type: ${{ inputs.app_type }}
-          source_directory: ${{ inputs.source_directory }}
-          use_free_tier: ${{ inputs.use_free_tier }}
-          force_redeploy: ${{ inputs.force_redeploy }}
-        secrets:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+  deploy-azure:
+    needs: route-deployment
+    if: inputs.hosting_provider == 'azure'
+    uses: ./.github/workflows/reusable_deploy-to-azure.yml
+    with:
+      app_name: ${{ inputs.app_name }}
+      deployment_target: ${{ inputs.azure_deployment_target }}
+      azure_subscription_id: ${{ inputs.azure_subscription_id }}
+      resource_group: ${{ inputs.azure_resource_group }}
+      app_type: ${{ inputs.app_type }}
+      source_directory: ${{ inputs.source_directory }}
+      use_free_tier: ${{ inputs.use_free_tier }}
+      force_redeploy: ${{ inputs.force_redeploy }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+      ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
 
+  summary:
+    needs: [route-deployment, deploy-o2switch, deploy-aws, deploy-gcp, deploy-azure]
+    # Skipped provider jobs are expected (only one provider runs); fail only if a deploy job failed.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    outputs:
+      status: ${{ steps.set-output.outputs.status }}
+      url: ${{ steps.set-output.outputs.url }}
+    steps:
       - name: Set Outputs
         id: set-output
         run: |

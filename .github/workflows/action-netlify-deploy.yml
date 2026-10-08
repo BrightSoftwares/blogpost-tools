@@ -12,13 +12,16 @@ env:
 jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
-    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    # Public repo: GitHub-hosted minutes are free; self-hosted jobs queued for 24h (2026-10-04 diagnosis).
+    runs-on: ubuntu-latest
     #runs-on: self-hosted
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Log in to Docker Hub
+        # Only publish from main: this image is :latest for every Netlify-deploying blog repo.
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -48,8 +51,14 @@ jobs:
         with:
           context: "./${{ env.SUBFOLDER }}"
           file: ./${{ env.SUBFOLDER }}/Dockerfile.netlify
-          push: true
+          # Branches build + load locally for the smoke test below; only main pushes.
+          push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
           tags: ${{ steps.metaapi.outputs.tags }}
           labels: ${{ steps.metaapi.outputs.labels }}
-          
-      
+
+      - name: Smoke test image (node + netlify-cli present)
+        if: github.ref != 'refs/heads/main'
+        run: |
+          IMAGE="$(echo '${{ steps.metaapi.outputs.tags }}' | head -n1)"
+          docker run --rm --entrypoint sh "$IMAGE" -c 'node --version && netlify --version'
