@@ -44,3 +44,18 @@ def test_social_generate_does_not_open_pr_on_dry_run():
     steps = [s for job in wf["jobs"].values() for s in job.get("steps", [])]
     open_pr = [s for s in steps if s.get("name") == "Open PR"][0]
     assert "inputs.dry_run" in open_pr["if"]
+
+
+def test_indexation_cleanup_never_deletes_tracked_credentials():
+    text = (WF.parent / "reusable_indexation-issues.yml").read_text()
+    assert "rm -f *.secret.*" not in text
+    assert "git ls-files --error-unmatch" in text
+    assert 'rm -f ${{ inputs.service_account_file_path }}\n' not in text
+
+
+def test_numpy_pinned_below_2_4():
+    root = WF.parents[2]
+    for rel in ("internal-linking/requirements.txt", "indexation-issues/requirements.txt",
+                "seo-analysis/requirements-minimal.txt", "keyword-suggestion/requirements.txt"):
+        lines = [l for l in (root / rel).read_text().splitlines() if l.strip().startswith("numpy")]
+        assert lines and all("<2.4" in l for l in lines), rel

@@ -165,10 +165,18 @@ jobs:
       - name: Cleanup sensitive files
         if: always()
         run: |
-          # Remove service account files
+          # Remove ONLY files this job created. A committed plaintext credential at
+          # service_account_file_path (or a tracked *.secret.* file) must survive, otherwise
+          # the 'Commit changes' step below commits its deletion (ieatmyhealth 4af106c,
+          # joyousbyflora 5bf2851).
           rm -f service-account.json
-          rm -f ${{ inputs.service_account_file_path }}
-          rm -f *.secret.*
+          if [ -f "${{ inputs.service_account_file_path }}.gpg" ]; then
+            rm -f "${{ inputs.service_account_file_path }}"
+          fi
+          for f in *.secret.*; do
+            [ -e "$f" ] || continue
+            git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 || rm -f -- "$f"
+          done
           echo "Sensitive files cleaned up"
       
       - name: Fail on critical issues
