@@ -1,0 +1,39 @@
+"""Guard: a fully-dry run of reusable-automoveandpublish-posts.yml must not mutate or commit.
+
+Regression for 2026-10-08: a push-triggered "dry" publish-on-approval run still ran the
+Unsplash/Cloudinary step (no dry_run input), a hardcoded dry_run:false move, and the
+unconditional commit step, pushing bot edits to 29 approved drafts on master.
+"""
+from pathlib import Path
+
+import yaml
+
+WF = Path(__file__).resolve().parents[2] / ".github/workflows/reusable-automoveandpublish-posts.yml"
+
+
+def _steps():
+    wf = yaml.safe_load(WF.read_text())
+    return [s for job in wf["jobs"].values() for s in job.get("steps", [])]
+
+
+def _find(prefix):
+    matches = [s for s in _steps() if str(s.get("name", "")).startswith(prefix)]
+    assert len(matches) == 1, prefix
+    return matches[0]
+
+
+def test_unsplash_step_skipped_when_dry():
+    assert "featuredimagefinder_dryrun" in _find("(4) Unsplash").get("if", "")
+
+
+def test_commit_step_skipped_when_all_dry():
+    cond = _find("(9) Commit").get("if", "")
+    for name in ("featuredimagefinder", "autoschedule", "pretifier", "manualpublication"):
+        assert f"inputs.{name}_dryrun" in cond
+
+
+def test_no_hardcoded_false_dry_run_on_moves():
+    for s in _steps():
+        w = s.get("with") or {}
+        if "function_to_run" in w:
+            assert str(w.get("dry_run")).strip().lower() != "false", s.get("name")
