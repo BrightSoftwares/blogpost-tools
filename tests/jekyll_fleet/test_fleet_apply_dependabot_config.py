@@ -36,6 +36,24 @@ def test_template_security_updates_are_grouped_and_weekly():
     assert bundler["groups"]["bundler-security"]["applies-to"] == "security-updates"
 
 
+def test_bundler_block_ignores_wikilinks_gem_and_jekyll_majors():
+    bundler = yaml.safe_load(TEMPLATE)["updates"][0]
+    assert bundler["package-ecosystem"] == "bundler"
+    ignore = {i["dependency-name"]: i.get("update-types") for i in bundler["ignore"]}
+    # no update-types == ignore all versions
+    assert ignore == {"jekyll-obsidian-wikilinks": None, "jekyll": ["version-update:semver-major"]}
+    # the other ecosystems must not inherit the bundler-specific ignores
+    for upd in yaml.safe_load(TEMPLATE)["updates"][1:]:
+        assert "ignore" not in upd
+
+
+def test_rendered_config_keeps_ignore_only_for_bundler():
+    doc = yaml.safe_load(apply_mod.render_config(TEMPLATE, ["bundler", "github-actions", "pip"]))
+    assert [bool(u.get("ignore")) for u in doc["updates"]] == [True, False, False]
+    doc = yaml.safe_load(apply_mod.render_config(TEMPLATE, ["github-actions"]))
+    assert "ignore" not in doc["updates"][0]
+
+
 def test_detect_ecosystems():
     gh, _ = make_gh(base_routes(root=("Gemfile", "Pipfile.lock")))
     assert apply_mod.detect_ecosystems(gh, REPO, "main") == (

@@ -16,6 +16,13 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    # Bumps of these are NOT Dependabot's job (it mis-sorts tag-prefixed versions and proposed
+    # downgrades of the shared wikilinks gem; jekyll majors need a real fleet build check).
+    # They go through the fleet aligner. Stale PRs are swept by fleet_close_superseded_dependabot.py.
+    ignore:
+      - dependency-name: "jekyll-obsidian-wikilinks"
+      - dependency-name: "jekyll"
+        update-types: ["version-update:semver-major"]
     groups:
       bundler-security:
         applies-to: security-updates

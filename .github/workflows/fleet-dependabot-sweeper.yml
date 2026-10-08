@@ -1,0 +1,78 @@
+name: fleet-dependabot-sweeper
+
+# Weekly (Tuesday, the day after Dependabot's Monday run) close of Dependabot PRs that are
+# wrong-direction, obsolete, out of scope or already satisfied by the default branch, across
+# the Jekyll fleet (scripts/jekyll_fleet/fleet_repos.txt). Closing is reversible (reopen the
+# PR); branches are never deleted. Owner-approved to run unattended with --apply (2026-10-08).
+# Rules and the dry-run view: scripts/jekyll_fleet/fleet_close_superseded_dependabot.py
+on:
+  schedule:
+    - cron: '0 6 * * 2'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only report what would be closed (no PR is closed)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fleet-dependabot-sweeper
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Cross-repo token (same secret as jekyll-version-drift-check.yml): needs pull-requests
+      # write on every fleet repo; GITHUB_TOKEN cannot reach other repositories.
+      GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Close superseded Dependabot PRs
+        id: close
+        run: |
+          set -o pipefail
+          flag="--apply"
+          if [ "$DRY_RUN" = "true" ]; then flag=""; fi
+          python3 scripts/jekyll_fleet/fleet_close_superseded_dependabot.py $flag --output sweeper-report.md
+
+      - name: Fleet Dependabot report
+        if: ${{ !cancelled() }}
+        run: |
+          python3 scripts/jekyll_fleet/fleet_dependabot_report.py \
+            --repos scripts/jekyll_fleet/fleet_repos.txt --output dependabot-report.md
+
+      - name: Publish job summary
+        if: ${{ !cancelled() }}
+        run: |
+          mode="applied"
+          if [ "$DRY_RUN" = "true" ]; then mode="dry-run"; fi
+          {
+            echo "## Superseded Dependabot PRs ($mode)"
+            echo '```'
+            cat sweeper-report.md 2>/dev/null || echo "(no sweeper report)"
+            echo '```'
+            echo
+            echo "## Fleet Dependabot report"
+            cat dependabot-report.md 2>/dev/null || echo "(no fleet report)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: fleet-dependabot-sweeper
+          path: |
+            sweeper-report.md
+            dependabot-report.md
+          if-no-files-found: ignore
+          retention-days: 30
