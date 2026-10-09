@@ -221,7 +221,7 @@ jobs:
         with:
           src_path: ${{ inputs.rssconverter_dstpath }} # /github/workspace/_drafts/200_rss_inspired_posts/
           dst_path: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/300_generated_raw_content/
-          dry_run: false
+          dry_run: ${{ inputs.featuredimagefinder_dryrun }}
           function_to_run: move_refinedcontent_to_destination
 
       ## (3) Clean up the post proposals
@@ -230,6 +230,10 @@ jobs:
       ## (4) Add seo and visual resources
       # unsplash-to-cloudinary: from refined content -> featured image generated
       - name: (4) Unsplash to Cloudinary - Beautify folder
+        # The action has no dry_run input: it writes image: into the drafts and uploads to
+        # Cloudinary, so a dry run must skip the step entirely (2026-10-08: a push-triggered
+        # "dry" run committed image: + pretified: true into 29 approved drafts on master).
+        if: ${{ !inputs.featuredimagefinder_dryrun }}
         uses: BrightSoftwares/blogpost-tools/unsplash-to-cloudinary@main
         with:
           src_folder: ${{ inputs.featuredimagefinder_srcpath }} # /github/workspace/_drafts/400_refined_content/
@@ -332,6 +336,8 @@ jobs:
           require_approval: ${{ inputs.manualpublication_requireapproval }}
           
       - name: (9) Commit changes if there is any
+        # When every stage is a dry run nothing may be committed or pushed.
+        if: ${{ !(inputs.featuredimagefinder_dryrun && inputs.autoschedule_dryrun && inputs.pretifier_dryrun && inputs.manualpublication_dryrun) }}
         run: |
           # date > generated.txt
           CHANGES_EXIST="$(git status --porcelain | wc -l)"

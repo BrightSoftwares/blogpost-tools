@@ -5,7 +5,7 @@
 scikit-learn
 pandas
 google-api-python-client
-numpy
+numpy<2.4  # runner CPU lacks X86_V2
 requests
 beautifulsoup4
 requests-html

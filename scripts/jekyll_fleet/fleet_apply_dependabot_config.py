@@ -17,7 +17,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from fleet_common import GitHub, default_branch, parse_repo_list  # noqa: E402
+from fleet_common import PIP_SCOPE_DIRS, GitHub, default_branch, parse_repo_list  # noqa: E402
 
 WORK_BRANCH = "claude/automated-work"
 CONFIG_PATH = ".github/dependabot.yml"
@@ -52,7 +52,8 @@ def _pip_dirs(paths):
         name = path.rsplit("/", 1)[-1]
         if name in PIP_MANIFESTS:
             dirs.add("/" + path.rsplit("/", 1)[0] if "/" in path else "/")
-    return sorted(dirs)
+    # tooling directories (build/, migration/, scripts/...) are not part of the Jekyll build
+    return sorted(d for d in dirs if d in PIP_SCOPE_DIRS)
 
 
 def detect_ecosystems(gh: GitHub, repo: str, branch: str, extra_pip_dirs=()):

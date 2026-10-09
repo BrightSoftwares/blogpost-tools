@@ -10,6 +10,8 @@ on:
       - 'tests/jekyll_fleet/**'
       - '.github/workflows/*jekyll-dependency-audit*.yml'
       - '.github/workflows/jekyll-fleet-tests.yml'
+      - '.github/workflows/fleet-dependabot-sweeper.yml'
+      - '.github/workflows/jekyll-version-drift-check.yml'
   push:
     branches: ['**']
     paths:
@@ -17,6 +19,8 @@ on:
       - 'tests/jekyll_fleet/**'
       - '.github/workflows/*jekyll-dependency-audit*.yml'
       - '.github/workflows/jekyll-fleet-tests.yml'
+      - '.github/workflows/fleet-dependabot-sweeper.yml'
+      - '.github/workflows/jekyll-version-drift-check.yml'
   workflow_dispatch:
 
 permissions:

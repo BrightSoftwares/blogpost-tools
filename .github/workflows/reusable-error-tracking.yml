@@ -1,0 +1,232 @@
+name: Error Tracking (Reusable)
+# Reusable workflow: create/update GitHub issues on workflow failure,
+# close them automatically when the workflow recovers.
+#
+# Usage (in a calling workflow's job-level `uses:`):
+#
+#   track-errors:
+#     needs: my-main-job
+#     if: always()
+#     uses: BrightSoftwares/blogpost-tools/.github/workflows/reusable-error-tracking.yml@main
+#     with:
+#       workflow_name: my-workflow          # kebab-case, used for label names
+#       step_name:     main_step            # snake_case step id that was tracked
+#       status:        ${{ needs.my-main-job.outputs.outcome }}
+#       error_summary: ${{ needs.my-main-job.outputs.error_summary }}
+#       log_tail:      ${{ needs.my-main-job.outputs.log_tail }}
+#       run_url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#       run_number:    ${{ github.run_number }}
+#     permissions:
+#       issues: write   # must be granted at calling workflow level
+#
+# Label scheme:
+#   ci-error-tracking              – parent label on all auto-opened issues
+#   workflow/{workflow_name}       – per-workflow label
+#   workflow/{workflow_name}/{step_name} – per-step label (used for dedup)
+#
+# Runner: `vars.RUNNER_LABEL` of the CALLING repo, defaulting to self-hosted
+#         (was validated in my-obsidian; set RUNNER_LABEL=ubuntu-latest to use hosted runners).
+#
+# Migrated from sergioafanou/my-obsidian .github/workflows/reusable-error-tracking.yml
+# (task e7rk9m2x-sp32-14). The file is generic: it only uses `context.repo`.
+
+on:
+  workflow_call:
+    inputs:
+      workflow_name:
+        description: 'Calling workflow name (kebab-case, used for label names)'
+        type: string
+        required: true
+      step_name:
+        description: 'The step/script id that was tracked (snake_case)'
+        type: string
+        required: false
+        default: 'main'
+      status:
+        description: 'Step outcome: "failure" triggers issue creation; anything else closes resolved issues'
+        type: string
+        required: true
+      error_summary:
+        description: 'Human-readable error summary (may be multiline Markdown)'
+        type: string
+        required: false
+        default: 'No error summary provided.'
+      log_tail:
+        description: 'Last ~100 lines of the step log (max 8 000 chars)'
+        type: string
+        required: false
+        default: ''
+      run_url:
+        description: 'Full URL to this workflow run'
+        type: string
+        required: true
+      run_number:
+        description: 'Workflow run number (pass github.run_number from the caller)'
+        type: string
+        required: true
+
+jobs:
+  manage-issues:
+    runs-on: "${{ vars.RUNNER_LABEL || 'self-hosted' }}"
+    permissions:
+      issues: write
+
+    steps:
+      # ── Failure path: create a new issue or add a recurrence comment ────────
+      - name: Create or update issue on failure
+        if: inputs.status == 'failure'
+        uses: actions/github-script@v7
+        env:
+          ERROR_SUMMARY: ${{ inputs.error_summary }}
+          LOG_TAIL: ${{ inputs.log_tail }}
+        with:
+          script: |
+            const workflowName = '${{ inputs.workflow_name }}';
+            const stepName     = '${{ inputs.step_name }}';
+            const runUrl       = '${{ inputs.run_url }}';
+            const runNumber    = '${{ inputs.run_number }}';
+
+            // Use process.env for multiline/special-char content (injection-safe)
+            const errorSummary = process.env.ERROR_SUMMARY || 'No error summary provided.';
+            const logTail      = process.env.LOG_TAIL      || '';
+
+            // ── Label names ───────────────────────────────────────────────────
+            const labelParent   = 'ci-error-tracking';
+            const labelWorkflow = `workflow/${workflowName}`;
+            const labelStep     = `workflow/${workflowName}/${stepName}`;
+
+            // ── Ensure labels exist ───────────────────────────────────────────
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner, repo: context.repo.repo, name
+                });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    name, color, description
+                  });
+                  core.info(`Created label: ${name}`);
+                }
+              }
+            }
+
+            await ensureLabel(labelParent,   'e11d48', 'CI workflow error tracking');
+            await ensureLabel(labelWorkflow, 'f97316', `Errors in ${workflowName} workflow`);
+            await ensureLabel(labelStep,     'fb923c', `${workflowName} – ${stepName} failures`);
+
+            // ── Find existing open issue (dedup by step label) ────────────────
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state:   'open',
+              labels:  labelStep,
+              per_page: 5,
+            });
+
+            // ── Build log section (omit entirely if empty) ────────────────────
+            const logSection = logTail.trim()
+              ? `\n### Log Output (last ~100 lines)\n\`\`\`\n${logTail}\n\`\`\``
+              : '';
+
+            if (openIssues.length > 0) {
+              // ── Existing issue: add a recurrence comment ───────────────────
+              const body = [
+                `### Recurrence — Run #${runNumber}`,
+                '',
+                '**Error Summary:**',
+                errorSummary,
+                '',
+                `**Workflow run:** ${runUrl}`,
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: openIssues[0].number,
+                body,
+              });
+              core.info(`Commented on existing issue #${openIssues[0].number} for ${labelStep}`);
+
+            } else {
+              // ── No open issue: create one ──────────────────────────────────
+              const issueBody = [
+                `## \`${workflowName}\` workflow failure — \`${stepName}\``,
+                '',
+                'This step failed in a scheduled (or dispatched) run.',
+                'Other steps that succeeded have already been committed.',
+                '',
+                '### Error Summary',
+                errorSummary,
+                logSection,
+                '',
+                `### First Occurrence — Run #${runNumber}`,
+                `**Workflow run:** ${runUrl}`,
+                '',
+                '### Next Steps',
+                '1. Click the workflow run link above to see full details',
+                '2. Download the logs artifact for the full trace (if uploaded)',
+                '3. Fix the root cause in the vault or scripts',
+                '4. This issue will be **closed automatically** on the next successful run',
+                '',
+                '---',
+                '*Opened automatically by the CI error tracking workflow*',
+              ].join('\n');
+
+              const { data: issue } = await github.rest.issues.create({
+                owner:  context.repo.owner,
+                repo:   context.repo.repo,
+                title:  `⚠️ ${workflowName} — ${stepName} failure`,
+                labels: [labelParent, labelWorkflow, labelStep],
+                body:   issueBody,
+              });
+              core.info(`Created issue #${issue.number} for ${labelStep}`);
+            }
+
+      # ── Success path: close any open issue for this step ────────────────────
+      - name: Close resolved issue on success
+        if: inputs.status != 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowName = '${{ inputs.workflow_name }}';
+            const stepName     = '${{ inputs.step_name }}';
+            const runUrl       = '${{ inputs.run_url }}';
+            const runNumber    = '${{ inputs.run_number }}';
+            const labelStep    = `workflow/${workflowName}/${stepName}`;
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state:   'open',
+              labels:  labelStep,
+              per_page: 10,
+            });
+
+            if (openIssues.length === 0) {
+              core.info(`No open issues for ${labelStep} — nothing to close`);
+              return;
+            }
+
+            for (const issue of openIssues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  `✅ **Resolved in run #${runNumber}**`,
+                  '',
+                  `The \`${stepName}\` step in \`${workflowName}\` completed successfully.`,
+                  `**Workflow run:** ${runUrl}`,
+                ].join('\n'),
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: issue.number,
+                state:        'closed',
+                state_reason: 'completed',
+              });
+              core.info(`Closed issue #${issue.number} — ${labelStep} resolved`);
+            }

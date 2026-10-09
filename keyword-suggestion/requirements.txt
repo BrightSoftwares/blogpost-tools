@@ -1,4 +1,4 @@
 pandas==1.3.5
 requests
 scikit-learn
-numpy
+numpy<2.4  # runner CPU lacks X86_V2
