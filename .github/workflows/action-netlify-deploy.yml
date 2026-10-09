@@ -62,3 +62,5 @@ jobs:
         run: |
           IMAGE="$(echo '${{ steps.metaapi.outputs.tags }}' | head -n1)"
           docker run --rm --entrypoint sh "$IMAGE" -c 'node --version && netlify --version'
+          # Regression guard (2026-10-08): the deploy must not trigger a framework build.
+          docker run --rm --entrypoint sh "$IMAGE" -c 'netlify deploy --help | grep -q -- "--no-build" && grep -q "netlify deploy --no-build" /entrypoint.sh'
