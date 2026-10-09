@@ -39,7 +39,10 @@ fi
 export NETLIFY_SITE_ID="${NETLIFY_SITE_ID}"
 export NETLIFY_AUTH_TOKEN="${NETLIFY_AUTH_TOKEN}"
 
-COMMAND="netlify deploy --dir=${BUILD_DIRECTORY} --functions=${FUNCTIONS_DIRECTORY} --message=\"${NETLIFY_DEPLOY_MESSAGE}\""
+# --no-build: the site is already built (BUILD_COMMAND above / the Jekyll action).
+# Recent netlify-cli (27.11.0 confirmed) otherwise runs a framework build inside `netlify deploy`, which for
+# Jekyll repos means `bundle exec jekyll build` in an image without Ruby (2026-10-08 incident).
+COMMAND="netlify deploy --no-build --dir=${BUILD_DIRECTORY} --functions=${FUNCTIONS_DIRECTORY} --message=\"${NETLIFY_DEPLOY_MESSAGE}\""
 
 if [[ "${NETLIFY_DEPLOY_TO_PROD}" == "true" ]]
 then

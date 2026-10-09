@@ -269,7 +269,11 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.netlify_auth_token }}
           NETLIFY_SITE_ID: ${{ secrets.netlify_site_id }}
           NETLIFY_DEPLOY_MESSAGE: "Deploy from ${{ github.ref_name }} @ ${{ github.sha }}"
-          NETLIFY_DEPLOY_TO_PROD: true
+          # Production only for non-PR events on the caller's default branch. Before
+          # 2026-10-09 this was hard-coded `true`, so every pull_request run (including
+          # unmerged PR merge refs) was published to the production site. PR runs now
+          # create a draft deploy (no --prod) instead.
+          NETLIFY_DEPLOY_TO_PROD: ${{ !startsWith(github.event_name, 'pull_request') && github.ref_name == github.event.repository.default_branch }}
           BUILD_COMMAND: "echo Skipping build - already built by Jekyll action"
           INSTALL_COMMAND: "echo Skipping install - dependencies handled by Jekyll action"
 
