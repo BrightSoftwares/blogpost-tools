@@ -53,3 +53,21 @@ jobs:
           grep -q "push: .*github.ref == 'refs/heads/main'" .github/workflows/action-netlify-deploy.yml
           if grep -qE 'FROM node:current-stretch' action-netlify-deploy/Dockerfile.netlify; then exit 1; fi
           grep -qE '^ARG NETLIFY_CLI_VERSION=[0-9]+\.[0-9]+\.[0-9]+$' action-netlify-deploy/Dockerfile.netlify
+
+      - name: Netlify deploy cannot rebuild the site or publish PRs to production
+        # Guards the 2026-10-08 incident (netlify-cli 27 rebuilt Jekyll sites inside the
+        # deploy container: "bundle: command not found") and the PR-to-prod finding.
+        run: |
+          set -e
+          grep -qE '^FROM [^ ]+@sha256:[0-9a-f]{64}' action-netlify-deploy/Dockerfile \
+            || { echo "::error file=action-netlify-deploy/Dockerfile::action base image must be pinned by digest"; exit 1; }
+          grep -q 'netlify deploy --no-build' action-netlify-deploy/entrypoint.sh \
+            || { echo "::error file=action-netlify-deploy/entrypoint.sh::netlify deploy must pass --no-build"; exit 1; }
+          f=.github/workflows/reusable_jekyll_build_and_deploy.yml
+          if grep -qE '^\s*NETLIFY_DEPLOY_TO_PROD:\s*true\s*$' "$f"; then
+            echo "::error file=$f::NETLIFY_DEPLOY_TO_PROD must not be hard-coded true (PR runs would publish to production)"; exit 1
+          fi
+          grep -qE "NETLIFY_DEPLOY_TO_PROD: .*startsWith\(github.event_name, 'pull_request'\)" "$f" \
+            || { echo "::error file=$f::NETLIFY_DEPLOY_TO_PROD must exclude pull_request events"; exit 1; }
+          # actionlint binary was downloaded by the first step of this job
+          ./actionlint -color -shellcheck= "$f"
