@@ -261,7 +261,7 @@ jobs:
 
       - name: Deploy to Netlify
         if: ${{ inputs.deploy_to_netlify }}
-        uses: BrightSoftwares/blogpost-tools/action-netlify-deploy@main
+        uses: BrightSoftwares/blogpost-tools/action-netlify-deploy@claude/incident-netlify-verify
         with:
           BUILD_DIRECTORY: ${{ inputs.build_dir }}
           FUNCTIONS_DIRECTORY: ${{ inputs.netlify_functions_dir }}
