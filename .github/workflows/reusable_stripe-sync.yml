@@ -1,0 +1,82 @@
+name: Reusable - Stripe product sync
+
+# Creates Stripe products/prices for every file in _products/ and writes the real price IDs back (replacing price_PLACEHOLDER_*).
+# Runs jekyll-multi-language-tools/stripe_product_sync.py from this repo, so sites keep no copy of the script.
+# Safe by default: dry run, and a LIVE key (sk_live_) is refused unless allow_live is true.
+on:
+  workflow_call:
+    inputs:
+      products_dir:
+        description: 'Products directory in the calling repo'
+        required: false
+        type: string
+        default: '_products'
+      dry_run:
+        description: 'Show what would be done, change nothing'
+        required: false
+        type: boolean
+        default: true
+      allow_live:
+        description: 'Allow an sk_live_ key (real money). Default false.'
+        required: false
+        type: boolean
+        default: false
+      runs_on:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+    secrets:
+      STRIPE_SECRET_KEY:
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout site
+        uses: actions/checkout@v4
+      - name: Checkout sync tool
+        uses: actions/checkout@v4
+        with:
+          repository: BrightSoftwares/blogpost-tools
+          path: .bpt-tools
+          sparse-checkout: jekyll-multi-language-tools
+      - name: Refuse a live key unless allowed
+        env:
+          KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          ALLOW_LIVE: ${{ inputs.allow_live }}
+        run: |
+          case "$KEY" in
+            sk_test_*) echo "Key mode: TEST" >> "$GITHUB_STEP_SUMMARY" ;;
+            sk_live_*) if [ "$ALLOW_LIVE" != "true" ]; then echo "::error::Live Stripe key refused (allow_live is false)."; exit 1; fi
+                       echo "Key mode: LIVE (allowed)" >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "::error::STRIPE_SECRET_KEY is missing or not a Stripe secret key."; exit 1 ;;
+          esac
+      - name: Install Stripe client
+        run: python3 -m pip install --quiet stripe
+      - name: Sync products
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          DRY: ${{ inputs.dry_run }}
+          DIR: ${{ inputs.products_dir }}
+        run: |
+          args=(--products-dir "$DIR" --stripe-key "$STRIPE_SECRET_KEY")
+          if [ "$DRY" = "true" ]; then args+=(--dry-run); fi
+          python3 .bpt-tools/jekyll-multi-language-tools/stripe_product_sync.py "${args[@]}" | tee sync.log
+          { echo "### Stripe sync"; echo "dry_run: $DRY"; echo '```'; tail -40 sync.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit the real price IDs
+        if: ${{ !inputs.dry_run }}
+        env:
+          DIR: ${{ inputs.products_dir }}
+        run: |
+          if git diff --quiet -- "$DIR"; then echo "No product file changed."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$DIR"
+          git commit -m "feat(shop): real Stripe price IDs from reusable stripe sync"
+          git push
