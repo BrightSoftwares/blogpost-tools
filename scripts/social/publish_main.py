@@ -49,17 +49,6 @@ def main() -> None:
     fb_token = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN", "")
     fb_page = os.environ.get("FACEBOOK_PAGE_ID", "")
 
-    if not args.dry_run:
-        missing = [k for k, v in {
-            "LINKEDIN_ACCESS_TOKEN": li_token,
-            "LINKEDIN_ORG_URN": li_urn,
-            "FACEBOOK_PAGE_ACCESS_TOKEN": fb_token,
-            "FACEBOOK_PAGE_ID": fb_page,
-        }.items() if not v]
-        if missing:
-            logger.error("Missing required env vars: %s", ", ".join(missing))
-            sys.exit(1)
-
     approved = sorted(drafts_dir.glob("*.yml")) if drafts_dir.exists() else []
     approved = [p for p in approved if load_yaml(p).get("status") == "approved"]
 
@@ -67,6 +56,17 @@ def main() -> None:
         logger.info("No approved drafts found. Exiting.")
         _set_output("published_count", "0")
         return
+
+    if not args.dry_run:
+        # Facebook credentials are only required when an approved draft actually has a facebook block.
+        needs_fb = any(load_yaml(p).get("facebook") for p in approved)
+        required = {"LINKEDIN_ACCESS_TOKEN": li_token, "LINKEDIN_ORG_URN": li_urn}
+        if needs_fb:
+            required.update({"FACEBOOK_PAGE_ACCESS_TOKEN": fb_token, "FACEBOOK_PAGE_ID": fb_page})
+        missing = [k for k, v in required.items() if not v]
+        if missing:
+            logger.error("Missing required env vars: %s", ", ".join(missing))
+            sys.exit(1)
 
     schedule = load_yaml(schedule_path)
     if not isinstance(schedule, list):
@@ -94,18 +94,23 @@ def main() -> None:
             errors.append(f"{slug}: LinkedIn: {exc}")
             continue
 
-        try:
-            fb_post_id = publish_to_facebook(
-                page_access_token=fb_token,
-                page_id=fb_page,
-                text=draft["facebook"]["text"],
-                image_url=draft["facebook"]["image_url"],
-                dry_run=args.dry_run,
-            )
-        except Exception as exc:
-            logger.error("Facebook publish failed for %s: %s", slug, exc)
-            errors.append(f"{slug}: Facebook: {exc}")
-            continue
+        fb_post_id = None
+        if draft.get("facebook"):
+            try:
+                fb_post_id = publish_to_facebook(
+                    page_access_token=fb_token,
+                    page_id=fb_page,
+                    text=draft["facebook"]["text"],
+                    image_url=draft["facebook"]["image_url"],
+                    dry_run=args.dry_run,
+                )
+            except Exception as exc:
+                # LinkedIn is already live: never skip the bookkeeping below, or the next run
+                # would publish the same post to LinkedIn a second time.
+                logger.error("Facebook publish failed for %s: %s", slug, exc)
+                errors.append(f"{slug}: Facebook: {exc}")
+        else:
+            logger.info("No facebook block in %s — LinkedIn only", slug)
 
         today = date.today().isoformat()
         draft["status"] = "published"
