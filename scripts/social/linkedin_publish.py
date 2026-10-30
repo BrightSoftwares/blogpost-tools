@@ -7,6 +7,7 @@ Supports two post types:
 
 from __future__ import annotations
 
+import os
 import logging
 import time
 import urllib.parse
@@ -17,7 +18,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 _LI_BASE = "https://api.linkedin.com/rest"
-_LI_VERSION = "202404"
+_LI_VERSION = os.environ.get("LINKEDIN_API_VERSION", "202601")  # LinkedIn sunsets versions after ~12 months (202404 returned 426)
 
 _DOCUMENT_POLL_INTERVAL_S = 2
 _DOCUMENT_POLL_MAX_S = 60
