@@ -214,3 +214,9 @@ class TestPermalinkTemplateAndHook:
         from compose_post import _derive_excerpt
         cfg = {"defaults": {"excerpt_source": "description"}}
         assert _derive_excerpt(self._post(description="A  clear\nhook."), cfg) == "A clear hook."
+
+
+def test_hyphenated_tags_become_camelcase_hashtags():
+    from compose_post import _hashtags
+    post = {"frontmatter": {"tags": ["python", "google-workspace", "privacy_policy", "#SaaS", "machine learning"]}}
+    assert _hashtags(post) == ["python", "GoogleWorkspace", "PrivacyPolicy", "saas", "machinelearning"]
