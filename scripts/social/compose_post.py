@@ -21,7 +21,7 @@ _MARKDOWN_STRIP = re.compile(r"[*_`#\[\]>]")
 _MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 # Paragraphs that are layout, not prose (Liquid tags, raw HTML, tables, kramdown IALs, hr).
-_NON_PROSE_PREFIXES = ("{%", "{{", "{:", "<", "|", "---")
+_NON_PROSE_PREFIXES = ("{%", "{{", "{:", "<", "|", "---", ">", "**📝", "**📚")
 
 # UTM convention: 958.010.STANDARD.all.reference.revenue-engine-demand-side.md §7.4
 # utm_source=<site/platform> · utm_medium=<organic|email|listing|community> ·
@@ -35,8 +35,15 @@ def _strip_markdown(text: str) -> str:
     return _MARKDOWN_STRIP.sub("", text).strip()
 
 
-def _derive_excerpt(post: dict) -> str:
-    """Return excerpt from frontmatter or first non-heading paragraph of body."""
+def _derive_excerpt(post: dict, config: dict | None = None) -> str:
+    """Return excerpt from frontmatter or first non-heading paragraph of body.
+
+    ``defaults.excerpt_source`` (e.g. ``description``) names a frontmatter field to prefer
+    over the first body paragraph, for sites whose posts open with a callout or series banner.
+    """
+    source = ((config or {}).get("defaults") or {}).get("excerpt_source")
+    if source and post["frontmatter"].get(source):
+        return " ".join(str(post["frontmatter"][source]).split())
     if post["frontmatter"].get("excerpt"):
         return post["frontmatter"]["excerpt"]
     paragraphs = post["body"].split("\n\n")
@@ -49,6 +56,25 @@ def _derive_excerpt(post: dict) -> str:
         if stripped:
             return stripped
     return ""
+
+
+def site_relative_permalink(post: dict, config: dict) -> str:
+    """Site-relative path of a post: frontmatter ``permalink``, else ``config.permalink_template``
+    (placeholders ``{lang}``, ``{category}``, ``{slug}``, e.g. ``/blog/{lang}/{category}/{slug}``),
+    else ``/<slug>/``. The template lets sites whose Jekyll permalink is not ``/<slug>/`` publish
+    working links without repeating a permalink in every post."""
+    fm = post["frontmatter"]
+    raw = fm.get("permalink")
+    if raw:
+        return raw if raw.startswith("/") else f"/{raw}"
+    template = config.get("permalink_template")
+    if template:
+        cats = fm.get("categories") or fm.get("category") or []
+        if isinstance(cats, str):
+            cats = [cats]
+        path = template.format(lang=fm.get("lang") or "en", category=(cats[0] if cats else ""), slug=post["slug"])
+        return "/" + re.sub(r"/+", "/", path).strip("/")
+    return f"/{post['slug']}/"
 
 
 def _derive_permalink(post: dict, config: dict) -> str:
@@ -68,7 +94,7 @@ def _derive_permalink(post: dict, config: dict) -> str:
         path = raw_permalink if raw_permalink.startswith("/") else f"/{raw_permalink}"
         return f"{site_url}{path}" if site_url else raw_permalink
 
-    return f"{site_url}/{post['slug']}/"
+    return f"{site_url}{site_relative_permalink(post, config)}"
 
 
 def _add_utm_params(url: str, *, utm_source: str, utm_medium: str, utm_campaign: str) -> str:
@@ -132,8 +158,10 @@ def compose_post(
     bv = brand_voice or {}
     fm = post["frontmatter"]
 
+    hook_title = fm.get("title") if (config.get("defaults") or {}).get("hook_source") == "title" else ""
     pain_point = (
         fm.get("pain_point")
+        or hook_title
         or bv.get("default_pain_point")
         or config.get("brand", {}).get("default_pain_point", "")
     )
@@ -143,7 +171,7 @@ def compose_post(
         or config.get("brand", {}).get("default_cta", "")
         or bv.get("tagline", "")
     )
-    excerpt = _derive_excerpt(post)
+    excerpt = _derive_excerpt(post, config)
     permalink = _derive_permalink(post, config)
     utm_campaign = _utm_campaign(post, config)
     # Per-platform CTA links per 958.010 §7.4 — utm_source is the platform the

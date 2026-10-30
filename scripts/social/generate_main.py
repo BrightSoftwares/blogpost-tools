@@ -11,7 +11,7 @@ from pathlib import Path
 
 from yaml_io import load_yaml, save_yaml
 from select_next_post import select_next_post
-from compose_post import compose_post, _derive_excerpt
+from compose_post import compose_post, _derive_excerpt, site_relative_permalink
 from brand_voice_fetcher import fetch_brand_voice, load_brand_voice_from_submodule
 from sam_client import generate_social_card
 from render_calendar import render_calendar
@@ -95,7 +95,7 @@ def main() -> None:
             # only has `description`) — fall back to the same
             # first-paragraph derivation compose_post() uses for post copy,
             # so the card isn't left blank.
-            excerpt=_derive_excerpt(post),
+            excerpt=_derive_excerpt(post, config),
             social_stat=post["frontmatter"].get("social_stat"),
             brand_colors=brand_colors,
             cta=post["frontmatter"].get("cta") or config.get("defaults", {}).get("cta", ""),
@@ -133,7 +133,7 @@ def main() -> None:
     draft_filename = f"{today}-{slug}.yml"
     draft_path = drafts_dir / draft_filename
 
-    permalink = post["frontmatter"].get("permalink", f"/{slug}/")
+    permalink = site_relative_permalink(post, config)
 
     draft = {
         "slug": slug,
