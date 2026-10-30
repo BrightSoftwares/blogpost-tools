@@ -182,3 +182,35 @@ def test_t12_excerpt_skips_image_paragraph_and_unwraps_links() -> None:
     excerpt = _derive_excerpt(post)
     assert excerpt == "T3 instances are burstable by design."
     assert "http" not in excerpt
+
+
+class TestPermalinkTemplateAndHook:
+    """Links must match the real Jekyll URL; hook/excerpt must not be a callout or generic brand line."""
+
+    def _post(self, **fm):
+        return {"slug": "my-post", "frontmatter": fm, "body": "**📝 Note**\n\n> **📚 Series**\n\nReal first paragraph."}
+
+    def test_template_builds_real_url(self):
+        from compose_post import _derive_permalink
+        cfg = {"site_url": "https://example.com/", "permalink_template": "/blog/{lang}/{category}/{slug}"}
+        url = _derive_permalink(self._post(lang="en", categories=["python"]), cfg)
+        assert url == "https://example.com/blog/en/python/my-post"
+
+    def test_template_without_category_has_no_double_slash(self):
+        from compose_post import site_relative_permalink
+        cfg = {"permalink_template": "/blog/{lang}/{category}/{slug}"}
+        assert site_relative_permalink(self._post(), cfg) == "/blog/en/my-post"
+
+    def test_without_template_keeps_old_behaviour(self):
+        from compose_post import _derive_permalink, site_relative_permalink
+        assert _derive_permalink(self._post(), {"site_url": "https://example.com"}) == "https://example.com/my-post/"
+        assert site_relative_permalink(self._post(permalink="/x/"), {"permalink_template": "/blog/{slug}"}) == "/x/"
+
+    def test_callouts_and_quotes_are_not_prose(self):
+        from compose_post import _derive_excerpt
+        assert _derive_excerpt(self._post()) == "Real first paragraph."
+
+    def test_excerpt_source_prefers_description(self):
+        from compose_post import _derive_excerpt
+        cfg = {"defaults": {"excerpt_source": "description"}}
+        assert _derive_excerpt(self._post(description="A  clear\nhook."), cfg) == "A clear hook."
