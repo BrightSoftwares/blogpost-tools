@@ -137,7 +137,17 @@ def _utm_campaign(post: dict, config: dict) -> str:
 def _hashtags(post: dict) -> list[str]:
     """Return hashtags from frontmatter (hashtags or tags fields)."""
     raw = post["frontmatter"].get("hashtags") or post["frontmatter"].get("tags", [])
-    return [str(t).lower().replace(" ", "") for t in raw]
+    out = []
+    for t in raw:
+        t = str(t).strip().lstrip("#")
+        if re.search(r"[-_]", t):
+            # LinkedIn/Facebook hashtags stop at a hyphen: google-workspace -> GoogleWorkspace
+            t = "".join(part[:1].upper() + part[1:].lower() for part in re.split(r"[-_\s]+", t) if part)
+        else:
+            t = t.lower().replace(" ", "")
+        if t:
+            out.append(t)
+    return out
 
 
 def compose_post(
