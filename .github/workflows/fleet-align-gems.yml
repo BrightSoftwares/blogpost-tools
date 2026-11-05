@@ -1,0 +1,78 @@
+name: fleet-align-gems
+
+# Aligns the satellite gems of the Jekyll fleet to scripts/jekyll_fleet/versions.yml in three jobs that never
+# share a process, a directory or a secret: fetch (token, no fleet code), build (NO secrets, runs fleet code),
+# push (token, applies a text-validated patch only). Manual dispatch; dry-run by default (push job validates only).
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Push claude/automated-work and open PRs (default: dry-run)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase fetch --out work
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleet-trees
+          path: work
+          retention-days: 1
+
+  build:
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: fleet-trees
+          path: work
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+      - name: Build (no secrets in this job)
+        run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase build --in work --patches patches
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleet-patches
+          path: patches
+          retention-days: 1
+
+  push:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: fleet-patches
+          path: patches
+      - name: Validate and push patches (no fleet code runs here)
+        run: |
+          flag=""
+          if [ "${{ inputs.apply }}" = "true" ]; then flag="--apply"; fi
+          python3 scripts/jekyll_fleet/fleet_align_gems.py --phase push --patches patches $flag
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}

@@ -12,6 +12,7 @@ on:
       - '.github/workflows/jekyll-fleet-tests.yml'
       - '.github/workflows/fleet-dependabot-sweeper.yml'
       - '.github/workflows/jekyll-version-drift-check.yml'
+      - '.github/workflows/fleet-align-gems.yml'
   push:
     branches: ['**']
     paths:
@@ -21,6 +22,7 @@ on:
       - '.github/workflows/jekyll-fleet-tests.yml'
       - '.github/workflows/fleet-dependabot-sweeper.yml'
       - '.github/workflows/jekyll-version-drift-check.yml'
+      - '.github/workflows/fleet-align-gems.yml'
   workflow_dispatch:
 
 permissions:
