@@ -25,6 +25,15 @@ def test_sweeper_is_weekly_tuesday_on_hosted_runner_with_apply():
     assert wf["permissions"] == {"contents": "read"}
 
 
+def test_sweeper_fails_fast_with_a_clear_message_when_token_secret_is_missing():
+    steps = load("fleet-dependabot-sweeper.yml")["jobs"]["sweep"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    guard = next(i for i, n in enumerate(names) if "token secret" in n)
+    close = next(i for i, n in enumerate(names) if n.startswith("Close superseded"))
+    assert guard < close
+    assert "REPO_ACCESS_TOKEN" in steps[guard]["run"] and "exit 1" in steps[guard]["run"]
+
+
 def test_drift_check_targets_current_jekyll_and_hosted_runner():
     wf = load("jekyll-version-drift-check.yml")
     assert wf["env"]["TARGET_JEKYLL_VERSION"] == "4.3.4"

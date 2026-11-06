@@ -178,9 +178,21 @@ jobs:
         if: always()
         run: rm -rf .venv-social-publish
       - name: Commit results
+        # A dry run never writes files (publish_main.py), so there is nothing to commit; skipping also
+        # guarantees a dry run can never push to the caller's default branch.
+        if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "${{ inputs.published_dir }}" "${{ inputs.schedule_path }}" social-calendar.md || true
-          git diff --staged --quiet || git commit -m "social: publish $(find ${{ inputs.published_dir }} -name '*.yml' 2>/dev/null | wc -l | tr -d ' ') post(s) [skip ci]"
-          git push
+          # git add aborts on a pathspec that does not exist (e.g. no post was published yet): add only existing paths.
+          for p in "${{ inputs.published_dir }}" "${{ inputs.schedule_path }}" social-calendar.md; do
+            [ -e "$p" ] && git add "$p"
+          done
+          if git diff --staged --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "social: publish $(find ${{ inputs.published_dir }} -name '*.yml' 2>/dev/null | wc -l | tr -d ' ') post(s) [skip ci]"
+          # The caller branch may have moved while the job ran (run 41059567129 failed with a non-fast-forward push).
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
