@@ -80,6 +80,14 @@ def main() -> None:
     for draft_path in approved:
         draft = load_yaml(draft_path)
         slug = draft.get("slug", draft_path.stem)
+        if (published_dir / draft_path.name).exists():
+            # Idempotency guard: the same draft already sits in the published folder (an earlier run posted it but
+            # its draft file was never removed from git: 2026-10-30, 2 posts). Posting again would duplicate it on LinkedIn.
+            logger.warning("SKIP %s: %s already exists in %s (already published). Delete the stale draft.",
+                           slug, draft_path.name, published_dir)
+            if not args.dry_run:
+                draft_path.unlink()
+            continue
         logger.info("Publishing: %s", slug)
 
         try:

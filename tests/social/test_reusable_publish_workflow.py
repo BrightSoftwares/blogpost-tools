@@ -19,5 +19,9 @@ def test_commit_step_skipped_in_dry_run():
 def test_commit_step_is_race_and_missing_path_safe():
     run = _commit_step()["run"]
     assert "pull --rebase" in run, "push must rebase first (non-fast-forward failure 2026-10-30)"
-    assert "[ -e" in run, "git add aborts on a missing pathspec such as _social_published/"
+    assert "-e \"$p\"" in run, "git add aborts on a missing pathspec such as _social_published/"
     assert "git diff --staged --quiet" in run
+
+
+def test_commit_step_stages_draft_removals():
+    assert "git add -A" in _commit_step()["run"] and "drafts_dir" in _commit_step()["run"]

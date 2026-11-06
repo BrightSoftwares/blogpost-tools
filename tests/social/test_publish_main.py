@@ -71,3 +71,15 @@ def test_dry_run_changes_nothing(tmp_path, monkeypatch):
     assert not (tmp_path / "_social_published").exists()
     assert (tmp_path / "_data" / "social_schedule.yml").read_text() == before_sched
     assert not (tmp_path / "social-calendar.md").exists()
+
+
+def test_already_published_draft_is_not_posted_again(tmp_path, monkeypatch):
+    """Regression: the workflow never committed the draft deletion, so 2 approved drafts of 2026-10-30
+    sat next to their _social_published copies and every later run would re-post them."""
+    _setup(tmp_path, _draft(False), monkeypatch)
+    (tmp_path / "_social_published").mkdir()
+    (tmp_path / "_social_published" / "d.yml").write_text("slug: s\nstatus: published\n")
+    monkeypatch.setattr(publish_main, "publish_to_linkedin", lambda **k: pytest.fail("must not post twice"))
+    publish_main.main()
+    assert not (tmp_path / "_social_drafts" / "d.yml").exists()
+    assert "published" in (tmp_path / "_social_published" / "d.yml").read_text()
