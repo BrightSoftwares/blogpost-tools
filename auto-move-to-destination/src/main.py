@@ -88,6 +88,10 @@ def move_to_destination(folder_to_scan, destination, condition_func):
     return
   else:
     print("Destination is set. We can process the moves")
+    if not os.path.isdir(folder_to_scan):
+      # An emptied source folder vanishes from git (e.g. after a cleanup commit), so a missing folder means nothing to move.
+      print("Source folder does not exist, nothing to move:", folder_to_scan)
+      return
     entries = [f for f in os.listdir(folder_to_scan) if os.path.isfile(os.path.join(folder_to_scan, f))] # os.listdir(folder_to_scan)
 
     for entry in entries:

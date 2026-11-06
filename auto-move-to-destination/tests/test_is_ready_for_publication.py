@@ -169,3 +169,13 @@ def test_is_approved_true_only_for_exact_string_approved(tmp_path):
     assert module.is_approved(_make_post(module, publish_status="approved")) is True
     assert module.is_approved(_make_post(module, publish_status="Approved")) is False
     assert module.is_approved(_make_post(module, publish_status="approved ")) is False
+
+
+def test_missing_source_folder_is_a_noop_not_a_crash(tmp_path):
+    """Regression (publish-on-approval dry run 2026-11-06): corporate-website's
+    en/_drafts/200_rss_inspired_posts/ vanished from git once emptied, and the
+    action died with FileNotFoundError, failing the whole publish pipeline."""
+    module = _load_main_module(tmp_path=tmp_path)
+    dst = tmp_path / "dst"
+    module.move_to_destination(str(tmp_path / "does-not-exist"), str(dst), lambda post: True)
+    assert list(dst.iterdir()) == []
