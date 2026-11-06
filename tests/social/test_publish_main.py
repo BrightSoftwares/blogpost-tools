@@ -55,3 +55,19 @@ def test_facebook_failure_does_not_leave_draft_to_be_reposted(tmp_path, monkeypa
     assert not (tmp_path / "_social_drafts" / "d.yml").exists(), "draft must be closed out once LinkedIn is live"
     done = yaml.safe_load((tmp_path / "_social_published" / "d.yml").read_text())
     assert done["linkedin_post_id"] == "urn:li:1" and done["facebook_post_id"] is None
+
+
+def test_dry_run_changes_nothing(tmp_path, monkeypatch):
+    """Regression: a dry run used to move the draft, flip it to published and edit the schedule,
+    and the workflow then pushed that to master without any post having been sent."""
+    _setup(tmp_path, _draft(False), monkeypatch)
+    monkeypatch.setattr(sys, "argv", ["publish_main", "--dry-run"])
+    seen = {}
+    monkeypatch.setattr(publish_main, "publish_to_linkedin", lambda **k: seen.update(k) or "dry-run-id")
+    before_sched = (tmp_path / "_data" / "social_schedule.yml").read_text()
+    publish_main.main()
+    assert seen["dry_run"] is True
+    assert (tmp_path / "_social_drafts" / "d.yml").exists()
+    assert not (tmp_path / "_social_published").exists()
+    assert (tmp_path / "_data" / "social_schedule.yml").read_text() == before_sched
+    assert not (tmp_path / "social-calendar.md").exists()

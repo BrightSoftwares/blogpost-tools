@@ -72,7 +72,8 @@ def main() -> None:
     if not isinstance(schedule, list):
         schedule = []
 
-    published_dir.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run:
+        published_dir.mkdir(parents=True, exist_ok=True)
     published_slugs = []
     errors = []
 
@@ -112,6 +113,12 @@ def main() -> None:
         else:
             logger.info("No facebook block in %s — LinkedIn only", slug)
 
+        if args.dry_run:
+            # A dry run must not change anything: no status flip, no file move, no schedule edit.
+            logger.info("DRY RUN: would mark %s published and move it to %s", slug, published_dir)
+            published_slugs.append(slug)
+            continue
+
         today = date.today().isoformat()
         draft["status"] = "published"
         draft["linkedin_post_id"] = li_post_id
@@ -135,8 +142,9 @@ def main() -> None:
         published_slugs.append(slug)
         logger.info("Published %s — LinkedIn: %s | Facebook: %s", slug, li_post_id, fb_post_id)
 
-    save_yaml(schedule, schedule_path)
-    render_calendar(schedule, repo_root / "social-calendar.md")
+    if not args.dry_run:
+        save_yaml(schedule, schedule_path)
+        render_calendar(schedule, repo_root / "social-calendar.md")
 
     _set_output("published_count", str(len(published_slugs)))
     _set_output("published_slugs", ",".join(published_slugs))

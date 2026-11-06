@@ -11,7 +11,10 @@ import frontmatter
 logger = logging.getLogger(__name__)
 
 _DATE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}-")
-_SCHEDULED_STATUSES = {"draft", "approved", "published"}
+# Only these statuses mean "free to pick again". Any other value (draft, approved, published,
+# or an unknown/hand-typed one such as `dr-test-aft`, 2026-09-02) counts as already scheduled,
+# otherwise an unknown status makes the same post regenerate on every run (PR #98/#109 loop).
+_RETRYABLE_STATUSES = {"", "failed", "error", "skipped"}
 
 
 def _slug_from_path(path: Path) -> str:
@@ -30,7 +33,7 @@ def select_next_post(
     If target_slug is given, return that post regardless of schedule status.
     Otherwise return the oldest eligible post (by mtime then filename) where:
       - frontmatter has ``auto_social: true``
-      - slug not already in schedule with status in (draft, approved, published)
+      - slug not already in schedule with any status other than failed/error/skipped/empty
 
     Returns a dict with keys: slug, blog_path, frontmatter, body.
     Returns None if no eligible post found.
@@ -48,7 +51,7 @@ def select_next_post(
     scheduled_slugs = {
         entry["slug"]
         for entry in schedule
-        if entry.get("status") in _SCHEDULED_STATUSES
+        if (entry.get("status") or "") not in _RETRYABLE_STATUSES
     }
 
     for path in md_files:

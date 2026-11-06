@@ -65,3 +65,13 @@ def test_target_slug_not_found(tmp_path: Path) -> None:
 def test_empty_dir(tmp_path: Path) -> None:
     result = select_next_post(tmp_path, [])
     assert result is None
+
+
+def test_unknown_status_counts_as_scheduled(tmp_path: Path) -> None:
+    """Regression: a hand-typed status (`dr-test-aft`) was not in the dedup set, so the same post was
+    re-generated on every Mon/Thu run and re-opened a PR each time."""
+    _write_post(tmp_path, "2024-01-01-alpha.md", {"title": "Alpha", "auto_social": True})
+    _write_post(tmp_path, "2024-01-02-beta.md", {"title": "Beta", "auto_social": True})
+    assert select_next_post(tmp_path, [{"slug": "alpha", "status": "dr-test-aft"}])["slug"] == "beta"
+    # explicitly retryable statuses are picked again
+    assert select_next_post(tmp_path, [{"slug": "alpha", "status": "failed"}])["slug"] == "alpha"
