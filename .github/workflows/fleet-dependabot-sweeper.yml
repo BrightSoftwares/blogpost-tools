@@ -38,6 +38,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Check the cross-repo token secret exists
+        run: |
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "::error title=Missing secret REPO_ACCESS_TOKEN::Add a fine-grained PAT named REPO_ACCESS_TOKEN (repo or org Actions secret) with Pull requests: read and write on every fleet repo. GITHUB_TOKEN of a run cannot reach other repositories."
+            exit 1
+          fi
+
       - name: Close superseded Dependabot PRs
         id: close
         run: |
