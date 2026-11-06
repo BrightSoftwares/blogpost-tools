@@ -1,0 +1,15 @@
+# Single target matrix for the Jekyll fleet (scripts/jekyll_fleet/fleet_repos.txt).
+# fleet_align_gems.py reads this file; change a version HERE, never per repo.
+# Format is deliberately flat (two levels) so the aligner needs no YAML dependency.
+# Chosen 2026-11-05 from the default-branch lockfiles of the 9 sites (majority/highest in use).
+# GIT/PATH sources a lock may already contain (anything else refuses the repo). Comma separated.
+allow_sources: "https://github.com/BrightSoftwares/blogpost-tools.git"
+gems:
+  jekyll: "4.3.4"
+  jekyll-feed: "0.16.0"
+  jekyll-seo-tag: "2.7.1"
+  jekyll-timeago: "1.1.0"
+  i18n: "1.14.7"
+  ffi: "1.17.4"
+  rexml: "3.4.4"
+  webrick: "1.9.2"
