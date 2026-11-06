@@ -184,9 +184,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage the removal of published drafts too: without this the draft files stayed in git as `approved`
+          # and the next run posted them to LinkedIn a second time (2026-10-30, 2 posts).
+          if [ -d "${{ inputs.drafts_dir }}" ]; then git add -A "${{ inputs.drafts_dir }}"; fi
           # git add aborts on a pathspec that does not exist (e.g. no post was published yet): add only existing paths.
           for p in "${{ inputs.published_dir }}" "${{ inputs.schedule_path }}" social-calendar.md; do
-            [ -e "$p" ] && git add "$p"
+            if [ -e "$p" ]; then git add "$p"; fi
           done
           if git diff --staged --quiet; then
             echo "Nothing to commit"
