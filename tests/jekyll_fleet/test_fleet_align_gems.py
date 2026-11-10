@@ -359,6 +359,7 @@ def test_names_validated_and_main_rejects_bad_input(tmp_path):
 
 
 FLEET_REPO = "BrightSoftwares/corporate-website"  # first entry of fleet_repos.txt
+OTHER_FLEET_REPO = "BrightSoftwares/modabyflora-corporate"
 
 
 def fleet_patch(**over):
@@ -371,11 +372,11 @@ def fleet_patch(**over):
 def test_main_push_dry_run_end_to_end_and_isolation(tmp_path, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
-    (tmp_path / "ok.json").write_text(json.dumps(fleet_patch()))
+    (tmp_path / al.patch_filename(FLEET_REPO)).write_text(json.dumps(fleet_patch()))
     (tmp_path / "broken.json").write_text("{not json")
-    bad = fleet_patch()
+    bad = fleet_patch(repo=OTHER_FLEET_REPO)
     bad["after_gemfile"] += "system('x')\n"
-    (tmp_path / "bad.json").write_text(json.dumps(bad))
+    (tmp_path / al.patch_filename(OTHER_FLEET_REPO)).write_text(json.dumps(bad))
     # the failing repos no longer hide behind exit 0, and they never stop the good one
     assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
     out = capsys.readouterr().out
@@ -385,7 +386,7 @@ def test_main_push_dry_run_end_to_end_and_isolation(tmp_path, capsys, monkeypatc
 
 def test_main_push_exits_zero_when_every_repo_is_ok(tmp_path, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    (tmp_path / "ok.json").write_text(json.dumps(fleet_patch()))
+    (tmp_path / al.patch_filename(FLEET_REPO)).write_text(json.dumps(fleet_patch()))
     assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 0
     assert "WOULD push" in capsys.readouterr().out
 
@@ -431,7 +432,7 @@ def test_patch_for_a_repo_outside_the_fleet_list_is_rejected():
 
 def test_main_push_rejects_a_patch_for_a_repo_not_in_the_fleet_list(tmp_path, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    (tmp_path / "x.json").write_text(json.dumps(good_patch()))  # repo a/site is not in fleet_repos.txt
+    (tmp_path / "a__site.json").write_text(json.dumps(good_patch()))  # repo a/site is not in fleet_repos.txt
     assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
     out = capsys.readouterr().out
     assert "a/site: FAIL patch rejected" in out and "WOULD push" not in out
@@ -550,3 +551,137 @@ def test_build_reports_invalid_or_unreadable_meta_json(tmp_path, capsys, monkeyp
     assert al.main(["--phase", "build", "--in", str(indir), "--patches", str(tmp_path / "p")]) == 1
     out = capsys.readouterr().out
     assert "nometa: ERROR" in out and "badrepo: ERROR" in out and "badjson: ERROR" in out
+
+
+# ------------------------------------------------------------------ round 3: lock grammar, spec comparison, matrix version
+def with_after_lock(**edits):
+    """good_patch whose after_lock has `old -> new` text edits applied and whose summary is re-derived from the locks."""
+    p = good_patch()
+    for old, new in edits.values():
+        assert old in p["after_lock"], old
+        p["after_lock"] = p["after_lock"].replace(old, new, 1)
+    b, a = al.parse_lock(p["before_lock"]), al.parse_lock(p["after_lock"])
+    p["summary"] = ", ".join(f"{g} {b[g]}->{a.get(g)}" for g in al.plan(b, M)["update"])
+    return p
+
+
+def assert_rejected(p, needle=None):
+    problems = al.patch_problems(p, M, ALLOWED)
+    assert problems, "patch was accepted"
+    if needle:
+        assert any(needle in x for x in problems), problems
+
+
+def test_whitespace_line_hiding_a_second_gem_remote_is_rejected():
+    # Bundler 4.0.18 LockfileParser reads these as ONE Rubygems source with remotes evil + rubygems.org
+    p = with_after_lock(e=("  remote: https://rubygems.org/\n", "  remote: https://rubygems.org/\n \n  CHECKSUMS\n  remote: https://evil.example/\n"))
+    assert_rejected(p, "evil.example")
+
+
+@pytest.mark.parametrize("sep", ["\r", "\x0b", "\x0c", "\x1c", "\x85", "\u2028"])
+def test_separator_characters_python_splits_on_but_ruby_does_not_are_rejected(sep):
+    p = with_after_lock(e=("  remote: https://rubygems.org/\n", f"  remote: https://rubygems.org/{sep}  remote: https://evil.example/\n"))
+    assert_rejected(p)
+
+
+def test_extra_remote_in_any_section_and_trailing_space_are_rejected():
+    assert_rejected(with_after_lock(e=("PLATFORMS\n  ruby", "PLATFORMS\n  remote: https://evil.example/\n  ruby")))
+    assert_rejected(with_after_lock(e=("  remote: https://rubygems.org/\n", "  remote: https://rubygems.org/ \n")))
+    assert_rejected(with_after_lock(e=("\n\nPLATFORMS", "\n \nPLATFORMS")))  # whitespace-only separator line
+    assert al.grammar_problems(LOCK) == []  # the real-shaped fixture is clean
+
+
+def test_invisible_gem_with_letter_version_and_hidden_dependency_is_rejected():
+    # Bundler reads `evilgem (1.0.1a)`; the old parse_lock did not, and GEM blocks were never compared
+    p = with_after_lock(a=("    jekyll (4.3.4)\n", "    jekyll (4.3.4)\n      evilgem (>= 0)\n"),
+                        b=("    rexml (3.4.5)\n", "    evilgem (1.0.1a)\n    rexml (3.4.5)\n"))
+    assert_rejected(p)
+    assert al.parse_lock("GEM\n  specs:\n    evilgem (1.0.1a)\n") == {"evilgem": "1.0.1a"}
+    assert any("outside the matrix" in x for x in al.lock_problems(good_patch()["before_lock"], p["after_lock"], M)[0])
+
+
+def test_unchanged_gem_dependency_lines_must_be_identical():
+    p = with_after_lock(a=("    jekyll-obsidian-wikilinks (2.1.1)\n", "    jekyll-obsidian-wikilinks (2.1.1)\n      rexml (>= 0)\n"))
+    assert_rejected(p, "outside the matrix gems")
+
+
+def test_updated_gem_must_land_on_the_matrix_version_even_if_summary_matches():
+    p = with_after_lock(v=("    ffi (1.17.4)", "    ffi (1.99.0)"))
+    p["after_gemfile"] = p["after_gemfile"]  # Gemfile still pinned to the matrix version
+    assert_rejected(p, "not on the matrix version")
+
+
+def test_unicode_digit_versions_are_rejected_and_do_not_parse():
+    p = good_patch()
+    p["after_lock"] = p["after_lock"].replace("ffi (1.17.4)", "ffi (1.17.\u0664)")
+    assert_rejected(p)
+    assert al.parse_lock("GEM\n  specs:\n    ffi (1.17.\u0664)\n") == {}
+    assert not al.SUMMARY_RE.fullmatch("ffi 1.16.3->1.17.\u0664")
+
+
+def test_matrix_gem_removed_from_the_lock_is_a_message_not_a_keyerror():
+    p = good_patch()
+    p["after_lock"] = p["after_lock"].replace("    ffi (1.17.4)\n", "")
+    problems = al.patch_problems(p, M, ALLOWED)
+    assert problems and any("ffi" in x for x in problems)
+
+
+def test_real_bundler_lock_shapes_pass_the_grammar():
+    lock = """GEM
+  remote: https://rubygems.org/
+  specs:
+    ffi (1.17.4-x86_64-linux-gnu)
+    jekyll (4.3.4)
+      i18n (>= 1.6, < 2)
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  jekyll (~> 4.3.4)
+  jekyll-obsidian-wikilinks!
+  tzinfo-data
+
+CHECKSUMS
+  ffi (1.17.4-x86_64-linux-gnu) sha256=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+  jekyll-obsidian-wikilinks (2.1.1)
+
+RUBY VERSION
+  ruby 3.3.6
+
+BUNDLED WITH
+  4.0.18
+"""
+    assert al.grammar_problems(lock) == []
+    assert al.grammar_problems(lock.replace("BUNDLED WITH\n  4.0.18", "BUNDLED WITH\n   2.5.0")) == []
+
+
+# ------------------------------------------------------------------ round 3: binding, manifests
+def test_patch_is_bound_to_its_repo_file_name_and_fleet_branch(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    branches = {"brightsoftwares/corporate-website": None, "brightsoftwares/modabyflora-corporate": "stable"}
+    good = fleet_patch()
+    assert al.binding_problem(al.patch_filename(FLEET_REPO), good, branches) is None
+    assert "file name" in al.binding_problem("other__repo.json", good, branches)
+    forged = fleet_patch(repo=OTHER_FLEET_REPO, branch="refs/heads/other")
+    assert "fleet branch" in al.binding_problem(al.patch_filename(OTHER_FLEET_REPO), forged, branches)
+    assert al.binding_problem(al.patch_filename(OTHER_FLEET_REPO), fleet_patch(repo=OTHER_FLEET_REPO, branch="stable"), branches) is None
+    (tmp_path / "wrong-name.json").write_text(json.dumps(good))
+    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
+    assert "file name does not match" in capsys.readouterr().out
+
+
+def test_fetch_and_build_always_write_a_manifest_and_build_skips_it(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    repos = tmp_path / "repos.txt"
+    repos.write_text("a/gone\n")
+    monkeypatch.setattr(al.GitHub, "from_env", classmethod(lambda cls: object()))
+    monkeypatch.setattr(al, "default_branch", lambda gh, repo: None)
+    out = tmp_path / "w"
+    assert al.main(["--phase", "fetch", "--repos", str(repos), "--out", str(out)]) == 1  # every repo failed...
+    assert (out / "MANIFEST.txt").read_text() == "a/gone\n"  # ...yet the artifact is never empty
+    monkeypatch.delenv("GITHUB_TOKEN")
+    capsys.readouterr()
+    assert al.main(["--phase", "build", "--in", str(out), "--patches", str(tmp_path / "p")]) == 0
+    assert (tmp_path / "p" / "MANIFEST.txt").exists() and "meta.json" not in capsys.readouterr().out

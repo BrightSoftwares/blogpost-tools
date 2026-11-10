@@ -41,11 +41,13 @@ from fleet_common import GitHub, default_branch, parse_repo_list  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORK_BRANCH = "claude/automated-work"
 RUBYGEMS = "https://rubygems.org/"
-LOCK_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \((\d+(?:\.\d+)*(?:\.[A-Za-z][\w.]*)?)(?:-[^)]*)?\)$")
+LOCK_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \((\d+(?:\.\d+)*(?:\.[A-Za-z][\w.]*)?)(?:-[^)]*)?\)$", re.ASCII)
+# Spec line as Bundler reads it: 4 spaces, name, parenthesised version (digits, letters, dots; optional -platform).
+SPEC_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \(([0-9][A-Za-z0-9.]*)(-[A-Za-z0-9_.-]+)?\)$", re.ASCII)
 SECRET_ENV = ("GITHUB_TOKEN", "GH_TOKEN", "REPO_ACCESS_TOKEN", "FLEET_COMMIT_TRAILER")
 NAME_OK = re.compile(r"[\w][\w./-]*", re.ASCII)  # no leading '-': a value can never look like a git option
 GEM_NAME = re.compile(r"[\w.-]+", re.ASCII)
-VERSION = re.compile(r"\d+(\.\w+)*")
+VERSION = re.compile(r"\d+(\.\w+)*", re.ASCII)
 URL_CRED = re.compile(r"://[^@/\s]+@")
 PIN_COMMENT = "# Pinned by fleet_align_gems.py (scripts/jekyll_fleet/versions.yml)"
 LOCK_VARIABLE_HEADERS = {"GEM", "DEPENDENCIES", "CHECKSUMS", "BUNDLED WITH"}
@@ -119,7 +121,7 @@ def parse_lock(text: str) -> dict:
             continue
         if in_specs and not line.startswith("    "):
             in_specs = False
-        m = LOCK_LINE.match(line) if in_specs else None
+        m = SPEC_LINE.match(line) if in_specs else None
         if m:
             gems[m.group(1)] = m.group(2)
     return gems
@@ -158,25 +160,93 @@ def lock_blocks(text: str):
     return blocks
 
 
-def _remotes(block: str):
-    return [l.split("remote:", 1)[1].strip() for l in block.splitlines() if l.strip().startswith("remote:")]
+_NAME = r"[A-Za-z0-9_.-]+"
+_SOURCE_LINES = (r"  remote: \S+", r"  revision: [0-9a-f]+", r"  (?:tag|branch|ref|glob|submodules): \S+", r"  specs:",
+                 rf"    {_NAME} \([0-9][A-Za-z0-9.]*(?:-[A-Za-z0-9_.-]+)?\)", rf"      {_NAME}(?: \([^()\n]*\))?")
+LOCK_GRAMMAR = {
+    "GEM": _SOURCE_LINES, "GIT": _SOURCE_LINES, "PATH": _SOURCE_LINES,
+    "PLATFORMS": (r"  [A-Za-z0-9_.-]+",),
+    "DEPENDENCIES": (rf"  {_NAME}(?: \([^()\n]*\))?!?",),
+    "CHECKSUMS": (rf"  {_NAME} \([^()\s]+\)(?: [A-Za-z0-9]+=[0-9a-f]+)?",),
+    "BUNDLED WITH": (r"  {1,3}[0-9][A-Za-z0-9.]*",),  # Bundler 2 writes 3 spaces, Bundler 4 writes 2
+    "RUBY VERSION": (r"  {1,3}ruby [0-9][A-Za-z0-9.]*",),
+}
+_GRAMMAR_RE = {h: [re.compile(p, re.ASCII) for p in pats] for h, pats in LOCK_GRAMMAR.items()}
+
+
+def lock_lines(text: str):
+    """Yield (section, line) for every line, split on "\\n" ONLY (the one separator Bundler uses), so lines Python's
+    splitlines()/\\s treat as separators (\\r \\x0b \\x0c \\x1c-\\x1e \\x85 U+2028/9) stay inside a line and fail the grammar."""
+    section = ""
+    for line in text.split("\n"):
+        if line and not line[0].isspace():
+            section = line
+        yield section, line
+
+
+def grammar_problems(text: str) -> list:
+    """Strict line grammar of a Gemfile.lock: known section headers, known 2/3/4/6-space forms, no blank-ish lines."""
+    problems = []
+    for n, (section, line) in enumerate(lock_lines(text), 1):
+        if line == "":
+            continue
+        shown = repr(line[:60])
+        if not line.isascii() or not line.isprintable() or line != line.rstrip(" "):
+            problems.append(f"lock line {n}: control, non-ASCII or trailing-space characters: {shown}")
+        elif not line.startswith(" "):
+            if line not in LOCK_GRAMMAR:
+                problems.append(f"lock line {n}: unknown section header: {shown}")
+        elif not any(r.fullmatch(line) for r in _GRAMMAR_RE.get(section, ())):
+            problems.append(f"lock line {n}: not allowed in {section or 'no section'}: {shown}")
+    return problems
 
 
 def sources_problems(lock_text: str, matrix: dict):
-    """GEM remote must be exactly rubygems.org; any GIT/PATH remote must be allowlisted in versions.yml."""
+    """EVERY `remote:` line of the lock (no matter which block Python thinks it is in): a GEM remote must be exactly
+    rubygems.org; a GIT/PATH remote must be allowlisted in versions.yml; a remote anywhere else is refused."""
     problems = []
-    for header, block in lock_blocks(lock_text):
-        for remote in _remotes(block):
-            if header == "GEM" and remote != RUBYGEMS:
-                problems.append(f"GEM remote not {RUBYGEMS}: {remote}")
-            if header in ("GIT", "PATH") and remote not in matrix["allow_sources"]:
-                problems.append(f"{header} source not allowlisted in versions.yml: {remote}")
+    for section, line in lock_lines(lock_text):
+        if "remote:" not in line:
+            continue
+        m = re.fullmatch(r"  remote: (\S+)", line)
+        if not m:
+            problems.append(f"malformed remote line in {section or 'no section'}: {line.strip()[:80]!r}")
+        elif section == "GEM" and m.group(1) != RUBYGEMS:
+            problems.append(f"GEM remote not {RUBYGEMS}: {m.group(1)}")
+        elif section in ("GIT", "PATH") and m.group(1) not in matrix["allow_sources"]:
+            problems.append(f"{section} source not allowlisted in versions.yml: {m.group(1)}")
+        elif section not in ("GEM", "GIT", "PATH"):
+            problems.append(f"remote line outside a source section ({section or 'none'}): {m.group(1)}")
     return problems
+
+
+def spec_groups(text: str) -> dict:
+    """{spec line: [dependency lines]} over every GEM/GIT/PATH `specs:` list."""
+    groups, cur, in_specs = {}, None, False
+    for section, line in lock_lines(text):
+        if section.split(" ")[0] not in ("GEM", "GIT", "PATH") or not line.startswith(" "):
+            in_specs, cur = False, None
+            continue
+        if line == "  specs:":
+            in_specs = True
+        elif in_specs and line.startswith("      "):
+            groups.setdefault(cur, []).append(line) if cur is not None else None
+        elif in_specs and line.startswith("    "):
+            cur = line
+            groups.setdefault(cur, [])
+    return groups
 
 
 def lock_problems(before_text: str, after_text: str, matrix: dict, allow_transitive=False):
     """Pure text validation of a lock change. Returns (problems, transitive_changes)."""
-    problems = sources_problems(after_text, matrix)
+    problems = grammar_problems(after_text) + sources_problems(after_text, matrix)
+    bg, ag = spec_groups(before_text), spec_groups(after_text)
+    own = lambda spec: SPEC_LINE.match(spec).group(1) in matrix["gems"]  # noqa: E731 - the matrix gems' own entries may change
+    for spec in sorted((set(bg) | set(ag))):
+        if SPEC_LINE.match(spec) and own(spec):
+            continue
+        if bg.get(spec) != ag.get(spec):
+            problems.append(f"spec or its dependency lines changed outside the matrix gems: {spec.strip()}")
     b, a = lock_blocks(before_text), lock_blocks(after_text)
     for header in {h for h, _ in b} | {h for h, _ in a}:
         if header in LOCK_VARIABLE_HEADERS:
@@ -382,9 +452,35 @@ def build_repo(repo, branch, tree, matrix, runner=subprocess.run, passthrough=()
 
 # --------------------------------------------------------------------------- phase: push (token, no fleet code)
 SUMMARY_ITEM = r"[\w.-]+ [\w.+~-]+->[\w.+~-]+"
-SUMMARY_RE = re.compile(rf"{SUMMARY_ITEM}(?:, {SUMMARY_ITEM})*")
+SUMMARY_RE = re.compile(rf"{SUMMARY_ITEM}(?:, {SUMMARY_ITEM})*", re.ASCII)
 AHEAD_PREFIX = "; ahead of matrix (left alone): "
 CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def fleet_branches(text: str) -> dict:
+    """{lower-cased owner/repo: declared branch or None} from fleet_repos.txt."""
+    return {repo.lower(): branch for repo, branch in parse_repo_list(text)}
+
+
+def patch_filename(repo: str) -> str:
+    return repo.replace("/", "__") + ".json"
+
+
+def binding_problem(name, patch, branches, gh=None):
+    """A patch is bound to ITS repo: the file name must be that repo's, and the branch must be the fleet-list branch
+    (or the repo's default branch), never whatever the untrusted patch says. None when fine or not checkable."""
+    if not isinstance(patch, dict) or not isinstance(patch.get("repo"), str) or not isinstance(patch.get("branch"), str):
+        return None  # push_patch reports it as malformed
+    if not valid_repo(patch["repo"]):
+        return None
+    if name != patch_filename(patch["repo"]):
+        return f"{name}: FAIL patch file name does not match its repo {patch['repo']} (expected {patch_filename(patch['repo'])})"
+    expected = branches.get(patch["repo"].lower())
+    if expected is None and gh is not None:
+        expected = default_branch(gh, patch["repo"])
+    if expected is not None and patch["branch"] != expected:
+        return f"{patch['repo']}: FAIL patch branch {patch['branch']!r} is not the fleet branch {expected!r}"
+    return None
 
 
 def fleet_repo_set(text: str) -> set:
@@ -401,6 +497,14 @@ def regenerated_problems(patch: dict, matrix: dict) -> list:
     changed = sorted(g for g in set(before) | set(after) if before.get(g) != after.get(g))
     if changed != update:
         return [f"lock changes {changed} differ from the gems below the matrix {update}"]
+    # the push phase re-checks what the build phase promised: every updated gem sits EXACTLY on the matrix version
+    # and no matrix gem vanished from the lock (a missing entry is a validation message, never a KeyError)
+    gone = sorted(g for g in matrix["gems"] if g in before and g not in after)
+    if gone:
+        return [f"matrix gem removed from the lock: {', '.join(gone)}"]
+    wrong = verify_after(after, matrix, update)
+    if wrong:
+        return [f"after_lock not on the matrix version ({'; '.join(wrong)})"]
     expected = pin_gemfile(patch["before_gemfile"], {g: matrix["gems"][g] for g in update})
     problems = []
     if patch["after_gemfile"] != expected:
@@ -564,6 +668,11 @@ def main(argv=None) -> int:
         if bad:
             ap.error(f"invalid branch in repo list: {bad}")
         gh = GitHub.from_env()
+        os.makedirs(args.out, exist_ok=True)
+        # always hand over a file, so the artifact exists even when every repo failed (a missing artifact is then a
+        # real download failure, not "nothing to do")
+        with open(os.path.join(args.out, "MANIFEST.txt"), "w", encoding="utf-8") as fh:
+            fh.write("".join(f"{r}\n" for r, _ in entries))
         for repo, branch in entries:
             br = branch or default_branch(gh, repo)
             report(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: ERROR not accessible (listed in fleet_repos.txt)", token)
@@ -574,8 +683,12 @@ def main(argv=None) -> int:
         if any(os.environ.get(k) for k in SECRET_ENV):
             ap.error("build phase refuses to run with a token in the environment")
         os.makedirs(args.patches, exist_ok=True)
+        with open(os.path.join(args.patches, "MANIFEST.txt"), "w", encoding="utf-8") as fh:
+            fh.write("build phase ran\n")
         for name in sorted(os.listdir(args.indir)):
             base = os.path.join(args.indir, name)
+            if not os.path.isdir(base):
+                continue  # e.g. MANIFEST.txt
             try:
                 with open(os.path.join(base, "meta.json"), encoding="utf-8") as fh:
                     meta = json.load(fh)
@@ -593,7 +706,7 @@ def main(argv=None) -> int:
             except Exception as exc:  # noqa: BLE001
                 kind, res = "MSG", f"{repo}: ERROR {type(exc).__name__}: {exc}"
             if kind == "PATCH":
-                with open(os.path.join(args.patches, name + ".json"), "w", encoding="utf-8") as fh:
+                with open(os.path.join(args.patches, patch_filename(repo)), "w", encoding="utf-8") as fh:
                     json.dump(res, fh)
                 report(f"{repo}: patch ready: {res['summary']}{res['ahead']}")
             else:
@@ -605,7 +718,8 @@ def main(argv=None) -> int:
         ap.error("push --apply needs GITHUB_TOKEN")
     gh = GitHub.from_env() if args.apply else None
     with open(args.repos, encoding="utf-8") as fh:
-        allowed = fleet_repo_set(fh.read())
+        branches = fleet_branches(fh.read())
+    allowed = set(branches)
     with tempfile.TemporaryDirectory() as wd:
         for name in sorted(os.listdir(args.patches)):
             if not name.endswith(".json"):
@@ -617,6 +731,10 @@ def main(argv=None) -> int:
                 report(f"{name}: ERROR unreadable patch")
                 continue
             if args.only and (not isinstance(patch, dict) or patch.get("repo") not in args.only):
+                continue
+            bad = binding_problem(name, patch, branches, gh)
+            if bad:
+                report(bad)
                 continue
             report(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
     return finish(failures)

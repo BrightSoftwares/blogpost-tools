@@ -95,5 +95,6 @@ def test_align_workflow_one_bad_repo_does_not_block_the_others():
         assert steps.index(phase) < steps.index(up) < steps.index(fail)  # failure is reported after the hand-over
     for job in ("build", "push"):
         dl = next(s for s in jobs[job]["steps"] if str(s.get("uses", "")).startswith("actions/download-artifact"))
-        assert dl["continue-on-error"] is True
+        # fetch/build always write a manifest, so the artifact exists; a failed download is a real failure, not "nothing to do"
+        assert "continue-on-error" not in dl, job
     assert "mkdir -p patches" in str(jobs["push"]["steps"]) and "mkdir -p work patches" in str(jobs["build"]["steps"])

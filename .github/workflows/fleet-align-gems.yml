@@ -59,7 +59,6 @@ jobs:
         with:
           name: fleet-trees
           path: work
-        continue-on-error: true  # fetch may have produced no trees at all
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
@@ -94,7 +93,6 @@ jobs:
         with:
           name: fleet-patches
           path: patches
-        continue-on-error: true  # build may have produced no patches at all
       - name: Validate and push patches (no fleet code runs here)
         run: |
           mkdir -p patches
