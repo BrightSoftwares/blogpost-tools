@@ -62,3 +62,16 @@ def test_align_workflow_separates_token_and_fleet_code():
         assert all(s.get("with", {}).get("persist-credentials") is False for s in jobs[name]["steps"]
                    if str(s.get("uses", "")).startswith("actions/checkout"))
     assert jobs["push"]["needs"] == "build" and jobs["build"]["needs"] == "fetch"
+
+
+def test_align_workflow_uploads_hidden_files_in_the_trees_artifact():
+    steps = load("fleet-align-gems.yml")["jobs"]["fetch"]["steps"]
+    up = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact"))
+    assert up["with"]["name"] == "fleet-trees" and up["with"]["include-hidden-files"] is True
+
+
+def test_align_workflow_only_runs_from_the_default_branch():
+    wf = load("fleet-align-gems.yml")
+    guard = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+    for name in ("fetch", "build", "push"):
+        assert wf["jobs"][name]["if"] == guard, name

@@ -357,15 +357,107 @@ def test_names_validated_and_main_rejects_bad_input(tmp_path):
         al.main(["--phase", "push"])
 
 
+FLEET_REPO = "BrightSoftwares/corporate-website"  # first entry of fleet_repos.txt
+
+
+def fleet_patch(**over):
+    p = good_patch()
+    p["repo"] = FLEET_REPO
+    p.update(over)
+    return p
+
+
 def test_main_push_dry_run_end_to_end_and_isolation(tmp_path, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
-    (tmp_path / "ok.json").write_text(json.dumps(good_patch()))
+    (tmp_path / "ok.json").write_text(json.dumps(fleet_patch()))
     (tmp_path / "broken.json").write_text("{not json")
-    bad = good_patch()
+    bad = fleet_patch()
     bad["after_gemfile"] += "system('x')\n"
     (tmp_path / "bad.json").write_text(json.dumps(bad))
-    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 0
+    # the failing repos no longer hide behind exit 0, and they never stop the good one
+    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
     out = capsys.readouterr().out
     assert "WOULD push" in out and "unreadable patch" in out and "patch rejected" in out
     assert al.safe_call("a/x", lambda: 1 / 0).startswith("a/x: ERROR ZeroDivisionError")
+
+
+def test_main_push_exits_zero_when_every_repo_is_ok(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    (tmp_path / "ok.json").write_text(json.dumps(fleet_patch()))
+    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 0
+    assert "WOULD push" in capsys.readouterr().out
+
+
+def test_is_failure_only_flags_error_and_fail_lines():
+    assert al.is_failure("a/x: ERROR clone failed") and al.is_failure("a/x: FAIL jekyll build (...) - no patch")
+    for ok in ("a/x: OK, lock already on matrix", "a/x: SKIP (no committed Gemfile and Gemfile.lock)",
+               "a/x: WOULD push to claude/automated-work: ffi 1->2 (patch valid)", "a/x: DONE ffi 1->2; pushed",
+               "a/x: patch ready: ffi 1->2"):
+        assert not al.is_failure(ok), ok
+
+
+def test_main_build_exits_nonzero_when_a_repo_fails_and_zero_when_all_ok(tmp_path, capsys, monkeypatch):
+    for k in al.SECRET_ENV:
+        monkeypatch.delenv(k, raising=False)
+    indir = tmp_path / "in"
+
+    def tree(name, lock):
+        base = indir / name
+        (base / "tree").mkdir(parents=True)
+        (base / "meta.json").write_text(json.dumps({"repo": f"a/{name}", "branch": "main"}))
+        (base / "tree" / "Gemfile").write_text(GEMFILE)
+        (base / "tree" / "Gemfile.lock").write_text(lock)
+
+    tree("skipme", "x")
+    (indir / "skipme" / "tree" / "Gemfile").unlink()  # no Gemfile -> SKIP, not a failure
+    assert al.main(["--phase", "build", "--in", str(indir), "--patches", str(tmp_path / "p")]) == 0
+    assert "SKIP" in capsys.readouterr().out
+    tree("evil", LOCK.replace("https://rubygems.org/", "https://evil.example/"))
+    assert al.main(["--phase", "build", "--in", str(indir), "--patches", str(tmp_path / "p")]) == 1
+    assert "a/evil: FAIL" in capsys.readouterr().out
+
+
+def test_patch_for_a_repo_outside_the_fleet_list_is_rejected():
+    allowed = al.fleet_repo_set(open(os.path.join(os.path.dirname(al.__file__), "fleet_repos.txt"), encoding="utf-8").read())
+    assert FLEET_REPO.lower() in allowed
+    assert al.patch_problems(fleet_patch(), M, allowed) == []
+    assert al.patch_problems(fleet_patch(repo=FLEET_REPO.upper()), M, allowed) == []  # GitHub names are case-insensitive
+    assert al.patch_problems(fleet_patch(repo="evil/exfil"), M, allowed) == ["repo not in fleet_repos.txt"]
+    msg = al.push_patch(fleet_patch(repo="evil/exfil"), M, "/nonexistent", False, "", allowed=allowed)
+    assert "FAIL patch rejected" in msg and "fleet_repos.txt" in msg
+
+
+def test_main_push_rejects_a_patch_for_a_repo_not_in_the_fleet_list(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    (tmp_path / "x.json").write_text(json.dumps(good_patch()))  # repo a/site is not in fleet_repos.txt
+    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
+    out = capsys.readouterr().out
+    assert "a/site: FAIL patch rejected" in out and "WOULD push" not in out
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda p: p.update(summary="x\n::set-output name=a::b"),
+    lambda p: p.update(summary="ffi 1.0->2.0; rm -rf /"),
+    lambda p: p.update(summary="ffi 1.0->2.0" * 100),
+    lambda p: p.update(summary=["ffi"]),
+    lambda p: p.pop("summary"),
+    lambda p: p.update(ahead="rogue text"),
+    lambda p: p.update(ahead=al.AHEAD_PREFIX + "x\n::error::y"),
+    lambda p: p.update(ahead=al.AHEAD_PREFIX + "x" * 2000),
+    lambda p: p.update(ahead=42),
+])
+def test_patch_summary_and_ahead_shape_is_validated(mutate):
+    p = fleet_patch()
+    mutate(p)
+    assert al.patch_problems(p, M) in (["malformed patch"], ["invalid summary in patch"], ["invalid ahead note in patch"])
+
+
+def test_patch_with_valid_ahead_note_and_multi_gem_summary_is_accepted():
+    p = fleet_patch(summary="ffi 1.16.3->1.17.4, jekyll-timeago 0.13.1->1.1.0", ahead=al.AHEAD_PREFIX + "{'jekyll': '4.4.1'}")
+    assert al.patch_problems(p, M) == []
+
+
+def test_non_dict_patch_is_malformed_not_a_crash():
+    assert al.patch_problems(["x"], M) == ["malformed patch"]
+    assert al.safe_call("n", al.push_patch, ["x"], M, "/nonexistent", False, "").startswith("?: FAIL patch rejected")

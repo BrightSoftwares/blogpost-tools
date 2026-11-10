@@ -381,23 +381,47 @@ def build_repo(repo, branch, tree, matrix, runner=subprocess.run, passthrough=()
 
 
 # --------------------------------------------------------------------------- phase: push (token, no fleet code)
-def patch_problems(patch: dict, matrix: dict):
-    """Validate a patch purely as text (the patch file is untrusted: it came out of the build phase)."""
-    keys = ("repo", "branch", "before_gemfile", "before_lock", "after_gemfile", "after_lock")
-    if not all(isinstance(patch.get(k), str) for k in keys):
+SUMMARY_ITEM = r"[\w.-]+ [\w.+~-]+->[\w.+~-]+"
+SUMMARY_RE = re.compile(rf"{SUMMARY_ITEM}(?:, {SUMMARY_ITEM})*")
+AHEAD_PREFIX = "; ahead of matrix (left alone): "
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def fleet_repo_set(text: str) -> set:
+    """Lower-cased owner/repo names of the fleet list (GitHub names are case-insensitive)."""
+    return {repo.lower() for repo, _ in parse_repo_list(text)}
+
+
+def patch_problems(patch: dict, matrix: dict, allowed=None):
+    """Validate a patch purely as text (the patch file is untrusted: it came out of the build phase).
+
+    `allowed`: set of lower-cased owner/repo names from fleet_repos.txt; a patch for any other repo is rejected.
+    """
+    keys = ("repo", "branch", "summary", "before_gemfile", "before_lock", "after_gemfile", "after_lock")
+    if not isinstance(patch, dict) or not all(isinstance(patch.get(k), str) for k in keys):
+        return ["malformed patch"]
+    ahead = patch.get("ahead", "")
+    if not isinstance(ahead, str):
         return ["malformed patch"]
     if not valid_repo(patch["repo"]) or not valid_name(patch["branch"]):
         return ["invalid repo or branch in patch"]
+    if allowed is not None and patch["repo"].lower() not in allowed:
+        return ["repo not in fleet_repos.txt"]
+    if len(patch["summary"]) > 500 or not SUMMARY_RE.fullmatch(patch["summary"]):
+        return ["invalid summary in patch"]
+    if ahead and (len(ahead) > 1000 or not ahead.startswith(AHEAD_PREFIX) or CONTROL_CHARS.search(ahead)):
+        return ["invalid ahead note in patch"]
     problems = sources_problems(patch["before_lock"], matrix)
     lp, _ = lock_problems(patch["before_lock"], patch["after_lock"], matrix, allow_transitive=False)
     return problems + lp + gemfile_problems(patch["before_gemfile"], patch["after_gemfile"], matrix)
 
 
-def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None):
-    repo, branch = str(patch.get("repo", "?")), patch.get("branch", "")
-    problems = patch_problems(patch, matrix)
+def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None, allowed=None):
+    repo = str(patch.get("repo", "?")) if isinstance(patch, dict) else "?"
+    problems = patch_problems(patch, matrix, allowed)
     if problems:
         return f"{repo}: FAIL patch rejected ({'; '.join(problems)})"
+    branch = patch["branch"]
     if not apply:
         return f"{repo}: WOULD push to {WORK_BRANCH}: {patch['summary']}{patch.get('ahead', '')} (patch valid)"
     trailer = os.environ.get("FLEET_COMMIT_TRAILER", "") if trailer is None else trailer
@@ -467,6 +491,22 @@ def safe_call(label, fn, *args, **kwargs):
         return f"{label}: ERROR {type(exc).__name__}: {exc}"
 
 
+FAILURE_LINE = re.compile(r": (?:ERROR|FAIL)\b")
+
+
+def is_failure(text: str) -> bool:
+    """True for a per-repo report line that says ERROR or FAIL (SKIP / OK / WOULD / DONE are not failures)."""
+    return bool(FAILURE_LINE.search(text))
+
+
+def finish(failures) -> int:
+    """Exit status: non-zero when any repo reported ERROR or FAIL, so the job (and the workflow run) goes red."""
+    if failures:
+        say(f"SUMMARY: {len(failures)} repo(s) reported ERROR/FAIL - exiting non-zero")
+        return 1
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--phase", required=True, choices=("fetch", "build", "push"))
@@ -484,6 +524,13 @@ def main(argv=None) -> int:
     with open(args.matrix, encoding="utf-8") as fh:
         matrix = load_matrix(fh.read())
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    failures = []
+
+    def report(text, tok=""):
+        if is_failure(text):
+            failures.append(text)
+        say(text, tok)
+
     if args.phase == "fetch":
         if not args.out or not token:
             ap.error("fetch needs --out and GITHUB_TOKEN")
@@ -495,8 +542,8 @@ def main(argv=None) -> int:
         gh = GitHub.from_env()
         for repo, branch in entries:
             br = branch or default_branch(gh, repo)
-            say(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: SKIP (not accessible)", token)
-        return 0
+            report(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: SKIP (not accessible)", token)
+        return finish(failures)
     if args.phase == "build":
         if not args.indir or not args.patches:
             ap.error("build needs --in and --patches")
@@ -520,15 +567,17 @@ def main(argv=None) -> int:
             if kind == "PATCH":
                 with open(os.path.join(args.patches, name + ".json"), "w", encoding="utf-8") as fh:
                     json.dump(res, fh)
-                say(f"{repo}: patch ready: {res['summary']}{res['ahead']}")
+                report(f"{repo}: patch ready: {res['summary']}{res['ahead']}")
             else:
-                say(res)
-        return 0
+                report(res)
+        return finish(failures)
     if not args.patches:
         ap.error("push needs --patches")
     if args.apply and not token:
         ap.error("push --apply needs GITHUB_TOKEN")
     gh = GitHub.from_env() if args.apply else None
+    with open(args.repos, encoding="utf-8") as fh:
+        allowed = fleet_repo_set(fh.read())
     with tempfile.TemporaryDirectory() as wd:
         for name in sorted(os.listdir(args.patches)):
             if not name.endswith(".json"):
@@ -537,12 +586,12 @@ def main(argv=None) -> int:
                 with open(os.path.join(args.patches, name), encoding="utf-8") as fh:
                     patch = json.load(fh)
             except (OSError, ValueError):
-                say(f"{name}: ERROR unreadable patch")
+                report(f"{name}: ERROR unreadable patch")
                 continue
-            if args.only and patch.get("repo") not in args.only:
+            if args.only and (not isinstance(patch, dict) or patch.get("repo") not in args.only):
                 continue
-            say(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh), token)
-    return 0
+            report(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
+    return finish(failures)
 
 
 if __name__ == "__main__":
