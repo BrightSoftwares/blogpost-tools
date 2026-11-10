@@ -107,7 +107,7 @@ def parse_repo_list(text: str) -> "list[tuple[str, str | None]]":
         if not line:
             continue
         parts = line.split()
-        if not re.fullmatch(r"[\w.-]+/[\w.-]+", parts[0]):
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", parts[0], re.ASCII):
             raise ValueError(f"invalid repo entry: {line!r}")
         out.append((parts[0], parts[1] if len(parts) > 1 else None))
     return out

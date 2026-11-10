@@ -70,8 +70,30 @@ def test_align_workflow_uploads_hidden_files_in_the_trees_artifact():
     assert up["with"]["name"] == "fleet-trees" and up["with"]["include-hidden-files"] is True
 
 
+GUARD = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+
+
 def test_align_workflow_only_runs_from_the_default_branch():
     wf = load("fleet-align-gems.yml")
-    guard = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+    assert wf["jobs"]["fetch"]["if"] == GUARD
     for name in ("fetch", "build", "push"):
-        assert wf["jobs"][name]["if"] == guard, name
+        assert GUARD in wf["jobs"][name]["if"], name
+
+
+def test_align_workflow_one_bad_repo_does_not_block_the_others():
+    jobs = load("fleet-align-gems.yml")["jobs"]
+    assert jobs["build"]["if"] == "${{ !cancelled() && needs.fetch.result != 'skipped' && " + GUARD + " }}"
+    assert jobs["push"]["if"] == "${{ !cancelled() && needs.build.result != 'skipped' && " + GUARD + " }}"
+    for job, step_id in (("fetch", "fetch"), ("build", "build")):
+        steps = jobs[job]["steps"]
+        phase = next(s for s in steps if s.get("id") == step_id)
+        assert phase["continue-on-error"] is True
+        up = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact"))
+        assert up["with"]["if-no-files-found"] == "ignore"
+        fail = next(s for s in steps if s.get("if") == f"steps.{step_id}.outcome == 'failure'")
+        assert "::error::" in fail["run"] and "exit 1" in fail["run"]
+        assert steps.index(phase) < steps.index(up) < steps.index(fail)  # failure is reported after the hand-over
+    for job in ("build", "push"):
+        dl = next(s for s in jobs[job]["steps"] if str(s.get("uses", "")).startswith("actions/download-artifact"))
+        assert dl["continue-on-error"] is True
+    assert "mkdir -p patches" in str(jobs["push"]["steps"]) and "mkdir -p work patches" in str(jobs["build"]["steps"])

@@ -43,8 +43,8 @@ WORK_BRANCH = "claude/automated-work"
 RUBYGEMS = "https://rubygems.org/"
 LOCK_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \((\d+(?:\.\d+)*(?:\.[A-Za-z][\w.]*)?)(?:-[^)]*)?\)$")
 SECRET_ENV = ("GITHUB_TOKEN", "GH_TOKEN", "REPO_ACCESS_TOKEN", "FLEET_COMMIT_TRAILER")
-NAME_OK = re.compile(r"[\w][\w./-]*")  # no leading '-': a value can never look like a git option
-GEM_NAME = re.compile(r"[\w.-]+")
+NAME_OK = re.compile(r"[\w][\w./-]*", re.ASCII)  # no leading '-': a value can never look like a git option
+GEM_NAME = re.compile(r"[\w.-]+", re.ASCII)
 VERSION = re.compile(r"\d+(\.\w+)*")
 URL_CRED = re.compile(r"://[^@/\s]+@")
 PIN_COMMENT = "# Pinned by fleet_align_gems.py (scripts/jekyll_fleet/versions.yml)"
@@ -86,7 +86,7 @@ def valid_name(value: str) -> bool:
 
 
 def valid_repo(repo: str) -> bool:
-    return bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo)) and valid_name(repo.replace("/", "x", 1))
+    return bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo, re.ASCII)) and valid_name(repo.replace("/", "x", 1))
 
 
 def redact(text: str, token: str = "") -> str:
@@ -392,7 +392,26 @@ def fleet_repo_set(text: str) -> set:
     return {repo.lower() for repo, _ in parse_repo_list(text)}
 
 
-def patch_problems(patch: dict, matrix: dict, allowed=None):
+def regenerated_problems(patch: dict, matrix: dict) -> list:
+    """Do not trust the patch's Gemfile or summary: rebuild both from the two locks and require equality.
+    The gems that changed between before_lock and after_lock must be exactly the matrix gems that were below
+    target; the Gemfile must equal pin_gemfile(before_gemfile, those gems at matrix versions) byte for byte."""
+    before, after = parse_lock(patch["before_lock"]), parse_lock(patch["after_lock"])
+    update = plan(before, matrix)["update"]
+    changed = sorted(g for g in set(before) | set(after) if before.get(g) != after.get(g))
+    if changed != update:
+        return [f"lock changes {changed} differ from the gems below the matrix {update}"]
+    expected = pin_gemfile(patch["before_gemfile"], {g: matrix["gems"][g] for g in update})
+    problems = []
+    if patch["after_gemfile"] != expected:
+        problems.append("Gemfile differs from the regenerated pin (not byte-identical)")
+    derived = ", ".join(f"{g} {before[g]}->{after[g]}" for g in update)
+    if patch["summary"] != derived:
+        problems.append("summary does not match the lock diff")
+    return problems
+
+
+def patch_problems(patch: dict, matrix: dict, allowed):
     """Validate a patch purely as text (the patch file is untrusted: it came out of the build phase).
 
     `allowed`: set of lower-cased owner/repo names from fleet_repos.txt; a patch for any other repo is rejected.
@@ -405,7 +424,7 @@ def patch_problems(patch: dict, matrix: dict, allowed=None):
         return ["malformed patch"]
     if not valid_repo(patch["repo"]) or not valid_name(patch["branch"]):
         return ["invalid repo or branch in patch"]
-    if allowed is not None and patch["repo"].lower() not in allowed:
+    if patch["repo"].lower() not in allowed:
         return ["repo not in fleet_repos.txt"]
     if len(patch["summary"]) > 500 or not SUMMARY_RE.fullmatch(patch["summary"]):
         return ["invalid summary in patch"]
@@ -413,10 +432,11 @@ def patch_problems(patch: dict, matrix: dict, allowed=None):
         return ["invalid ahead note in patch"]
     problems = sources_problems(patch["before_lock"], matrix)
     lp, _ = lock_problems(patch["before_lock"], patch["after_lock"], matrix, allow_transitive=False)
-    return problems + lp + gemfile_problems(patch["before_gemfile"], patch["after_gemfile"], matrix)
+    problems = problems + lp + gemfile_problems(patch["before_gemfile"], patch["after_gemfile"], matrix)
+    return problems + regenerated_problems(patch, matrix)
 
 
-def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None, allowed=None):
+def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None, *, allowed):
     repo = str(patch.get("repo", "?")) if isinstance(patch, dict) else "?"
     problems = patch_problems(patch, matrix, allowed)
     if problems:
@@ -477,7 +497,11 @@ def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=N
                 body += "\n\nUnreviewed commits already on `claude/automated-work`:\n" + unreviewed.strip()
             s, pr, _ = gh.request("POST", f"/repos/{repo}/pulls", {
                 "title": "chore(deps): align Jekyll fleet gems to versions.yml", "head": WORK_BRANCH, "base": branch, "body": body})
-            note += f"; opened PR {pr.get('html_url')}" if s in (200, 201) and pr else f"; PR creation failed (HTTP {s})"
+            if s in (200, 201) and pr:
+                note += f"; opened PR {pr.get('html_url')}"
+            else:
+                shutil.rmtree(home, ignore_errors=True)
+                return f"{repo}: FAIL pushed {WORK_BRANCH} but PR creation failed (HTTP {s}); {patch['summary']}"
     shutil.rmtree(home, ignore_errors=True)
     return f"{repo}: DONE {patch['summary']}; {note}{patch.get('ahead', '')}"
 
@@ -542,7 +566,7 @@ def main(argv=None) -> int:
         gh = GitHub.from_env()
         for repo, branch in entries:
             br = branch or default_branch(gh, repo)
-            report(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: SKIP (not accessible)", token)
+            report(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: ERROR not accessible (listed in fleet_repos.txt)", token)
         return finish(failures)
     if args.phase == "build":
         if not args.indir or not args.patches:
@@ -556,9 +580,13 @@ def main(argv=None) -> int:
                 with open(os.path.join(base, "meta.json"), encoding="utf-8") as fh:
                     meta = json.load(fh)
                 repo, branch = meta["repo"], meta["branch"]
-                if not valid_repo(repo) or not valid_name(branch) or (args.only and repo not in args.only):
+                if not valid_repo(repo) or not valid_name(branch):
+                    report(f"{name}: ERROR invalid repo or branch in meta.json")
                     continue
-            except (OSError, ValueError, KeyError):
+                if args.only and repo not in args.only:
+                    continue
+            except (OSError, ValueError, KeyError, TypeError):
+                report(f"{name}: ERROR unreadable or invalid meta.json")
                 continue
             try:
                 kind, res = build_repo(repo, branch, os.path.join(base, "tree"), matrix, passthrough=args.build_env_pass)
