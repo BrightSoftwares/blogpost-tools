@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       # A failing repo must not hide the other repos' trees: record the failure, hand over what exists, fail after.
@@ -31,7 +31,7 @@ jobs:
         run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase fetch --out work
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fleet-trees
           path: work
@@ -86,10 +86,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: fleet-patches
           path: patches
@@ -97,7 +97,9 @@ jobs:
         run: |
           mkdir -p patches
           flag=""
-          if [ "${{ inputs.apply }}" = "true" ]; then flag="--apply"; fi
+          if [ "$APPLY" = "true" ]; then flag="--apply"; fi
           python3 scripts/jekyll_fleet/fleet_align_gems.py --phase push --patches patches $flag
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          APPLY: ${{ inputs.apply }}
+          # the token is exported only for a real push; a dry run holds no secret at all
+          GITHUB_TOKEN: ${{ inputs.apply && secrets.REPO_ACCESS_TOKEN || '' }}

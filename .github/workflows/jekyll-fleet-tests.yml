@@ -37,5 +37,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # the lock validator parses locks with Bundler's own LockfileParser (scripts/jekyll_fleet/lock_structure.rb)
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
       - run: python -m pip install --upgrade pip pytest pyyaml
       - run: pytest tests/jekyll_fleet -v --tb=short

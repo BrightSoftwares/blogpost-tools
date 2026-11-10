@@ -16,7 +16,13 @@ never run fleet code):
 
 Residual risk: a malicious fleet repo can still run code in the build phase. That phase has no token, no
 global git config and a throwaway HOME; run it in its own job/container (see
-.github/workflows/fleet-align-gems.yml: build job has `contents: read`, no secrets).
+.github/workflows/fleet-align-gems.yml: build job has `contents: read`, no secrets). Inside the build job,
+code from a fleet repo could also start a background process that outlives the step and reads the job's
+ACTIONS_RUNTIME_TOKEN (artifact upload scope); that is inside the accepted threat model of this design.
+
+Lock validation compares locks STRUCTURALLY with Bundler's own parser (lock_structure.rb, pure parser, no fleet
+code) plus a strict line grammar; a Python text split on blank lines is not how Bundler reads a lock. It fails
+closed when ruby is unavailable.
 
     python3 fleet_align_gems.py --phase fetch --repos fleet_repos.txt --out work     # GITHUB_TOKEN set
     python3 fleet_align_gems.py --phase build --in work --patches patches           # no token
@@ -50,7 +56,6 @@ GEM_NAME = re.compile(r"[\w.-]+", re.ASCII)
 VERSION = re.compile(r"\d+(\.\w+)*", re.ASCII)
 URL_CRED = re.compile(r"://[^@/\s]+@")
 PIN_COMMENT = "# Pinned by fleet_align_gems.py (scripts/jekyll_fleet/versions.yml)"
-LOCK_VARIABLE_HEADERS = {"GEM", "DEPENDENCIES", "CHECKSUMS", "BUNDLED WITH"}
 
 
 # --------------------------------------------------------------------------- matrix / names / output
@@ -186,11 +191,15 @@ def lock_lines(text: str):
 
 def grammar_problems(text: str) -> list:
     """Strict line grammar of a Gemfile.lock: known section headers, known 2/3/4/6-space forms, no blank-ish lines."""
-    problems = []
+    problems, prev = [], None
     for n, (section, line) in enumerate(lock_lines(text), 1):
         if line == "":
+            prev = line
             continue
-        shown = repr(line[:60])
+        shown = _clip(line, 60)
+        if not line[0].isspace() and prev is not None and prev != "":
+            problems.append(f"lock line {n}: section header {shown} is not preceded by an empty line")
+        prev = line
         if not line.isascii() or not line.isprintable() or line != line.rstrip(" "):
             problems.append(f"lock line {n}: control, non-ASCII or trailing-space characters: {shown}")
         elif not line.startswith(" "):
@@ -201,70 +210,189 @@ def grammar_problems(text: str) -> list:
     return problems
 
 
+def _clip(text, n=80):
+    return repr(str(text)[:n]) + ("..." if len(str(text)) > n else "")
+
+
 def sources_problems(lock_text: str, matrix: dict):
-    """EVERY `remote:` line of the lock (no matter which block Python thinks it is in): a GEM remote must be exactly
-    rubygems.org; a GIT/PATH remote must be allowlisted in versions.yml; a remote anywhere else is refused."""
-    problems = []
-    for section, line in lock_lines(lock_text):
+    """EVERY `remote:` line of the lock (no matter which block Python thinks it is in), exactly one per source
+    section: a GEM remote must be exactly rubygems.org; a GIT/PATH remote must be allowlisted in versions.yml."""
+    problems, per_section = [], {}
+    for n, (section, line) in enumerate(lock_lines(lock_text), 1):
+        if section.split(" ")[0] in ("GEM", "GIT", "PATH") and line == section:
+            per_section[n] = [section, 0]
         if "remote:" not in line:
             continue
         m = re.fullmatch(r"  remote: (\S+)", line)
         if not m:
-            problems.append(f"malformed remote line in {section or 'no section'}: {line.strip()[:80]!r}")
+            problems.append(f"malformed remote line in {section or 'no section'}: {_clip(line.strip())}")
         elif section == "GEM" and m.group(1) != RUBYGEMS:
-            problems.append(f"GEM remote not {RUBYGEMS}: {m.group(1)}")
+            problems.append(f"GEM remote not {RUBYGEMS}: {_clip(m.group(1))}")
         elif section in ("GIT", "PATH") and m.group(1) not in matrix["allow_sources"]:
-            problems.append(f"{section} source not allowlisted in versions.yml: {m.group(1)}")
+            problems.append(f"{section} source not allowlisted in versions.yml: {_clip(m.group(1))}")
         elif section not in ("GEM", "GIT", "PATH"):
-            problems.append(f"remote line outside a source section ({section or 'none'}): {m.group(1)}")
+            problems.append(f"remote line outside a source section ({section or 'none'}): {_clip(m.group(1))}")
+        elif per_section:
+            per_section[max(per_section)][1] += 1
+    for section, count in per_section.values():
+        if count != 1:
+            problems.append(f"{section} source section has {count} remote lines (exactly one required)")
     return problems
 
 
-def spec_groups(text: str) -> dict:
-    """{spec line: [dependency lines]} over every GEM/GIT/PATH `specs:` list."""
-    groups, cur, in_specs = {}, None, False
+def source_spec_lists(text: str) -> list:
+    """Per source section (GEM/GIT/PATH, in file order): the ordered [(spec line, [dependency lines])]. Text level on
+    purpose: Bundler's parser keeps ONE of two identical name/version specs and hides the other."""
+    out = []
     for section, line in lock_lines(text):
-        if section.split(" ")[0] not in ("GEM", "GIT", "PATH") or not line.startswith(" "):
-            in_specs, cur = False, None
+        if section.split(" ")[0] in ("GEM", "GIT", "PATH") and line == section:
+            out.append([])
+        elif out and SPEC_LINE.match(line):
+            out[-1].append((line, []))
+        elif out and out[-1] and line.startswith("      "):
+            out[-1][-1][1].append(line)
+    return out
+
+
+def section_headers(text: str) -> list:
+    return [line for line in text.split("\n") if line and not line[0].isspace()]
+
+
+class LockStructureError(Exception):
+    pass
+
+
+_STRUCTURE_CACHE: dict = {}
+
+
+def bundler_structure(text: str, runner=subprocess.run) -> dict:
+    if runner is subprocess.run and text in _STRUCTURE_CACHE:  # same lock text, same answer (one ruby start is ~0.4 s)
+        return _STRUCTURE_CACHE[text]
+    result = _bundler_structure(text, runner)
+    if runner is subprocess.run:
+        _STRUCTURE_CACHE[text] = result
+    return result
+
+
+def _bundler_structure(text: str, runner=subprocess.run) -> dict:
+    """Parse a lock with Bundler's own LockfileParser (lock_structure.rb). Fails CLOSED: no ruby, a timeout or any
+    parse error raises LockStructureError, which callers turn into a rejection."""
+    script = os.path.join(HERE, "lock_structure.rb")
+    home = tempfile.mkdtemp(prefix="lockstruct-")
+    try:
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": home, "LANG": "C.UTF-8"}
+        try:
+            res = runner(["ruby", script], input=text, capture_output=True, text=True, timeout=10, env=env)
+        except FileNotFoundError:
+            raise LockStructureError("ruby is not available: cannot validate the lock structure (failing closed)") from None
+        except subprocess.TimeoutExpired:
+            raise LockStructureError("lock structure parser timed out (failing closed)") from None
+        if res.returncode:
+            raise LockStructureError("Bundler could not parse the lock: " + _clip((res.stderr or "").strip().splitlines()[-1:] or ""))
+        try:
+            return json.loads(res.stdout)
+        except ValueError:
+            raise LockStructureError("lock structure parser returned invalid output") from None
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+
+
+def structure_problems(before_text: str, after_text: str, matrix: dict, runner=subprocess.run) -> list:
+    """Structural comparison of two locks as Bundler reads them. Only the matrix gems below target may change, and
+    only to the matrix version; sources, platforms, Ruby/Bundler versions, dependencies and checksums are otherwise
+    byte-for-byte what they were."""
+    try:
+        b, a = bundler_structure(before_text, runner), bundler_structure(after_text, runner)
+    except LockStructureError as exc:
+        return [str(exc)]
+    problems = []
+    if b["sources"] != a["sources"]:
+        problems.append("ordered source list (class, uri, revision, ref, branch, glob) changed")
+    for key in ("platforms", "ruby_version"):
+        if b[key] != a[key]:
+            problems.append(f"{key} changed")
+    allowed_bundler = {v.strip() for v in str(matrix.get("allow_bundler", "")).split(",") if v.strip()}
+    if b["bundler_version"] != a["bundler_version"] and a["bundler_version"] not in allowed_bundler:
+        problems.append(f"BUNDLED WITH changed {b['bundler_version']} -> {a['bundler_version']} (not in allow_bundler)")
+    key = lambda sp: (sp["name"], sp["platform"], sp["source"])  # noqa: E731
+    seen = set()
+    for sp in a["specs"]:
+        if key(sp) in seen:
+            problems.append(f"duplicate spec {sp['name']} ({sp['platform']}) in one source")
+        seen.add(key(sp))
+    bmap, amap = {key(sp): sp for sp in b["specs"]}, {key(sp): sp for sp in a["specs"]}
+    if set(bmap) != set(amap):
+        added = sorted({k[0] for k in set(amap) - set(bmap)})
+        removed = sorted({k[0] for k in set(bmap) - set(amap)})
+        problems.append(f"spec set changed: added {added}, removed {removed}")
+    # which matrix gems were below target (by the versions Bundler read, not by a text regex)
+    bver = {sp["name"]: sp["version"] for sp in b["specs"]}
+    update = plan(bver, matrix)["update"]
+    names = {sp["name"] for sp in a["specs"]}
+    for k in sorted(set(bmap) & set(amap)):
+        bs, as_ = bmap[k], amap[k]
+        if k[0] in update:
+            if as_["version"] != matrix["gems"][k[0]]:
+                problems.append(f"{k[0]} is {as_['version']}, matrix says {matrix['gems'][k[0]]}")
+            stray = sorted({d.split(" ")[0] for d in as_["deps"]} - names)
+            if stray:
+                problems.append(f"{k[0]} gained dependencies on gems that are not in the lock: {stray}")
+        elif bs != as_:
+            problems.append(f"spec changed outside the matrix update: {k[0]} ({k[1]})")
+    bd, ad = {d["name"]: d for d in b["dependencies"]}, {d["name"]: d for d in a["dependencies"]}
+    for name in sorted(set(bd) | set(ad)):
+        if bd.get(name) == ad.get(name):
             continue
-        if line == "  specs:":
-            in_specs = True
-        elif in_specs and line.startswith("      "):
-            groups.setdefault(cur, []).append(line) if cur is not None else None
-        elif in_specs and line.startswith("    "):
-            cur = line
-            groups.setdefault(cur, [])
-    return groups
+        want = f"= {matrix['gems'].get(name)}"
+        if name in update and ad.get(name) and ad[name]["req"] == want and ad[name]["source"] == (bd.get(name) or ad[name])["source"]:
+            continue
+        problems.append(f"DEPENDENCIES entry changed outside the matrix update: {name}")
+    bl, al_ = source_spec_lists(before_text), source_spec_lists(after_text)
+    if len(bl) != len(al_):
+        problems.append("number of source sections changed")
+    for n, (bs, as_) in enumerate(zip(bl, al_), 1):
+        if len(bs) != len(as_):
+            problems.append(f"source section {n}: spec list length {len(bs)} -> {len(as_)} (added, removed or hidden duplicate)")
+            continue
+        for (bline, bdeps), (aline, adeps) in zip(bs, as_):
+            bm, am = SPEC_LINE.match(bline), SPEC_LINE.match(aline)
+            if bm.group(1) in update and am and am.group(1) == bm.group(1) and am.group(3) == bm.group(3):
+                continue  # the updated gem's own line (version and dependencies are checked structurally above)
+            if (bline, bdeps) != (aline, adeps):
+                problems.append(f"source section {n}: spec line changed outside the matrix update: {_clip(aline.strip())}")
+    problems += checksum_problems(before_text, after_text, update)
+    return problems
+
+
+def checksum_problems(before_text: str, after_text: str, update: list) -> list:
+    """CHECKSUMS must exist iff it did, and every line that does not name an updated gem must be byte-identical."""
+    def lines(text):
+        sec, out = None, []
+        for section, line in lock_lines(text):
+            if line == "CHECKSUMS":
+                sec = []
+                continue
+            if section == "CHECKSUMS" and line.startswith("  "):
+                sec.append(line)
+        return sec
+    b, a = lines(before_text), lines(after_text)
+    if (b is None) != (a is None):
+        return ["CHECKSUMS section added or removed"]
+    if b is None:
+        return []
+    def keep(ls):
+        return [l for l in ls if l.strip().split(" ", 1)[0] not in update]
+    return [] if keep(b) == keep(a) else ["CHECKSUMS lines outside the matrix update changed"]
 
 
 def lock_problems(before_text: str, after_text: str, matrix: dict, allow_transitive=False):
-    """Pure text validation of a lock change. Returns (problems, transitive_changes)."""
+    """Validate a lock change: strict line grammar + one remote per source + identical ordered section headers +
+    the STRUCTURAL comparison through Bundler's parser. Returns (problems, transitive_changes)."""
     problems = grammar_problems(after_text) + sources_problems(after_text, matrix)
-    bg, ag = spec_groups(before_text), spec_groups(after_text)
-    own = lambda spec: SPEC_LINE.match(spec).group(1) in matrix["gems"]  # noqa: E731 - the matrix gems' own entries may change
-    for spec in sorted((set(bg) | set(ag))):
-        if SPEC_LINE.match(spec) and own(spec):
-            continue
-        if bg.get(spec) != ag.get(spec):
-            problems.append(f"spec or its dependency lines changed outside the matrix gems: {spec.strip()}")
-    b, a = lock_blocks(before_text), lock_blocks(after_text)
-    for header in {h for h, _ in b} | {h for h, _ in a}:
-        if header in LOCK_VARIABLE_HEADERS:
-            continue
-        if [t for h, t in b if h == header] != [t for h, t in a if h == header]:
-            problems.append(f"{header} section changed (compared whole, revisions included)")
-    bd = "\n".join(t for h, t in b if h == "DEPENDENCIES")
-    ad = "\n".join(t for h, t in a if h == "DEPENDENCIES")
-    bl = {l.strip() for l in bd.splitlines() if l.strip() and l.strip() != "DEPENDENCIES"}
-    al_ = {l.strip() for l in ad.splitlines() if l.strip() and l.strip() != "DEPENDENCIES"}
-    stray = sorted({l.split(" ", 1)[0].rstrip("!") for l in bl ^ al_} - set(matrix["gems"]))
-    if stray:
-        problems.append("DEPENDENCIES changed outside the matrix: " + ", ".join(stray))
+    if section_headers(before_text) != section_headers(after_text):
+        problems.append("ordered list of section headers changed")
+    problems += structure_problems(before_text, after_text, matrix)
     bp, ap = parse_lock(before_text), parse_lock(after_text)
-    for gem, ver in ap.items():
-        if not GEM_NAME.fullmatch(gem) or not VERSION.fullmatch(ver):
-            if not re.fullmatch(r"\d+(\.\d+)*(\.[A-Za-z][\w.]*)?", ver):
-                problems.append(f"odd gem or version in lock: {gem} {ver}")
     changed = sorted(g for g in set(bp) | set(ap) if bp.get(g) != ap.get(g))
     transitive = [f"{g} {bp.get(g)}->{ap.get(g)}" for g in changed if g not in matrix["gems"]]
     if transitive and not allow_transitive:
