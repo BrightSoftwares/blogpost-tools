@@ -100,7 +100,7 @@ def valid_repo(repo: str) -> bool:
 def clean_name(name) -> str:
     """Name of a repo or artifact for a log line: anything outside [\\w./-] becomes '?', so an untrusted file name
     such as "::error::x" can never carry a workflow command or control characters into the log."""
-    return re.sub(r"[^\w./-]", "?", str(name))
+    return re.sub(r"[^\w./-]", "?", str(name), flags=re.ASCII)
 
 
 def redact(text: str, token: str = "") -> str:
@@ -891,7 +891,7 @@ def main(argv=None) -> int:
                 report(bad)
                 continue
             if not args.apply and isinstance(patch, dict) and valid_repo(str(patch.get("repo", ""))) \
-                    and expected_branch(patch, branches) is None:
+                    and str(patch["repo"]).lower() in allowed and expected_branch(patch, branches) is None:
                 report(f"{patch['repo']}: NOTE branch unchecked (dry run: no default-branch lookup)")
             report(safe_call(clean_name(name), push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
     return finish(failures)

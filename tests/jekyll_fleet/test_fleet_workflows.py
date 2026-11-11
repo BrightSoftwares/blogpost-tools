@@ -108,7 +108,7 @@ def test_align_token_jobs_pin_actions_by_commit_sha_and_dry_run_holds_no_secret(
     for name in ("fetch", "push"):
         for step in jobs[name]["steps"]:
             if "uses" in step:
-                assert re.fullmatch(r"(?:actions|ruby)/[\w-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+                assert re.fullmatch(r"(?:actions/[\w-]+|ruby/setup-ruby)@[0-9a-f]{40}", step["uses"]), step["uses"]
     run = next(s for s in jobs["push"]["steps"] if "--phase push" in str(s.get("run", "")))
     assert "${{" not in run["run"], "expression injected into the shell script"
     assert run["env"]["APPLY"] == "${{ inputs.apply }}"
@@ -119,6 +119,7 @@ def test_align_push_job_runs_lock_structure_on_the_pinned_ruby_of_the_build_job(
     jobs = load("fleet-align-gems.yml")["jobs"]
     ruby = {n: next(s for s in jobs[n]["steps"] if str(s.get("uses", "")).startswith("ruby/setup-ruby@")) for n in ("build", "push")}
     assert ruby["push"]["with"]["ruby-version"] == ruby["build"]["with"]["ruby-version"]
+    assert ruby["push"]["uses"] == ruby["build"]["uses"], "push must use the same pinned ruby/setup-ruby SHA as build"
     steps = jobs["push"]["steps"]
     order = [i for i, s in enumerate(steps) if "ruby/setup-ruby" in str(s.get("uses", "")) or "--phase push" in str(s.get("run", ""))]
     assert "ruby/setup-ruby" in steps[order[0]].get("uses", ""), "setup-ruby must run before the push phase"

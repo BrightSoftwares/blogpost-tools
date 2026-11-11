@@ -831,6 +831,39 @@ def test_apply_with_unknown_expected_branch_fails_and_dry_run_notes_it(tmp_path,
     assert "branch unchecked" in capsys.readouterr().out
 
 
+def test_clean_name_masks_non_ascii_lookalikes():
+    assert al.clean_name("a\u0430b") == "a?b"  # Cyrillic a, a confusable of ASCII a
+    assert al.clean_name("\uff1a\uff1aerror") == "??error"  # fullwidth colons
+
+
+def test_branch_unchecked_note_not_printed_for_repo_outside_fleet_list(tmp_path, capsys, monkeypatch):
+    repos = tmp_path / "repos.txt"
+    repos.write_text(f"{FLEET_REPO}\n")
+    pdir = tmp_path / "p"
+    pdir.mkdir()
+    other = "someone/else-site"
+    (pdir / al.patch_filename(other)).write_text(json.dumps({"repo": other, "branch": "main"}))
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    al.main(["--phase", "push", "--repos", str(repos), "--patches", str(pdir)])
+    assert "branch unchecked" not in capsys.readouterr().out
+
+
+def test_lock_structure_subprocess_gets_a_scrubbed_environment(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "sekrit-value")
+    seen = {}
+
+    class R:
+        returncode, stdout, stderr = 0, "{}", ""
+
+    def runner(cmd, **kw):
+        seen.update(kw["env"])
+        return R()
+
+    al._bundler_structure("x", runner=runner)
+    assert set(seen) == {"PATH", "HOME", "LANG"} and "sekrit-value" not in str(seen)
+
+
 def test_names_in_log_lines_cannot_inject_workflow_commands(tmp_path, capsys, monkeypatch):
     assert al.clean_name("::error::x\nfoo") == "??error??x?foo"
     assert ":" not in al.clean_name("::error::x") and "\n" not in al.clean_name("a\nb") and al.clean_name("a/b-c_d.e") == "a/b-c_d.e"
@@ -880,7 +913,8 @@ def test_fetch_phase_exits_non_zero_on_an_empty_fleet_list(tmp_path, capsys, mon
 
 def test_patch_filename_is_collision_free_and_valid_repo_rejects_dot_segments():
     assert al.patch_filename("a/b__c") != al.patch_filename("a__b/c")
-    assert al.patch_filename("a/b_c") != al.patch_filename("a_b/c") != al.patch_filename("a/b__c")
+    names = [al.patch_filename(x) for x in ("a/b_c", "a_b/c", "a/b__c")]
+    assert len(set(names)) == 3, names
     names = {al.patch_filename(f"{o}/{r}") for o in ("a", "a_", "a__", "a_b") for r in ("b", "_b", "b_", "b__c", "c")}
     assert len(names) == 20
     assert al.patch_filename("a/site") == "a__site.json" and "/" not in al.patch_filename("x_y/z_w")

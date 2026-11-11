@@ -59,7 +59,7 @@ jobs:
         with:
           name: fleet-trees
           path: work
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@223e443f3ed4b46b29a8be6b9b2e22d5cce534e7 # v1.250.0
         with:
           ruby-version: '3.4'
       - name: Build (no secrets in this job)
