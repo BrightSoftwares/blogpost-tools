@@ -64,10 +64,20 @@ def test_align_workflow_separates_token_and_fleet_code():
     assert jobs["push"]["needs"] == "build" and jobs["build"]["needs"] == "fetch"
 
 
-def test_align_workflow_uploads_hidden_files_in_the_trees_artifact():
-    steps = load("fleet-align-gems.yml")["jobs"]["fetch"]["steps"]
+def test_align_workflow_ships_the_trees_as_one_archive_so_hidden_files_survive():
+    # upload-artifact failed with "Maximum call stack size exceeded" on the fleet's file count (run 43045847997):
+    # the trees travel as ONE tar (dotfiles included), packed in fetch and unpacked in build.
+    jobs = load("fleet-align-gems.yml")["jobs"]
+    steps = jobs["fetch"]["steps"]
+    pack = next(s for s in steps if "tar -czf fleet-trees.tgz -C work ." in str(s.get("run", "")))
     up = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact"))
-    assert up["with"]["name"] == "fleet-trees" and up["with"]["include-hidden-files"] is True
+    assert up["with"]["name"] == "fleet-trees" and up["with"]["path"] == "fleet-trees.tgz"
+    assert steps.index(pack) < steps.index(up)
+    bsteps = jobs["build"]["steps"]
+    dl = next(s for s in bsteps if str(s.get("uses", "")).startswith("actions/download-artifact"))
+    unpack = next(s for s in bsteps if "tar -xzf archive/fleet-trees.tgz -C work" in str(s.get("run", "")))
+    assert dl["with"]["name"] == "fleet-trees" and dl["with"]["path"] == "archive"
+    assert bsteps.index(dl) < bsteps.index(unpack)
 
 
 GUARD = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
@@ -108,7 +118,7 @@ def test_align_token_jobs_pin_actions_by_commit_sha_and_dry_run_holds_no_secret(
     for name in ("fetch", "push"):
         for step in jobs[name]["steps"]:
             if "uses" in step:
-                assert re.fullmatch(r"(?:actions|ruby)/[\w-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+                assert re.fullmatch(r"(?:actions/[\w-]+|ruby/setup-ruby)@[0-9a-f]{40}", step["uses"]), step["uses"]
     run = next(s for s in jobs["push"]["steps"] if "--phase push" in str(s.get("run", "")))
     assert "${{" not in run["run"], "expression injected into the shell script"
     assert run["env"]["APPLY"] == "${{ inputs.apply }}"
@@ -119,6 +129,7 @@ def test_align_push_job_runs_lock_structure_on_the_pinned_ruby_of_the_build_job(
     jobs = load("fleet-align-gems.yml")["jobs"]
     ruby = {n: next(s for s in jobs[n]["steps"] if str(s.get("uses", "")).startswith("ruby/setup-ruby@")) for n in ("build", "push")}
     assert ruby["push"]["with"]["ruby-version"] == ruby["build"]["with"]["ruby-version"]
+    assert ruby["push"]["uses"] == ruby["build"]["uses"], "push must use the same pinned ruby/setup-ruby SHA as build"
     steps = jobs["push"]["steps"]
     order = [i for i, s in enumerate(steps) if "ruby/setup-ruby" in str(s.get("uses", "")) or "--phase push" in str(s.get("run", ""))]
     assert "ruby/setup-ruby" in steps[order[0]].get("uses", ""), "setup-ruby must run before the push phase"
