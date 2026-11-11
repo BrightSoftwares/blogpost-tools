@@ -342,6 +342,36 @@ def test_fetch_hands_over_plain_tree_without_git_dir_and_token_not_in_argv(tmp_p
     assert "invalid" in al.fetch_repo("a/site", "--upload-pack=x", str(tmp_path), TOKEN, runner=r)
 
 
+def test_fetch_with_relative_out_dir_puts_tree_where_build_looks(tmp_path, monkeypatch):
+    """Regression (run 43091319998): git runs with cwd=base, so a relative --out nested the tree under base/work/..
+    and the build phase saw no Gemfile for every repo. The runner here honours cwd like real git does."""
+    def cwd_runner(cmd, cwd=None, capture_output=True, text=True, env=None):
+        tree = os.path.join(cwd, cmd[-1])  # relative targets resolve against cwd, as git does
+        os.makedirs(os.path.join(tree, ".git"))
+        open(os.path.join(tree, "Gemfile"), "w").write(GEMFILE)
+        open(os.path.join(tree, "Gemfile.lock"), "w").write("GEM\n")
+        os.makedirs(os.path.join(tree, ".github"))
+        open(os.path.join(tree, ".github", "dependabot.yml"), "w").write("x\n")
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+    monkeypatch.chdir(tmp_path)
+    assert "fetched" in al.fetch_repo("a/site", "main", "work", TOKEN, runner=cwd_runner)
+    tree = tmp_path / "work" / "a__site" / "tree"
+    assert (tree / "Gemfile").exists() and (tree / "Gemfile.lock").exists() and (tree / ".github" / "dependabot.yml").exists()
+    assert not (tmp_path / "work" / "a__site" / "work").exists()
+    # pack/unpack round trip as the workflow does, then the build-phase presence check
+    import subprocess
+    subprocess.run(["tar", "-czf", str(tmp_path / "t.tgz"), "-C", "work", "."], check=True, cwd=tmp_path)
+    out = tmp_path / "unpacked"
+    out.mkdir()
+    subprocess.run(["tar", "-xzf", str(tmp_path / "t.tgz"), "-C", str(out)], check=True)
+    assert os.path.lexists(out / "a__site" / "tree" / "Gemfile") and os.path.lexists(out / "a__site" / "tree" / "Gemfile.lock")
+
+
+def test_fetch_reports_error_when_clone_leaves_no_tree(tmp_path):
+    ok = lambda cmd, cwd=None, capture_output=True, text=True, env=None: types.SimpleNamespace(returncode=0, stdout="", stderr="")
+    assert "ERROR" in al.fetch_repo("a/site", "main", str(tmp_path), TOKEN, runner=ok)
+
+
 # ------------------------------------------------------------------ output + misc minors
 def test_safe_line_escapes_control_chars_and_workflow_commands():
     assert al.safe_line("::set-output name=x::1").startswith("\\::")
