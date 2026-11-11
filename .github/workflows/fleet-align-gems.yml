@@ -2,7 +2,8 @@ name: fleet-align-gems
 
 # Aligns the satellite gems of the Jekyll fleet to scripts/jekyll_fleet/versions.yml in three jobs that never
 # share a process, a directory or a secret: fetch (token, no fleet code), build (NO secrets, runs fleet code),
-# push (token, applies a text-validated patch only). Manual dispatch; dry-run by default (push job validates only).
+# push (token, applies a text-validated patch only). Manual dispatch, default branch only (every job is guarded);
+# dry-run by default (push job validates only).
 on:
   workflow_dispatch:
     inputs:
@@ -17,22 +18,34 @@ permissions:
 
 jobs:
   fetch:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase fetch --out work
+      # A failing repo must not hide the other repos' trees: record the failure, hand over what exists, fail after.
+      - id: fetch
+        continue-on-error: true
+        run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase fetch --out work
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fleet-trees
           path: work
+          include-hidden-files: true
+          if-no-files-found: ignore
           retention-days: 1
+      - name: Fail the job if any repo failed to fetch
+        if: steps.fetch.outcome == 'failure'
+        run: |
+          echo "::error::fetch phase reported ERROR/FAIL for at least one repo (see the fetch step log)"
+          exit 1
 
   build:
+    if: ${{ !cancelled() && needs.fetch.result != 'skipped' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     needs: fetch
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -50,29 +63,43 @@ jobs:
         with:
           ruby-version: '3.4'
       - name: Build (no secrets in this job)
-        run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase build --in work --patches patches
+        id: build
+        continue-on-error: true
+        run: |
+          mkdir -p work patches
+          python3 scripts/jekyll_fleet/fleet_align_gems.py --phase build --in work --patches patches
       - uses: actions/upload-artifact@v4
         with:
           name: fleet-patches
           path: patches
+          if-no-files-found: ignore
           retention-days: 1
+      - name: Fail the job if any repo failed to build
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::build phase reported ERROR/FAIL for at least one repo (see the build step log)"
+          exit 1
 
   push:
+    if: ${{ !cancelled() && needs.build.result != 'skipped' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: fleet-patches
           path: patches
       - name: Validate and push patches (no fleet code runs here)
         run: |
+          mkdir -p patches
           flag=""
-          if [ "${{ inputs.apply }}" = "true" ]; then flag="--apply"; fi
+          if [ "$APPLY" = "true" ]; then flag="--apply"; fi
           python3 scripts/jekyll_fleet/fleet_align_gems.py --phase push --patches patches $flag
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          APPLY: ${{ inputs.apply }}
+          # the token is exported only for a real push; a dry run holds no secret at all
+          GITHUB_TOKEN: ${{ inputs.apply && secrets.REPO_ACCESS_TOKEN || '' }}

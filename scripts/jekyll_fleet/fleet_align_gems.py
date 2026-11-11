@@ -16,7 +16,13 @@ never run fleet code):
 
 Residual risk: a malicious fleet repo can still run code in the build phase. That phase has no token, no
 global git config and a throwaway HOME; run it in its own job/container (see
-.github/workflows/fleet-align-gems.yml: build job has `contents: read`, no secrets).
+.github/workflows/fleet-align-gems.yml: build job has `contents: read`, no secrets). Inside the build job,
+code from a fleet repo could also start a background process that outlives the step and reads the job's
+ACTIONS_RUNTIME_TOKEN (artifact upload scope); that is inside the accepted threat model of this design.
+
+Lock validation compares locks STRUCTURALLY with Bundler's own parser (lock_structure.rb, pure parser, no fleet
+code) plus a strict line grammar; a Python text split on blank lines is not how Bundler reads a lock. It fails
+closed when ruby is unavailable.
 
     python3 fleet_align_gems.py --phase fetch --repos fleet_repos.txt --out work     # GITHUB_TOKEN set
     python3 fleet_align_gems.py --phase build --in work --patches patches           # no token
@@ -41,14 +47,15 @@ from fleet_common import GitHub, default_branch, parse_repo_list  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORK_BRANCH = "claude/automated-work"
 RUBYGEMS = "https://rubygems.org/"
-LOCK_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \((\d+(?:\.\d+)*(?:\.[A-Za-z][\w.]*)?)(?:-[^)]*)?\)$")
+LOCK_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \((\d+(?:\.\d+)*(?:\.[A-Za-z][\w.]*)?)(?:-[^)]*)?\)$", re.ASCII)
+# Spec line as Bundler reads it: 4 spaces, name, parenthesised version (digits, letters, dots; optional -platform).
+SPEC_LINE = re.compile(r"^    ([A-Za-z0-9_.-]+) \(([0-9][A-Za-z0-9.]*)(-[A-Za-z0-9_.-]+)?\)$", re.ASCII)
 SECRET_ENV = ("GITHUB_TOKEN", "GH_TOKEN", "REPO_ACCESS_TOKEN", "FLEET_COMMIT_TRAILER")
-NAME_OK = re.compile(r"[\w][\w./-]*")  # no leading '-': a value can never look like a git option
-GEM_NAME = re.compile(r"[\w.-]+")
-VERSION = re.compile(r"\d+(\.\w+)*")
+NAME_OK = re.compile(r"[\w][\w./-]*", re.ASCII)  # no leading '-': a value can never look like a git option
+GEM_NAME = re.compile(r"[\w.-]+", re.ASCII)
+VERSION = re.compile(r"\d+(\.\w+)*", re.ASCII)
 URL_CRED = re.compile(r"://[^@/\s]+@")
 PIN_COMMENT = "# Pinned by fleet_align_gems.py (scripts/jekyll_fleet/versions.yml)"
-LOCK_VARIABLE_HEADERS = {"GEM", "DEPENDENCIES", "CHECKSUMS", "BUNDLED WITH"}
 
 
 # --------------------------------------------------------------------------- matrix / names / output
@@ -86,7 +93,7 @@ def valid_name(value: str) -> bool:
 
 
 def valid_repo(repo: str) -> bool:
-    return bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo)) and valid_name(repo.replace("/", "x", 1))
+    return bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo, re.ASCII)) and valid_name(repo.replace("/", "x", 1))
 
 
 def redact(text: str, token: str = "") -> str:
@@ -119,7 +126,7 @@ def parse_lock(text: str) -> dict:
             continue
         if in_specs and not line.startswith("    "):
             in_specs = False
-        m = LOCK_LINE.match(line) if in_specs else None
+        m = SPEC_LINE.match(line) if in_specs else None
         if m:
             gems[m.group(1)] = m.group(2)
     return gems
@@ -158,43 +165,234 @@ def lock_blocks(text: str):
     return blocks
 
 
-def _remotes(block: str):
-    return [l.split("remote:", 1)[1].strip() for l in block.splitlines() if l.strip().startswith("remote:")]
+_NAME = r"[A-Za-z0-9_.-]+"
+_SOURCE_LINES = (r"  remote: \S+", r"  revision: [0-9a-f]+", r"  (?:tag|branch|ref|glob|submodules): \S+", r"  specs:",
+                 rf"    {_NAME} \([0-9][A-Za-z0-9.]*(?:-[A-Za-z0-9_.-]+)?\)", rf"      {_NAME}(?: \([^()\n]*\))?")
+LOCK_GRAMMAR = {
+    "GEM": _SOURCE_LINES, "GIT": _SOURCE_LINES, "PATH": _SOURCE_LINES,
+    "PLATFORMS": (r"  [A-Za-z0-9_.-]+",),
+    "DEPENDENCIES": (rf"  {_NAME}(?: \([^()\n]*\))?!?",),
+    "CHECKSUMS": (rf"  {_NAME} \([^()\s]+\)(?: [A-Za-z0-9]+=[0-9a-f]+)?",),
+    "BUNDLED WITH": (r"  {1,3}[0-9][A-Za-z0-9.]*",),  # Bundler 2 writes 3 spaces, Bundler 4 writes 2
+    "RUBY VERSION": (r"  {1,3}ruby [0-9][A-Za-z0-9.]*",),
+}
+_GRAMMAR_RE = {h: [re.compile(p, re.ASCII) for p in pats] for h, pats in LOCK_GRAMMAR.items()}
 
 
-def sources_problems(lock_text: str, matrix: dict):
-    """GEM remote must be exactly rubygems.org; any GIT/PATH remote must be allowlisted in versions.yml."""
-    problems = []
-    for header, block in lock_blocks(lock_text):
-        for remote in _remotes(block):
-            if header == "GEM" and remote != RUBYGEMS:
-                problems.append(f"GEM remote not {RUBYGEMS}: {remote}")
-            if header in ("GIT", "PATH") and remote not in matrix["allow_sources"]:
-                problems.append(f"{header} source not allowlisted in versions.yml: {remote}")
+def lock_lines(text: str):
+    """Yield (section, line) for every line, split on "\\n" ONLY (the one separator Bundler uses), so lines Python's
+    splitlines()/\\s treat as separators (\\r \\x0b \\x0c \\x1c-\\x1e \\x85 U+2028/9) stay inside a line and fail the grammar."""
+    section = ""
+    for line in text.split("\n"):
+        if line and not line[0].isspace():
+            section = line
+        yield section, line
+
+
+def grammar_problems(text: str) -> list:
+    """Strict line grammar of a Gemfile.lock: known section headers, known 2/3/4/6-space forms, no blank-ish lines."""
+    problems, prev = [], None
+    for n, (section, line) in enumerate(lock_lines(text), 1):
+        if line == "":
+            prev = line
+            continue
+        shown = _clip(line, 60)
+        if not line[0].isspace() and prev is not None and prev != "":
+            problems.append(f"lock line {n}: section header {shown} is not preceded by an empty line")
+        prev = line
+        if not line.isascii() or not line.isprintable() or line != line.rstrip(" "):
+            problems.append(f"lock line {n}: control, non-ASCII or trailing-space characters: {shown}")
+        elif not line.startswith(" "):
+            if line not in LOCK_GRAMMAR:
+                problems.append(f"lock line {n}: unknown section header: {shown}")
+        elif not any(r.fullmatch(line) for r in _GRAMMAR_RE.get(section, ())):
+            problems.append(f"lock line {n}: not allowed in {section or 'no section'}: {shown}")
     return problems
 
 
-def lock_problems(before_text: str, after_text: str, matrix: dict, allow_transitive=False):
-    """Pure text validation of a lock change. Returns (problems, transitive_changes)."""
-    problems = sources_problems(after_text, matrix)
-    b, a = lock_blocks(before_text), lock_blocks(after_text)
-    for header in {h for h, _ in b} | {h for h, _ in a}:
-        if header in LOCK_VARIABLE_HEADERS:
+def _clip(text, n=80):
+    return repr(str(text)[:n]) + ("..." if len(str(text)) > n else "")
+
+
+def sources_problems(lock_text: str, matrix: dict):
+    """EVERY `remote:` line of the lock (no matter which block Python thinks it is in), exactly one per source
+    section: a GEM remote must be exactly rubygems.org; a GIT/PATH remote must be allowlisted in versions.yml."""
+    problems, per_section = [], {}
+    for n, (section, line) in enumerate(lock_lines(lock_text), 1):
+        if section.split(" ")[0] in ("GEM", "GIT", "PATH") and line == section:
+            per_section[n] = [section, 0]
+        if "remote:" not in line:
             continue
-        if [t for h, t in b if h == header] != [t for h, t in a if h == header]:
-            problems.append(f"{header} section changed (compared whole, revisions included)")
-    bd = "\n".join(t for h, t in b if h == "DEPENDENCIES")
-    ad = "\n".join(t for h, t in a if h == "DEPENDENCIES")
-    bl = {l.strip() for l in bd.splitlines() if l.strip() and l.strip() != "DEPENDENCIES"}
-    al_ = {l.strip() for l in ad.splitlines() if l.strip() and l.strip() != "DEPENDENCIES"}
-    stray = sorted({l.split(" ", 1)[0].rstrip("!") for l in bl ^ al_} - set(matrix["gems"]))
-    if stray:
-        problems.append("DEPENDENCIES changed outside the matrix: " + ", ".join(stray))
+        m = re.fullmatch(r"  remote: (\S+)", line)
+        if not m:
+            problems.append(f"malformed remote line in {section or 'no section'}: {_clip(line.strip())}")
+        elif section == "GEM" and m.group(1) != RUBYGEMS:
+            problems.append(f"GEM remote not {RUBYGEMS}: {_clip(m.group(1))}")
+        elif section in ("GIT", "PATH") and m.group(1) not in matrix["allow_sources"]:
+            problems.append(f"{section} source not allowlisted in versions.yml: {_clip(m.group(1))}")
+        elif section not in ("GEM", "GIT", "PATH"):
+            problems.append(f"remote line outside a source section ({section or 'none'}): {_clip(m.group(1))}")
+        elif per_section:
+            per_section[max(per_section)][1] += 1
+    for section, count in per_section.values():
+        if count != 1:
+            problems.append(f"{section} source section has {count} remote lines (exactly one required)")
+    return problems
+
+
+def source_spec_lists(text: str) -> list:
+    """Per source section (GEM/GIT/PATH, in file order): the ordered [(spec line, [dependency lines])]. Text level on
+    purpose: Bundler's parser keeps ONE of two identical name/version specs and hides the other."""
+    out = []
+    for section, line in lock_lines(text):
+        if section.split(" ")[0] in ("GEM", "GIT", "PATH") and line == section:
+            out.append([])
+        elif out and SPEC_LINE.match(line):
+            out[-1].append((line, []))
+        elif out and out[-1] and line.startswith("      "):
+            out[-1][-1][1].append(line)
+    return out
+
+
+def section_headers(text: str) -> list:
+    return [line for line in text.split("\n") if line and not line[0].isspace()]
+
+
+class LockStructureError(Exception):
+    pass
+
+
+_STRUCTURE_CACHE: dict = {}
+
+
+def bundler_structure(text: str, runner=subprocess.run) -> dict:
+    if runner is subprocess.run and text in _STRUCTURE_CACHE:  # same lock text, same answer (one ruby start is ~0.4 s)
+        return _STRUCTURE_CACHE[text]
+    result = _bundler_structure(text, runner)
+    if runner is subprocess.run:
+        _STRUCTURE_CACHE[text] = result
+    return result
+
+
+def _bundler_structure(text: str, runner=subprocess.run) -> dict:
+    """Parse a lock with Bundler's own LockfileParser (lock_structure.rb). Fails CLOSED: no ruby, a timeout or any
+    parse error raises LockStructureError, which callers turn into a rejection."""
+    script = os.path.join(HERE, "lock_structure.rb")
+    home = tempfile.mkdtemp(prefix="lockstruct-")
+    try:
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": home, "LANG": "C.UTF-8"}
+        try:
+            res = runner(["ruby", script], input=text, capture_output=True, text=True, timeout=10, env=env)
+        except FileNotFoundError:
+            raise LockStructureError("ruby is not available: cannot validate the lock structure (failing closed)") from None
+        except subprocess.TimeoutExpired:
+            raise LockStructureError("lock structure parser timed out (failing closed)") from None
+        if res.returncode:
+            raise LockStructureError("Bundler could not parse the lock: " + _clip((res.stderr or "").strip().splitlines()[-1:] or ""))
+        try:
+            return json.loads(res.stdout)
+        except ValueError:
+            raise LockStructureError("lock structure parser returned invalid output") from None
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+
+
+def structure_problems(before_text: str, after_text: str, matrix: dict, runner=subprocess.run) -> list:
+    """Structural comparison of two locks as Bundler reads them. Only the matrix gems below target may change, and
+    only to the matrix version; sources, platforms, Ruby/Bundler versions, dependencies and checksums are otherwise
+    byte-for-byte what they were."""
+    try:
+        b, a = bundler_structure(before_text, runner), bundler_structure(after_text, runner)
+    except LockStructureError as exc:
+        return [str(exc)]
+    problems = []
+    if b["sources"] != a["sources"]:
+        problems.append("ordered source list (class, uri, revision, ref, branch, glob) changed")
+    for key in ("platforms", "ruby_version"):
+        if b[key] != a[key]:
+            problems.append(f"{key} changed")
+    allowed_bundler = {v.strip() for v in str(matrix.get("allow_bundler", "")).split(",") if v.strip()}
+    if b["bundler_version"] != a["bundler_version"] and a["bundler_version"] not in allowed_bundler:
+        problems.append(f"BUNDLED WITH changed {b['bundler_version']} -> {a['bundler_version']} (not in allow_bundler)")
+    key = lambda sp: (sp["name"], sp["platform"], sp["source"])  # noqa: E731
+    seen = set()
+    for sp in a["specs"]:
+        if key(sp) in seen:
+            problems.append(f"duplicate spec {sp['name']} ({sp['platform']}) in one source")
+        seen.add(key(sp))
+    bmap, amap = {key(sp): sp for sp in b["specs"]}, {key(sp): sp for sp in a["specs"]}
+    if set(bmap) != set(amap):
+        added = sorted({k[0] for k in set(amap) - set(bmap)})
+        removed = sorted({k[0] for k in set(bmap) - set(amap)})
+        problems.append(f"spec set changed: added {added}, removed {removed}")
+    # which matrix gems were below target (by the versions Bundler read, not by a text regex)
+    bver = {sp["name"]: sp["version"] for sp in b["specs"]}
+    update = plan(bver, matrix)["update"]
+    names = {sp["name"] for sp in a["specs"]}
+    for k in sorted(set(bmap) & set(amap)):
+        bs, as_ = bmap[k], amap[k]
+        if k[0] in update:
+            if as_["version"] != matrix["gems"][k[0]]:
+                problems.append(f"{k[0]} is {as_['version']}, matrix says {matrix['gems'][k[0]]}")
+            stray = sorted({d.split(" ")[0] for d in as_["deps"]} - names)
+            if stray:
+                problems.append(f"{k[0]} gained dependencies on gems that are not in the lock: {stray}")
+        elif bs != as_:
+            problems.append(f"spec changed outside the matrix update: {k[0]} ({k[1]})")
+    bd, ad = {d["name"]: d for d in b["dependencies"]}, {d["name"]: d for d in a["dependencies"]}
+    for name in sorted(set(bd) | set(ad)):
+        if bd.get(name) == ad.get(name):
+            continue
+        want = f"= {matrix['gems'].get(name)}"
+        if name in update and ad.get(name) and ad[name]["req"] == want and ad[name]["source"] == (bd.get(name) or ad[name])["source"]:
+            continue
+        problems.append(f"DEPENDENCIES entry changed outside the matrix update: {name}")
+    bl, al_ = source_spec_lists(before_text), source_spec_lists(after_text)
+    if len(bl) != len(al_):
+        problems.append("number of source sections changed")
+    for n, (bs, as_) in enumerate(zip(bl, al_), 1):
+        if len(bs) != len(as_):
+            problems.append(f"source section {n}: spec list length {len(bs)} -> {len(as_)} (added, removed or hidden duplicate)")
+            continue
+        for (bline, bdeps), (aline, adeps) in zip(bs, as_):
+            bm, am = SPEC_LINE.match(bline), SPEC_LINE.match(aline)
+            if bm.group(1) in update and am and am.group(1) == bm.group(1) and am.group(3) == bm.group(3):
+                continue  # the updated gem's own line (version and dependencies are checked structurally above)
+            if (bline, bdeps) != (aline, adeps):
+                problems.append(f"source section {n}: spec line changed outside the matrix update: {_clip(aline.strip())}")
+    problems += checksum_problems(before_text, after_text, update)
+    return problems
+
+
+def checksum_problems(before_text: str, after_text: str, update: list) -> list:
+    """CHECKSUMS must exist iff it did, and every line that does not name an updated gem must be byte-identical."""
+    def lines(text):
+        sec, out = None, []
+        for section, line in lock_lines(text):
+            if line == "CHECKSUMS":
+                sec = []
+                continue
+            if section == "CHECKSUMS" and line.startswith("  "):
+                sec.append(line)
+        return sec
+    b, a = lines(before_text), lines(after_text)
+    if (b is None) != (a is None):
+        return ["CHECKSUMS section added or removed"]
+    if b is None:
+        return []
+    def keep(ls):
+        return [l for l in ls if l.strip().split(" ", 1)[0] not in update]
+    return [] if keep(b) == keep(a) else ["CHECKSUMS lines outside the matrix update changed"]
+
+
+def lock_problems(before_text: str, after_text: str, matrix: dict, allow_transitive=False):
+    """Validate a lock change: strict line grammar + one remote per source + identical ordered section headers +
+    the STRUCTURAL comparison through Bundler's parser. Returns (problems, transitive_changes)."""
+    problems = grammar_problems(after_text) + sources_problems(after_text, matrix)
+    if section_headers(before_text) != section_headers(after_text):
+        problems.append("ordered list of section headers changed")
+    problems += structure_problems(before_text, after_text, matrix)
     bp, ap = parse_lock(before_text), parse_lock(after_text)
-    for gem, ver in ap.items():
-        if not GEM_NAME.fullmatch(gem) or not VERSION.fullmatch(ver):
-            if not re.fullmatch(r"\d+(\.\d+)*(\.[A-Za-z][\w.]*)?", ver):
-                problems.append(f"odd gem or version in lock: {gem} {ver}")
     changed = sorted(g for g in set(bp) | set(ap) if bp.get(g) != ap.get(g))
     transitive = [f"{g} {bp.get(g)}->{ap.get(g)}" for g in changed if g not in matrix["gems"]]
     if transitive and not allow_transitive:
@@ -381,23 +579,101 @@ def build_repo(repo, branch, tree, matrix, runner=subprocess.run, passthrough=()
 
 
 # --------------------------------------------------------------------------- phase: push (token, no fleet code)
-def patch_problems(patch: dict, matrix: dict):
-    """Validate a patch purely as text (the patch file is untrusted: it came out of the build phase)."""
-    keys = ("repo", "branch", "before_gemfile", "before_lock", "after_gemfile", "after_lock")
-    if not all(isinstance(patch.get(k), str) for k in keys):
+SUMMARY_ITEM = r"[\w.-]+ [\w.+~-]+->[\w.+~-]+"
+SUMMARY_RE = re.compile(rf"{SUMMARY_ITEM}(?:, {SUMMARY_ITEM})*", re.ASCII)
+AHEAD_PREFIX = "; ahead of matrix (left alone): "
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def fleet_branches(text: str) -> dict:
+    """{lower-cased owner/repo: declared branch or None} from fleet_repos.txt."""
+    return {repo.lower(): branch for repo, branch in parse_repo_list(text)}
+
+
+def patch_filename(repo: str) -> str:
+    return repo.replace("/", "__") + ".json"
+
+
+def binding_problem(name, patch, branches, gh=None):
+    """A patch is bound to ITS repo: the file name must be that repo's, and the branch must be the fleet-list branch
+    (or the repo's default branch), never whatever the untrusted patch says. None when fine or not checkable."""
+    if not isinstance(patch, dict) or not isinstance(patch.get("repo"), str) or not isinstance(patch.get("branch"), str):
+        return None  # push_patch reports it as malformed
+    if not valid_repo(patch["repo"]):
+        return None
+    if name != patch_filename(patch["repo"]):
+        return f"{name}: FAIL patch file name does not match its repo {patch['repo']} (expected {patch_filename(patch['repo'])})"
+    expected = branches.get(patch["repo"].lower())
+    if expected is None and gh is not None:
+        expected = default_branch(gh, patch["repo"])
+    if expected is not None and patch["branch"] != expected:
+        return f"{patch['repo']}: FAIL patch branch {patch['branch']!r} is not the fleet branch {expected!r}"
+    return None
+
+
+def fleet_repo_set(text: str) -> set:
+    """Lower-cased owner/repo names of the fleet list (GitHub names are case-insensitive)."""
+    return {repo.lower() for repo, _ in parse_repo_list(text)}
+
+
+def regenerated_problems(patch: dict, matrix: dict) -> list:
+    """Do not trust the patch's Gemfile or summary: rebuild both from the two locks and require equality.
+    The gems that changed between before_lock and after_lock must be exactly the matrix gems that were below
+    target; the Gemfile must equal pin_gemfile(before_gemfile, those gems at matrix versions) byte for byte."""
+    before, after = parse_lock(patch["before_lock"]), parse_lock(patch["after_lock"])
+    update = plan(before, matrix)["update"]
+    changed = sorted(g for g in set(before) | set(after) if before.get(g) != after.get(g))
+    if changed != update:
+        return [f"lock changes {changed} differ from the gems below the matrix {update}"]
+    # the push phase re-checks what the build phase promised: every updated gem sits EXACTLY on the matrix version
+    # and no matrix gem vanished from the lock (a missing entry is a validation message, never a KeyError)
+    gone = sorted(g for g in matrix["gems"] if g in before and g not in after)
+    if gone:
+        return [f"matrix gem removed from the lock: {', '.join(gone)}"]
+    wrong = verify_after(after, matrix, update)
+    if wrong:
+        return [f"after_lock not on the matrix version ({'; '.join(wrong)})"]
+    expected = pin_gemfile(patch["before_gemfile"], {g: matrix["gems"][g] for g in update})
+    problems = []
+    if patch["after_gemfile"] != expected:
+        problems.append("Gemfile differs from the regenerated pin (not byte-identical)")
+    derived = ", ".join(f"{g} {before[g]}->{after[g]}" for g in update)
+    if patch["summary"] != derived:
+        problems.append("summary does not match the lock diff")
+    return problems
+
+
+def patch_problems(patch: dict, matrix: dict, allowed):
+    """Validate a patch purely as text (the patch file is untrusted: it came out of the build phase).
+
+    `allowed`: set of lower-cased owner/repo names from fleet_repos.txt; a patch for any other repo is rejected.
+    """
+    keys = ("repo", "branch", "summary", "before_gemfile", "before_lock", "after_gemfile", "after_lock")
+    if not isinstance(patch, dict) or not all(isinstance(patch.get(k), str) for k in keys):
+        return ["malformed patch"]
+    ahead = patch.get("ahead", "")
+    if not isinstance(ahead, str):
         return ["malformed patch"]
     if not valid_repo(patch["repo"]) or not valid_name(patch["branch"]):
         return ["invalid repo or branch in patch"]
+    if patch["repo"].lower() not in allowed:
+        return ["repo not in fleet_repos.txt"]
+    if len(patch["summary"]) > 500 or not SUMMARY_RE.fullmatch(patch["summary"]):
+        return ["invalid summary in patch"]
+    if ahead and (len(ahead) > 1000 or not ahead.startswith(AHEAD_PREFIX) or CONTROL_CHARS.search(ahead)):
+        return ["invalid ahead note in patch"]
     problems = sources_problems(patch["before_lock"], matrix)
     lp, _ = lock_problems(patch["before_lock"], patch["after_lock"], matrix, allow_transitive=False)
-    return problems + lp + gemfile_problems(patch["before_gemfile"], patch["after_gemfile"], matrix)
+    problems = problems + lp + gemfile_problems(patch["before_gemfile"], patch["after_gemfile"], matrix)
+    return problems + regenerated_problems(patch, matrix)
 
 
-def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None):
-    repo, branch = str(patch.get("repo", "?")), patch.get("branch", "")
-    problems = patch_problems(patch, matrix)
+def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None, *, allowed):
+    repo = str(patch.get("repo", "?")) if isinstance(patch, dict) else "?"
+    problems = patch_problems(patch, matrix, allowed)
     if problems:
         return f"{repo}: FAIL patch rejected ({'; '.join(problems)})"
+    branch = patch["branch"]
     if not apply:
         return f"{repo}: WOULD push to {WORK_BRANCH}: {patch['summary']}{patch.get('ahead', '')} (patch valid)"
     trailer = os.environ.get("FLEET_COMMIT_TRAILER", "") if trailer is None else trailer
@@ -453,7 +729,11 @@ def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=N
                 body += "\n\nUnreviewed commits already on `claude/automated-work`:\n" + unreviewed.strip()
             s, pr, _ = gh.request("POST", f"/repos/{repo}/pulls", {
                 "title": "chore(deps): align Jekyll fleet gems to versions.yml", "head": WORK_BRANCH, "base": branch, "body": body})
-            note += f"; opened PR {pr.get('html_url')}" if s in (200, 201) and pr else f"; PR creation failed (HTTP {s})"
+            if s in (200, 201) and pr:
+                note += f"; opened PR {pr.get('html_url')}"
+            else:
+                shutil.rmtree(home, ignore_errors=True)
+                return f"{repo}: FAIL pushed {WORK_BRANCH} but PR creation failed (HTTP {s}); {patch['summary']}"
     shutil.rmtree(home, ignore_errors=True)
     return f"{repo}: DONE {patch['summary']}; {note}{patch.get('ahead', '')}"
 
@@ -465,6 +745,22 @@ def safe_call(label, fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except Exception as exc:  # noqa: BLE001 - isolation is the point
         return f"{label}: ERROR {type(exc).__name__}: {exc}"
+
+
+FAILURE_LINE = re.compile(r": (?:ERROR|FAIL)\b")
+
+
+def is_failure(text: str) -> bool:
+    """True for a per-repo report line that says ERROR or FAIL (SKIP / OK / WOULD / DONE are not failures)."""
+    return bool(FAILURE_LINE.search(text))
+
+
+def finish(failures) -> int:
+    """Exit status: non-zero when any repo reported ERROR or FAIL, so the job (and the workflow run) goes red."""
+    if failures:
+        say(f"SUMMARY: {len(failures)} repo(s) reported ERROR/FAIL - exiting non-zero")
+        return 1
+    return 0
 
 
 def main(argv=None) -> int:
@@ -484,6 +780,13 @@ def main(argv=None) -> int:
     with open(args.matrix, encoding="utf-8") as fh:
         matrix = load_matrix(fh.read())
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or ""
+    failures = []
+
+    def report(text, tok=""):
+        if is_failure(text):
+            failures.append(text)
+        say(text, tok)
+
     if args.phase == "fetch":
         if not args.out or not token:
             ap.error("fetch needs --out and GITHUB_TOKEN")
@@ -493,42 +796,58 @@ def main(argv=None) -> int:
         if bad:
             ap.error(f"invalid branch in repo list: {bad}")
         gh = GitHub.from_env()
+        os.makedirs(args.out, exist_ok=True)
+        # always hand over a file, so the artifact exists even when every repo failed (a missing artifact is then a
+        # real download failure, not "nothing to do")
+        with open(os.path.join(args.out, "MANIFEST.txt"), "w", encoding="utf-8") as fh:
+            fh.write("".join(f"{r}\n" for r, _ in entries))
         for repo, branch in entries:
             br = branch or default_branch(gh, repo)
-            say(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: SKIP (not accessible)", token)
-        return 0
+            report(safe_call(repo, fetch_repo, repo, br, args.out, token) if br else f"{repo}: ERROR not accessible (listed in fleet_repos.txt)", token)
+        return finish(failures)
     if args.phase == "build":
         if not args.indir or not args.patches:
             ap.error("build needs --in and --patches")
         if any(os.environ.get(k) for k in SECRET_ENV):
             ap.error("build phase refuses to run with a token in the environment")
         os.makedirs(args.patches, exist_ok=True)
+        with open(os.path.join(args.patches, "MANIFEST.txt"), "w", encoding="utf-8") as fh:
+            fh.write("build phase ran\n")
         for name in sorted(os.listdir(args.indir)):
             base = os.path.join(args.indir, name)
+            if not os.path.isdir(base):
+                continue  # e.g. MANIFEST.txt
             try:
                 with open(os.path.join(base, "meta.json"), encoding="utf-8") as fh:
                     meta = json.load(fh)
                 repo, branch = meta["repo"], meta["branch"]
-                if not valid_repo(repo) or not valid_name(branch) or (args.only and repo not in args.only):
+                if not valid_repo(repo) or not valid_name(branch):
+                    report(f"{name}: ERROR invalid repo or branch in meta.json")
                     continue
-            except (OSError, ValueError, KeyError):
+                if args.only and repo not in args.only:
+                    continue
+            except (OSError, ValueError, KeyError, TypeError):
+                report(f"{name}: ERROR unreadable or invalid meta.json")
                 continue
             try:
                 kind, res = build_repo(repo, branch, os.path.join(base, "tree"), matrix, passthrough=args.build_env_pass)
             except Exception as exc:  # noqa: BLE001
                 kind, res = "MSG", f"{repo}: ERROR {type(exc).__name__}: {exc}"
             if kind == "PATCH":
-                with open(os.path.join(args.patches, name + ".json"), "w", encoding="utf-8") as fh:
+                with open(os.path.join(args.patches, patch_filename(repo)), "w", encoding="utf-8") as fh:
                     json.dump(res, fh)
-                say(f"{repo}: patch ready: {res['summary']}{res['ahead']}")
+                report(f"{repo}: patch ready: {res['summary']}{res['ahead']}")
             else:
-                say(res)
-        return 0
+                report(res)
+        return finish(failures)
     if not args.patches:
         ap.error("push needs --patches")
     if args.apply and not token:
         ap.error("push --apply needs GITHUB_TOKEN")
     gh = GitHub.from_env() if args.apply else None
+    with open(args.repos, encoding="utf-8") as fh:
+        branches = fleet_branches(fh.read())
+    allowed = set(branches)
     with tempfile.TemporaryDirectory() as wd:
         for name in sorted(os.listdir(args.patches)):
             if not name.endswith(".json"):
@@ -537,12 +856,16 @@ def main(argv=None) -> int:
                 with open(os.path.join(args.patches, name), encoding="utf-8") as fh:
                     patch = json.load(fh)
             except (OSError, ValueError):
-                say(f"{name}: ERROR unreadable patch")
+                report(f"{name}: ERROR unreadable patch")
                 continue
-            if args.only and patch.get("repo") not in args.only:
+            if args.only and (not isinstance(patch, dict) or patch.get("repo") not in args.only):
                 continue
-            say(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh), token)
-    return 0
+            bad = binding_problem(name, patch, branches, gh)
+            if bad:
+                report(bad)
+                continue
+            report(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
+    return finish(failures)
 
 
 if __name__ == "__main__":
