@@ -64,10 +64,20 @@ def test_align_workflow_separates_token_and_fleet_code():
     assert jobs["push"]["needs"] == "build" and jobs["build"]["needs"] == "fetch"
 
 
-def test_align_workflow_uploads_hidden_files_in_the_trees_artifact():
-    steps = load("fleet-align-gems.yml")["jobs"]["fetch"]["steps"]
+def test_align_workflow_ships_the_trees_as_one_archive_so_hidden_files_survive():
+    # upload-artifact failed with "Maximum call stack size exceeded" on the fleet's file count (run 43045847997):
+    # the trees travel as ONE tar (dotfiles included), packed in fetch and unpacked in build.
+    jobs = load("fleet-align-gems.yml")["jobs"]
+    steps = jobs["fetch"]["steps"]
+    pack = next(s for s in steps if "tar -czf fleet-trees.tgz -C work ." in str(s.get("run", "")))
     up = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact"))
-    assert up["with"]["name"] == "fleet-trees" and up["with"]["include-hidden-files"] is True
+    assert up["with"]["name"] == "fleet-trees" and up["with"]["path"] == "fleet-trees.tgz"
+    assert steps.index(pack) < steps.index(up)
+    bsteps = jobs["build"]["steps"]
+    dl = next(s for s in bsteps if str(s.get("uses", "")).startswith("actions/download-artifact"))
+    unpack = next(s for s in bsteps if "tar -xzf archive/fleet-trees.tgz -C work" in str(s.get("run", "")))
+    assert dl["with"]["name"] == "fleet-trees" and dl["with"]["path"] == "archive"
+    assert bsteps.index(dl) < bsteps.index(unpack)
 
 
 GUARD = "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"

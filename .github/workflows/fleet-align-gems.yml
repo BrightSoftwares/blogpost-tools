@@ -31,11 +31,16 @@ jobs:
         run: python3 scripts/jekyll_fleet/fleet_align_gems.py --phase fetch --out work
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+      # One archive, not a tree: upload-artifact dies with "Maximum call stack size exceeded" on the fleet's
+      # file count (run 43045847997). The build job unpacks it into work/.
+      - name: Pack the fetched trees into one archive
+        run: |
+          mkdir -p work
+          tar -czf fleet-trees.tgz -C work .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fleet-trees
-          path: work
-          include-hidden-files: true
+          path: fleet-trees.tgz
           if-no-files-found: ignore
           retention-days: 1
       - name: Fail the job if any repo failed to fetch
@@ -58,7 +63,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: fleet-trees
-          path: work
+          path: archive
+      - name: Unpack the fetched trees
+        run: |
+          mkdir -p work
+          tar -xzf archive/fleet-trees.tgz -C work
       - uses: ruby/setup-ruby@223e443f3ed4b46b29a8be6b9b2e22d5cce534e7 # v1.250.0
         with:
           ruby-version: '3.4'
