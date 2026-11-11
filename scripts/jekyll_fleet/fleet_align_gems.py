@@ -93,7 +93,14 @@ def valid_name(value: str) -> bool:
 
 
 def valid_repo(repo: str) -> bool:
-    return bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo, re.ASCII)) and valid_name(repo.replace("/", "x", 1))
+    return (bool(re.fullmatch(r"[\w.-]+/[\w.-]+", repo, re.ASCII)) and valid_name(repo.replace("/", "x", 1))
+            and not any(part in (".", "..") for part in repo.split("/")))
+
+
+def clean_name(name) -> str:
+    """Name of a repo or artifact for a log line: anything outside [\\w./-] becomes '?', so an untrusted file name
+    such as "::error::x" can never carry a workflow command or control characters into the log."""
+    return re.sub(r"[^\w./-]", "?", str(name))
 
 
 def redact(text: str, token: str = "") -> str:
@@ -173,8 +180,8 @@ LOCK_GRAMMAR = {
     "PLATFORMS": (r"  [A-Za-z0-9_.-]+",),
     "DEPENDENCIES": (rf"  {_NAME}(?: \([^()\n]*\))?!?",),
     "CHECKSUMS": (rf"  {_NAME} \([^()\s]+\)(?: [A-Za-z0-9]+=[0-9a-f]+)?",),
-    "BUNDLED WITH": (r"  {1,3}[0-9][A-Za-z0-9.]*",),  # Bundler 2 writes 3 spaces, Bundler 4 writes 2
-    "RUBY VERSION": (r"  {1,3}ruby [0-9][A-Za-z0-9.]*",),
+    "BUNDLED WITH": (r" {2,3}[0-9][A-Za-z0-9.]*",),  # Bundler 2 writes 3 spaces, Bundler 4 writes 2
+    "RUBY VERSION": (r" {2,3}ruby [0-9][A-Za-z0-9.]*",),
 }
 _GRAMMAR_RE = {h: [re.compile(p, re.ASCII) for p in pats] for h, pats in LOCK_GRAMMAR.items()}
 
@@ -511,7 +518,7 @@ def git(args, cwd, runner, env):
 def fetch_repo(repo, branch, outdir, token, runner=subprocess.run):
     if not valid_repo(repo) or not valid_name(branch or ""):
         return f"{repo}: SKIP (invalid repo or branch name)"
-    base = os.path.join(outdir, repo.replace("/", "__"))
+    base = os.path.join(outdir, repo_slug(repo))
     shutil.rmtree(base, ignore_errors=True)
     os.makedirs(base)
     home = tempfile.mkdtemp(prefix="fetchhome-")
@@ -583,6 +590,8 @@ SUMMARY_ITEM = r"[\w.-]+ [\w.+~-]+->[\w.+~-]+"
 SUMMARY_RE = re.compile(rf"{SUMMARY_ITEM}(?:, {SUMMARY_ITEM})*", re.ASCII)
 AHEAD_PREFIX = "; ahead of matrix (left alone): "
 CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+# exactly what build_repo writes: the prefix and a dict repr {'gem': 'version', ...}; no @, no link, no markup
+AHEAD_RE = re.compile(re.escape(AHEAD_PREFIX) + r"\{(?:'[\w.-]+': '[0-9][\w.]*'(?:, '[\w.-]+': '[0-9][\w.]*')*)?\}", re.ASCII)
 
 
 def fleet_branches(text: str) -> dict:
@@ -590,11 +599,25 @@ def fleet_branches(text: str) -> dict:
     return {repo.lower(): branch for repo, branch in parse_repo_list(text)}
 
 
+def repo_slug(repo: str) -> str:
+    """Collision-free directory/file stem for owner/repo: "_" -> "_u" and "/" -> "__", so every "_" starts a two
+    character token and a/b__c (a__b_u_uc) can never equal a__b/c (a_u_ub__c)."""
+    return repo.replace("_", "_u").replace("/", "__")
+
+
 def patch_filename(repo: str) -> str:
-    return repo.replace("/", "__") + ".json"
+    return repo_slug(repo) + ".json"
 
 
-def binding_problem(name, patch, branches, gh=None):
+def expected_branch(patch, branches, gh=None):
+    """Fleet-list branch, else the repo's default branch (needs a GitHub client); None when it cannot be known."""
+    expected = branches.get(patch["repo"].lower())
+    if expected is None and gh is not None:
+        expected = default_branch(gh, patch["repo"])
+    return expected
+
+
+def binding_problem(name, patch, branches, gh=None, apply=False):
     """A patch is bound to ITS repo: the file name must be that repo's, and the branch must be the fleet-list branch
     (or the repo's default branch), never whatever the untrusted patch says. None when fine or not checkable."""
     if not isinstance(patch, dict) or not isinstance(patch.get("repo"), str) or not isinstance(patch.get("branch"), str):
@@ -602,10 +625,10 @@ def binding_problem(name, patch, branches, gh=None):
     if not valid_repo(patch["repo"]):
         return None
     if name != patch_filename(patch["repo"]):
-        return f"{name}: FAIL patch file name does not match its repo {patch['repo']} (expected {patch_filename(patch['repo'])})"
-    expected = branches.get(patch["repo"].lower())
-    if expected is None and gh is not None:
-        expected = default_branch(gh, patch["repo"])
+        return f"{clean_name(name)}: FAIL patch file name does not match its repo {patch['repo']} (expected {patch_filename(patch['repo'])})"
+    expected = expected_branch(patch, branches, gh)
+    if expected is None and apply:
+        return f"{patch['repo']}: FAIL expected branch unknown, branch check impossible - refusing to push"
     if expected is not None and patch["branch"] != expected:
         return f"{patch['repo']}: FAIL patch branch {patch['branch']!r} is not the fleet branch {expected!r}"
     return None
@@ -660,7 +683,7 @@ def patch_problems(patch: dict, matrix: dict, allowed):
         return ["repo not in fleet_repos.txt"]
     if len(patch["summary"]) > 500 or not SUMMARY_RE.fullmatch(patch["summary"]):
         return ["invalid summary in patch"]
-    if ahead and (len(ahead) > 1000 or not ahead.startswith(AHEAD_PREFIX) or CONTROL_CHARS.search(ahead)):
+    if ahead and (len(ahead) > 1000 or not AHEAD_RE.fullmatch(ahead) or CONTROL_CHARS.search(ahead)):
         return ["invalid ahead note in patch"]
     problems = sources_problems(patch["before_lock"], matrix)
     lp, _ = lock_problems(patch["before_lock"], patch["after_lock"], matrix, allow_transitive=False)
@@ -669,7 +692,7 @@ def patch_problems(patch: dict, matrix: dict, allowed):
 
 
 def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=None, trailer=None, *, allowed):
-    repo = str(patch.get("repo", "?")) if isinstance(patch, dict) else "?"
+    repo = clean_name(patch.get("repo", "?")) if isinstance(patch, dict) else "?"
     problems = patch_problems(patch, matrix, allowed)
     if problems:
         return f"{repo}: FAIL patch rejected ({'; '.join(problems)})"
@@ -681,7 +704,7 @@ def push_patch(patch, matrix, workdir, apply, token, runner=subprocess.run, gh=N
     home = tempfile.mkdtemp(prefix="pushhome-", dir=workdir)
     local, net = git_env(home), git_env(home, token)
     url = f"https://github.com/{repo}.git"
-    dest = os.path.join(workdir, repo.replace("/", "__") + "-push")
+    dest = os.path.join(workdir, repo_slug(repo) + "-push")
     shutil.rmtree(dest, ignore_errors=True)
     rc, _ = git(["clone", "-q", "--depth", "50", "--branch", branch, "--", url, dest], workdir, runner, net)
     if rc:
@@ -795,6 +818,9 @@ def main(argv=None) -> int:
         bad = [e for e in entries if e[1] is not None and not valid_name(e[1])]
         if bad:
             ap.error(f"invalid branch in repo list: {bad}")
+        if not entries:
+            say("ERROR: the fleet list is empty (nothing to fetch) - exiting non-zero")
+            return 1
         gh = GitHub.from_env()
         os.makedirs(args.out, exist_ok=True)
         # always hand over a file, so the artifact exists even when every repo failed (a missing artifact is then a
@@ -822,12 +848,12 @@ def main(argv=None) -> int:
                     meta = json.load(fh)
                 repo, branch = meta["repo"], meta["branch"]
                 if not valid_repo(repo) or not valid_name(branch):
-                    report(f"{name}: ERROR invalid repo or branch in meta.json")
+                    report(f"{clean_name(name)}: ERROR invalid repo or branch in meta.json")
                     continue
                 if args.only and repo not in args.only:
                     continue
             except (OSError, ValueError, KeyError, TypeError):
-                report(f"{name}: ERROR unreadable or invalid meta.json")
+                report(f"{clean_name(name)}: ERROR unreadable or invalid meta.json")
                 continue
             try:
                 kind, res = build_repo(repo, branch, os.path.join(base, "tree"), matrix, passthrough=args.build_env_pass)
@@ -856,15 +882,18 @@ def main(argv=None) -> int:
                 with open(os.path.join(args.patches, name), encoding="utf-8") as fh:
                     patch = json.load(fh)
             except (OSError, ValueError):
-                report(f"{name}: ERROR unreadable patch")
+                report(f"{clean_name(name)}: ERROR unreadable patch")
                 continue
             if args.only and (not isinstance(patch, dict) or patch.get("repo") not in args.only):
                 continue
-            bad = binding_problem(name, patch, branches, gh)
+            bad = binding_problem(name, patch, branches, gh, apply=args.apply)
             if bad:
                 report(bad)
                 continue
-            report(safe_call(name, push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
+            if not args.apply and isinstance(patch, dict) and valid_repo(str(patch.get("repo", ""))) \
+                    and expected_branch(patch, branches) is None:
+                report(f"{patch['repo']}: NOTE branch unchecked (dry run: no default-branch lookup)")
+            report(safe_call(clean_name(name), push_patch, patch, matrix, wd, args.apply, token, gh=gh, allowed=allowed), token)
     return finish(failures)
 
 

@@ -57,7 +57,7 @@ def test_align_workflow_separates_token_and_fleet_code():
     assert "secrets." not in str(jobs["build"]) and "GITHUB_TOKEN" not in str(jobs["build"])
     assert jobs["build"]["permissions"] == {"contents": "read"}
     assert "--phase build" in str(jobs["build"]["steps"]) and "--phase push" not in str(jobs["build"]["steps"])
-    assert "--phase build" not in str(jobs["push"]["steps"]) and "ruby" not in str(jobs["push"]["steps"]).lower().replace("--phase", "")
+    assert "--phase build" not in str(jobs["push"]["steps"]) and "--phase fetch" not in str(jobs["push"]["steps"])
     for name in ("fetch", "build", "push"):
         assert all(s.get("with", {}).get("persist-credentials") is False for s in jobs[name]["steps"]
                    if str(s.get("uses", "")).startswith("actions/checkout"))
@@ -108,8 +108,17 @@ def test_align_token_jobs_pin_actions_by_commit_sha_and_dry_run_holds_no_secret(
     for name in ("fetch", "push"):
         for step in jobs[name]["steps"]:
             if "uses" in step:
-                assert re.fullmatch(r"actions/[\w-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+                assert re.fullmatch(r"(?:actions|ruby)/[\w-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
     run = next(s for s in jobs["push"]["steps"] if "--phase push" in str(s.get("run", "")))
     assert "${{" not in run["run"], "expression injected into the shell script"
     assert run["env"]["APPLY"] == "${{ inputs.apply }}"
     assert run["env"]["GITHUB_TOKEN"] == "${{ inputs.apply && secrets.REPO_ACCESS_TOKEN || '' }}"
+
+
+def test_align_push_job_runs_lock_structure_on_the_pinned_ruby_of_the_build_job():
+    jobs = load("fleet-align-gems.yml")["jobs"]
+    ruby = {n: next(s for s in jobs[n]["steps"] if str(s.get("uses", "")).startswith("ruby/setup-ruby@")) for n in ("build", "push")}
+    assert ruby["push"]["with"]["ruby-version"] == ruby["build"]["with"]["ruby-version"]
+    steps = jobs["push"]["steps"]
+    order = [i for i, s in enumerate(steps) if "ruby/setup-ruby" in str(s.get("uses", "")) or "--phase push" in str(s.get("run", ""))]
+    assert "ruby/setup-ruby" in steps[order[0]].get("uses", ""), "setup-ruby must run before the push phase"
