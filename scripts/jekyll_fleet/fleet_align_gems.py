@@ -518,7 +518,9 @@ def git(args, cwd, runner, env):
 def fetch_repo(repo, branch, outdir, token, runner=subprocess.run):
     if not valid_repo(repo) or not valid_name(branch or ""):
         return f"{repo}: SKIP (invalid repo or branch name)"
-    base = os.path.join(outdir, repo_slug(repo))
+    # git runs with cwd=base, so a relative clone target would be resolved against base and nest the tree at
+    # base/<outdir>/<slug>/tree (run 43091319998: every repo SKIPped, no Gemfile found). Make every path absolute.
+    base = os.path.abspath(os.path.join(outdir, repo_slug(repo)))
     shutil.rmtree(base, ignore_errors=True)
     os.makedirs(base)
     home = tempfile.mkdtemp(prefix="fetchhome-")
@@ -528,6 +530,8 @@ def fetch_repo(repo, branch, outdir, token, runner=subprocess.run):
                     base, runner, git_env(home, token))
         if rc:
             return f"{repo}: ERROR clone failed"
+        if not os.path.isdir(tree):
+            return f"{repo}: ERROR clone produced no tree at the expected path"
         shutil.rmtree(os.path.join(tree, ".git"), ignore_errors=True)  # hand over a plain directory
         with open(os.path.join(base, "meta.json"), "w", encoding="utf-8") as fh:
             json.dump({"repo": repo, "branch": branch}, fh)
