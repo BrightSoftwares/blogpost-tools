@@ -93,6 +93,11 @@ jobs:
         with:
           name: fleet-patches
           path: patches
+      # lock_structure.rb (Bundler's parser) validates every patch here; pin the same Ruby as the build job so it
+      # does not run on the runner's system Ruby.
+      - uses: ruby/setup-ruby@223e443f3ed4b46b29a8be6b9b2e22d5cce534e7 # v1.250.0
+        with:
+          ruby-version: '3.4'
       - name: Validate and push patches (no fleet code runs here)
         run: |
           mkdir -p patches

@@ -808,3 +808,82 @@ def test_error_messages_echoing_lock_lines_are_capped():
 def test_exactly_one_remote_per_source_section():
     two = LOCK.replace("  remote: https://rubygems.org/\n", "  remote: https://rubygems.org/\n  remote: https://rubygems.org/\n", 1)
     assert any("exactly one required" in x for x in al.sources_problems(two, M))
+
+
+# ------------------------------------------------------------------ cold-review minors (PR 64 follow-up)
+def test_apply_with_unknown_expected_branch_fails_and_dry_run_notes_it(tmp_path, capsys, monkeypatch):
+    patch = fleet_patch()
+    name = al.patch_filename(FLEET_REPO)
+    assert al.binding_problem(name, patch, {FLEET_REPO.lower(): None}, None, apply=True).startswith(f"{FLEET_REPO}: FAIL")
+    assert al.binding_problem(name, patch, {FLEET_REPO.lower(): None}, None, apply=False) is None
+    # a real default-branch lookup still works under apply
+    monkeypatch.setattr(al, "default_branch", lambda gh, repo: "main")
+    assert al.binding_problem(name, patch, {FLEET_REPO.lower(): None}, object(), apply=True) is None
+    # dry run via main: the repo is in the list with its default branch, so the branch stays unchecked and is said so
+    repos = tmp_path / "repos.txt"
+    repos.write_text(f"{FLEET_REPO}\n")
+    pdir = tmp_path / "p"
+    pdir.mkdir()
+    (pdir / name).write_text(json.dumps(patch))
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    assert al.main(["--phase", "push", "--repos", str(repos), "--patches", str(pdir)]) == 0
+    assert "branch unchecked" in capsys.readouterr().out
+
+
+def test_names_in_log_lines_cannot_inject_workflow_commands(tmp_path, capsys, monkeypatch):
+    assert al.clean_name("::error::x\nfoo") == "??error??x?foo"
+    assert ":" not in al.clean_name("::error::x") and "\n" not in al.clean_name("a\nb") and al.clean_name("a/b-c_d.e") == "a/b-c_d.e"
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    (tmp_path / "::error::boom.json").write_text("{nope")
+    assert al.main(["--phase", "push", "--patches", str(tmp_path)]) == 1
+    out = capsys.readouterr().out
+    assert "::error::" not in out and "??error??boom.json: ERROR unreadable patch" in out
+    forged = fleet_patch(repo="a/site\n::error::x")
+    assert "::error::" not in al.push_patch(forged, M, str(tmp_path), False, "", allowed=ALLOWED)
+
+
+@pytest.mark.parametrize("ahead", [
+    al.AHEAD_PREFIX + "{'jekyll': '4.4.1', 'rexml': '3.4.5'}",
+    al.AHEAD_PREFIX + "{'jekyll': '4.4.1'} @everyone",
+    al.AHEAD_PREFIX + "[click](https://evil.example)",
+    al.AHEAD_PREFIX + "{'jekyll': '@octocat'}",
+    al.AHEAD_PREFIX + "{'je kyll': '1.0'}",
+])
+def test_ahead_note_must_be_exactly_the_generated_dict_shape(ahead):
+    p = fleet_patch(ahead=ahead)
+    problems = al.patch_problems(p, M, ALLOWED)
+    if ahead.endswith("'rexml': '3.4.5'}"):
+        assert problems == []
+    else:
+        assert problems == ["invalid ahead note in patch"]
+
+
+def test_bundled_with_and_ruby_version_take_exactly_two_or_three_spaces():
+    base = "GEM\n  remote: https://rubygems.org/\n  specs:\n    ffi (1.17.4)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  ffi\n\n"
+    for spaces, ok in ((1, False), (2, True), (3, True), (4, False)):
+        problems = al.grammar_problems(base + "BUNDLED WITH\n" + " " * spaces + "2.5.0\n")
+        assert (problems == []) is ok, (spaces, problems)
+    for spaces, ok in ((1, False), (2, True), (3, True), (4, False)):
+        problems = al.grammar_problems(base + "RUBY VERSION\n" + " " * spaces + "ruby 3.3.6\n\nBUNDLED WITH\n   2.5.0\n")
+        assert (problems == []) is ok, (spaces, problems)
+
+
+def test_fetch_phase_exits_non_zero_on_an_empty_fleet_list(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    repos = tmp_path / "repos.txt"
+    repos.write_text("# nothing listed\n")
+    monkeypatch.setattr(al.GitHub, "from_env", classmethod(lambda cls: object()))
+    assert al.main(["--phase", "fetch", "--repos", str(repos), "--out", str(tmp_path / "w")]) == 1
+    assert "fleet list is empty" in capsys.readouterr().out
+
+
+def test_patch_filename_is_collision_free_and_valid_repo_rejects_dot_segments():
+    assert al.patch_filename("a/b__c") != al.patch_filename("a__b/c")
+    assert al.patch_filename("a/b_c") != al.patch_filename("a_b/c") != al.patch_filename("a/b__c")
+    names = {al.patch_filename(f"{o}/{r}") for o in ("a", "a_", "a__", "a_b") for r in ("b", "_b", "b_", "b__c", "c")}
+    assert len(names) == 20
+    assert al.patch_filename("a/site") == "a__site.json" and "/" not in al.patch_filename("x_y/z_w")
+    for bad in ("./x", "../x", "a/.", "a/..", "./.", "../.."):
+        assert not al.valid_repo(bad), bad
+    assert al.valid_repo("a/.github") and al.valid_repo("a.b/c.d")
